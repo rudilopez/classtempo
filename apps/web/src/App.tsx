@@ -1,6 +1,7 @@
 import { Engine } from '@mixdeck/engine';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import brandLogo from './assets/itda-logo-white.png';
 import { isDancerPlaying, restartDancerKeepAlive } from './dancer/dancerAudio';
 import { DancerMode } from './dancer/DancerMode';
 import { watchAudioContext } from './platform/audioRecovery';
@@ -14,6 +15,12 @@ const UNLOCK_EVENTS = ['pointerdown', 'pointerup', 'touchend', 'keydown'] as con
 
 function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+function Wordmark({ className }: { className: string }) {
+  return <span className={`${className} brand-wordmark`} role="img" aria-label="ClassTempo">
+    <span className="brand-class" aria-hidden="true">Class</span><span className="brand-tempo" aria-hidden="true">Temp</span><img className="brand-mark" src={brandLogo} alt="" aria-hidden="true" />
+  </span>;
 }
 
 export function App() {
@@ -94,7 +101,7 @@ export function App() {
   if (!engine) {
     return (
       <div className="splash">
-        <span className="splash-logo">Class<span>Tempo</span></span>
+        <Wordmark className="splash-logo" />
         {error ? (
           <div className="splash-error" role="alert">
             <p className="error">Audio could not start: {error}</p>
@@ -115,7 +122,7 @@ export function App() {
     <div className="app">
       <header>
         <div className="head-left">
-          <span className="logo">Class<span>Tempo</span></span>
+          <Wordmark className="logo" />
         </div>
         <div className="header-actions" ref={setDancerActions} />
       </header>

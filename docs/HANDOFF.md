@@ -3,8 +3,19 @@
 ## Current direction — ClassTempo (2026-10-22)
 
 The owner approved the classroom-focused redesign and publication. The working name is **ClassTempo**.
-The single player replaces the DJ/Dancer switch with Song/Video load choices; no DJ processors are created.
-The header also includes Library and Keep awake. Demo has been removed.
+The single player has one Open action for either songs or videos; no mode choice or DJ processors remain in the
+product flow. The larger ClassTempo header uses the palm-tree logo for its final o, alongside Open, Library and
+Keep awake. Demo has been removed.
+
+Library now has two jobs: Media lists every saved song/video with a type badge; Classes holds named, ordered
+teaching plans. Classes opens to cards, then an explicit detail view with All classes navigation. Search filters
+saved media only, with counts, clearing and no-match feedback; an empty library leads with Add media. Adding
+files saves the selection and automatically opens the first paused. Failed storage still permits direct opening
+with unsaved feedback. Save current preserves the loaded track and practice state.
+
+Native video decode failures now latch playback off until a new load, cancel pending practice, and replace
+Mirror/Fit with a readable error. The transport no longer shows Pause after a fatal failure. The original user
+M4V is still unavailable here, so its exact decoding failure remains a physical-device/media acceptance item.
 
 The classroom release adds local IndexedDB media storage and recents, ordered class sets with independent
 exercise settings, named A/B sections, finite/continuous repetition, pauses between attempts, an adjustable
@@ -22,7 +33,15 @@ audio through screen lock, video delay after its first audible play, speaker int
 media. A first video play starts immediately to establish audible playback permission; later starts use its
 saved delay. Do not infer these physical-device results from desktop WebKit/Chromium checks.
 
-Release checks: typecheck, all 171 tests and production build pass. Chromium covers the seven required sizes,
+Usability update checks: typecheck, all 180 tests and the production build pass. Chromium and persistent
+WebKit verify import failures still open paused without retrying the failed save, saving the current file
+preserves playback/tempo, picker cancellation preserves the track, and recency failures do not block opening.
+Production Chromium verifies mixed-file batch import, Media search and type badges, Classes overview/detail,
+independent exercise tempo and offline saved-class playback. Media, Classes and class detail pass 42 responsive
+cases across both browsers and the seven required sizes, with 44 px controls and internal dialog scrolling.
+These are desktop checks, not iPhone acceptance.
+
+Original classroom release checks: typecheck, all 171 tests and production build passed. Chromium covers the seven required sizes,
 cue undo, delay cancellation, exact section endpoints, class persistence, independent exercise tempos, backup
 restore/relink and offline saved-audio playback. Desktop WebKit passes the integrated classroom flow and both
 31-second 4K fixtures; the audio/video fixture completes all 744 frames at 75% tempo. Video never enters the

@@ -38,8 +38,10 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   1366×1024. No horizontal overflow. The main portrait player fits without page scrolling; library/practice
   dialogs scroll internally. Touch targets remain at least 44 px and cue pads at least 72 px, including compact
   Stage layouts. Respect safe areas.
-- One player only: Song/Video pills choose import/library content, never start playback or silently replace a
-  track. Loading and selecting a class entry remain paused; class advancement is manual.
+- One player only: Open accepts audio/video and detects the actual file type. Library Add saves the selection
+  and opens its first file paused. Picker cancellation preserves the track; class advancement is manual.
+- Library has Media (all saved songs and videos) and Classes (ordered teaching plans). Search filters saved media, never music services. Failed saves may still
+  open directly, with explicit unsaved feedback; Save current must preserve playback and practice settings.
 - Production uses `Engine.create({ dj: false })`. Do not initialize hidden DJ decks/processors as a side effect.
 - Cross-platform: feature-detect APIs and degrade honestly. Use generic wording such as lock-screen/headphone
   controls. Never claim physical iPhone playback, timer or lock-screen acceptance from desktop WebKit alone.

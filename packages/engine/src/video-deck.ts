@@ -95,6 +95,8 @@ export class VideoDeck implements DancerPlayer {
   private _track: LoadedTrack | null = null;
   private _playing = false;
   private _tempo = 1;
+  /** A failed decoder stays failed until the source is explicitly loaded again. */
+  private playbackError: string | null = null;
   private url: string | null = null;
   private loadSeq = 0;
   /** Invalidates rejected play promises when a pause, unload or newer play overtakes them. */
@@ -139,6 +141,14 @@ export class VideoDeck implements DancerPlayer {
     return this._track;
   }
 
+  /** Fatal native playback failure, retained until a fresh load or unload. */
+  get error(): string | null {
+    const nativeError = this.element.error;
+    return this.playbackError ?? (nativeError
+      ? mediaErrorMessage(nativeError.code, this._track?.name ?? this.element.getAttribute('aria-label') ?? 'video')
+      : null);
+  }
+
   /**
    * Opens `file` (paused, at 0, tempo kept). Resolves once its metadata is in with a usable duration, rejects
    * with a readable message when the browser cannot play it; a load superseded by a newer `load` / `unload`
@@ -150,6 +160,7 @@ export class VideoDeck implements DancerPlayer {
     const seq = ++this.loadSeq;
     const v = this.element;
     this.playSeq++;
+    this.playbackError = null;
     this._track = null;
     if (!v.paused) v.pause();
     this.setPlaying(false);
@@ -221,6 +232,7 @@ export class VideoDeck implements DancerPlayer {
     this.cancelLoad?.();
     this.loadSeq++;
     this.playSeq++;
+    this.playbackError = null;
     this._track = null;
     const v = this.element;
     if (!v.paused) v.pause();
@@ -258,6 +270,7 @@ export class VideoDeck implements DancerPlayer {
    * e.g. outside a gesture or with the screen locked) is swallowed and turns it back off via `onPlayingChange`.
    */
   play(): void {
+    if (this.error) { this.handleError(); return; }
     if (!this._track || this._playing) return;
     const v = this.element;
     const seq = ++this.playSeq;
@@ -271,7 +284,8 @@ export class VideoDeck implements DancerPlayer {
       this.setPlaying(false);
       return;
     }
-    this.setPlaying(true);
+    if (this.error) this.handleError();
+    else this.setPlaying(true);
     this.report(true);
     started?.catch(() => {
       if (seq !== this.playSeq) return;
@@ -296,7 +310,7 @@ export class VideoDeck implements DancerPlayer {
   /** Works playing or paused; the play state is unchanged. */
   seek(seconds: number): void {
     const track = this._track;
-    if (!track) return;
+    if (!track || this.error) return;
     this.element.currentTime = clampTime(seconds, track.duration);
     this.report(true);
   }
@@ -326,6 +340,7 @@ export class VideoDeck implements DancerPlayer {
   // ---- internals ---------------------------------------------------------------------------
 
   private setPlaying(playing: boolean): void {
+    if (playing && this.error) playing = false;
     if (playing) {
       if (!this._playing) {
         this.framesStarved = false;
@@ -340,6 +355,7 @@ export class VideoDeck implements DancerPlayer {
 
   /** The element's play/pause events: whatever it says now wins (a queued 'play' may arrive after a pause()). */
   private syncPlaying(): void {
+    if (this.error) { this.handleError(); return; }
     const playing = this._track !== null && !this.element.paused;
     this.setPlaying(playing);
     if (!playing) this.report(true);
@@ -348,7 +364,7 @@ export class VideoDeck implements DancerPlayer {
   private handleEnded(): void {
     // Native events are queued. A final pause/position report can already have launched the next
     // section pass before this old ended event arrives; it must not stop that new playback.
-    if (!this._track || !this.element.ended || !this.element.paused) return;
+    if (!this._track || this.error || !this.element.ended || !this.element.paused) return;
     this.setPlaying(false);
     this.report(true);
     this.onEnded?.();
@@ -356,7 +372,12 @@ export class VideoDeck implements DancerPlayer {
 
   /** A decode error mid-song stops playback (load errors are handled by `load`). */
   private handleError(): void {
-    if (this._track) this.setPlaying(false);
+    const error = this.error;
+    if (!error) return; // An old queued error may arrive after a new load cleared the native failure.
+    this.playbackError = error;
+    this.playSeq++;
+    try { if (!this.element.paused) this.element.pause(); } catch { /* Native decoder already stopped. */ }
+    this.setPlaying(false);
   }
 
   private handleTimeUpdate(): void {

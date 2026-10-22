@@ -1,5 +1,6 @@
 import { mediaErrorMessage } from '@mixdeck/engine';
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import './videoStatus.css';
 
 interface Props {
   /**
@@ -23,6 +24,7 @@ interface VideoState {
   frame: boolean;
   buffering: boolean;
   error: string | null;
+  errorCode: number | null;
 }
 
 function readState(element: HTMLVideoElement | null, buffering = false): VideoState {
@@ -31,6 +33,7 @@ function readState(element: HTMLVideoElement | null, buffering = false): VideoSt
     frame: !!element && element.readyState >= 2 && element.videoWidth > 0,
     buffering,
     error: element?.error ? mediaErrorMessage(element.error.code, element.getAttribute('aria-label') || 'video') : null,
+    errorCode: element?.error?.code ?? null,
   };
 }
 
@@ -61,13 +64,20 @@ export function VideoView({ element, playing, onTap, className, style, mirrored 
     ?? (!state.metadata ? 'Opening video…'
       : !state.frame ? (playing ? 'Loading video…' : 'Tap Play to show video')
         : state.buffering ? 'Loading video…' : null);
+  const errorTitle = state.errorCode === 3 ? 'Video couldn’t be decoded'
+    : state.errorCode === 4 ? 'Video format isn’t supported'
+      : state.errorCode === 2 ? 'Video file couldn’t be read'
+        : 'Video couldn’t play';
+  const errorHint = state.errorCode === 3 ? 'Try 1080p MP4 · H.264 video + AAC audio.'
+    : state.errorCode === 4 ? 'Try MP4 · H.264 video + AAC audio.'
+      : 'Import the file again.';
 
   return (
     <div
-      className={className ? `video-view ${className}` : 'video-view'}
+      className={`video-view${className ? ` ${className}` : ''}${state.error ? ' video-failed' : ''}`}
       style={style}
-      onClick={onTap}
-      title={onTap ? (playing ? 'Tap to pause' : 'Tap to play') : undefined}
+      onClick={state.error ? undefined : onTap}
+      title={state.error ?? (onTap ? (playing ? 'Tap to pause' : 'Tap to play') : undefined)}
     >
       {/* the slot has no React children, so React never touches the element moved into it */}
       <div
@@ -77,7 +87,7 @@ export function VideoView({ element, playing, onTap, className, style, mirrored 
       />
       {element && status && (
         <span className="video-status" role={state.error ? 'alert' : 'status'}>
-          {status}
+          {state.error ? <><strong>{errorTitle}</strong><span>{errorHint}</span></> : status}
         </span>
       )}
       {!playing && element && !status && (

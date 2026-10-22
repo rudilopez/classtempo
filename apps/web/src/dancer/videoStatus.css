@@ -1,0 +1,46 @@
+/* A failure replaces the picture; the same filename already appears in the media card's title. */
+.video-view.video-failed {
+  cursor: default;
+  background: #142332;
+}
+.video-view.video-failed .video-slot {
+  visibility: hidden;
+}
+.video-view.video-failed .video-status {
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: inherit;
+  background: #142332;
+  color: #ecf4fa;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: center;
+  text-wrap: balance;
+  overflow: auto;
+  pointer-events: auto;
+}
+.video-view.video-failed .video-status strong {
+  color: #ffe1a3;
+  font-size: 13px;
+}
+/* These tools cannot help a failed decoder and must never cover its recovery message. */
+.dancer-media:has(> .video-failed) > .video-tools {
+  display: none;
+}
+/* Stage's exit and transport sit above the full-screen picture in landscape. */
+.stage .video-view.video-failed .video-status {
+  z-index: 0;
+  pointer-events: none;
+}
+@media (orientation: landscape) {
+  .stage .video-view.video-failed .video-status {
+    align-content: start;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 64px);
+  }
+}

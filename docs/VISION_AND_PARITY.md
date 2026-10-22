@@ -15,7 +15,7 @@ the current release. The source repository and live `/mixdeck/` URL retain their
 
 | Instructor need | Current implementation |
 |---|---|
-| Open the next piece of music | Song/Video opens the matching system file picker |
+| Open the next piece of music | Open accepts either type; Library Add saves and opens the selection |
 | Prepare before class | Saved local library, recents and named ordered class sets |
 | Teach one exercise deliberately | Manual entry selection; no automatic next-song playback |
 | Reuse one song at different difficulty levels | Repeated class entries with independent practice snapshots |
@@ -29,9 +29,10 @@ the current release. The source repository and live `/mixdeck/` URL retain their
 | Keep the phone usable nearby | Keep awake where granted; compact controls and safe-area layouts |
 | Recover prepared work | Settings export/restore; media originals kept separately |
 
-Song and Video are content choices within one player, not separate loaded decks. Selecting a pill must never
-replace the current media or start another track. Stage is another view of the same media element and transport.
-The supplied logo is used in Now Playing; Demo and the DJ interface are removed from the product surface.
+Media contains all saved songs and videos, with explicit type labels and a local search. Classes contains ordered
+lesson lists built from that media. File selection opens media paused, and cancellation preserves the current
+track. Stage uses the same media element and transport.
+The supplied palm logo appears in Now Playing and the larger ClassTempo wordmark. Demo and DJ controls are removed.
 
 ## The important unresolved gap: music sources
 

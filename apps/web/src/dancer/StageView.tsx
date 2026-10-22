@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { formatTime } from '../types';
 import { padColor } from './CuePads';
@@ -87,10 +87,19 @@ export function StageView({
   onRestartSection, pendingLabel, talking = false, onToggleTalk,
 }: Props) {
   const root = useRef<HTMLDivElement>(null);
+  const [videoFailed, setVideoFailed] = useState(!!video?.error);
   const close = useRef(onClose);
   useEffect(() => {
     close.current = onClose;
   });
+  useLayoutEffect(() => {
+    const update = () => setVideoFailed(!!video?.error);
+    update();
+    for (const event of ['error', 'loadstart', 'emptied']) video?.addEventListener(event, update);
+    return () => {
+      for (const event of ['error', 'loadstart', 'emptied']) video?.removeEventListener(event, update);
+    };
+  }, [video]);
 
   // a layout effect so the request runs in the commit of the tap that opened Stage (it needs that user activation)
   useLayoutEffect(() => {
@@ -184,19 +193,20 @@ export function StageView({
       <div className="stage-bar">
         <div className="stage-controls">
           <div className={`stage-transport ${onToggleTalk ? 'stage-with-talk' : ''}`}>
-            <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} title="Space">
-              {pendingLabel ? '✕ Cancel' : playing ? '❚❚ Pause' : '▶ Play'}
+            <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} disabled={videoFailed} title="Space">
+              {videoFailed ? 'Unavailable' : pendingLabel ? '✕ Cancel' : playing ? '❚❚ Pause' : '▶ Play'}
             </button>
             <button
               className="stage-restart"
               onClick={onRestartSection ?? onRestart}
               title="Home"
               aria-label={onRestartSection ? 'Restart section' : 'Restart song'}
+              disabled={videoFailed}
             >
               ⟲ {onRestartSection ? 'Section' : 'Restart'}
             </button>
             {onToggleTalk && (
-              <button className={`stage-talk ${talking ? 'on' : ''}`} onClick={onToggleTalk} aria-pressed={talking} title="Lower music while you speak">
+              <button className={`stage-talk ${talking ? 'on' : ''}`} onClick={onToggleTalk} disabled={videoFailed} aria-pressed={talking} title="Lower music while you speak">
                 Talk
               </button>
             )}
@@ -205,12 +215,12 @@ export function StageView({
             <div className="stage-options">
               {onTempoChange && (
                 <div className="stage-tempo" role="group" aria-label="Tempo">
-                  <button onClick={() => onTempoChange(clampTempo(tempo - 1))} disabled={tempo <= TEMPO_MIN} aria-label="Decrease tempo by 1 percent">−</button>
-                  <button className="stage-tempo-value" onClick={() => onTempoChange(100)} aria-label={`Tempo ${tempo} percent. Reset to 100 percent`} title="Reset to original tempo">{tempo}%</button>
-                  <button onClick={() => onTempoChange(clampTempo(tempo + 1))} disabled={tempo >= TEMPO_MAX} aria-label="Increase tempo by 1 percent">+</button>
+                  <button onClick={() => onTempoChange(clampTempo(tempo - 1))} disabled={videoFailed || tempo <= TEMPO_MIN} aria-label="Decrease tempo by 1 percent">−</button>
+                  <button className="stage-tempo-value" onClick={() => onTempoChange(100)} disabled={videoFailed} aria-label={`Tempo ${tempo} percent. Reset to 100 percent`} title="Reset to original tempo">{tempo}%</button>
+                  <button onClick={() => onTempoChange(clampTempo(tempo + 1))} disabled={videoFailed || tempo >= TEMPO_MAX} aria-label="Increase tempo by 1 percent">+</button>
                 </div>
               )}
-              {video && onMirroredChange && onZoomChange && (
+              {video && !videoFailed && onMirroredChange && onZoomChange && (
                 <VideoTools mirrored={mirrored} zoom={zoom} onMirroredChange={onMirroredChange} onZoomChange={onZoomChange} />
               )}
             </div>
@@ -224,6 +234,7 @@ export function StageView({
                 className="stage-pad"
                 style={{ ['--pad' as string]: padColor(index) }}
                 onClick={() => onLaunch(index)}
+                disabled={videoFailed}
                 title={`Launch ${cue.name} (key ${index + 1})`}
               >
                 <span className="stage-pad-key">{index + 1}</span>

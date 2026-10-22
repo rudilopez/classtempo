@@ -9,13 +9,14 @@ identifiers and the `/mixdeck/` deployment URL remain stable.
 Implemented in the release candidate; production status must be established from the deployment workflow and
 live site, separately from this checklist:
 
-- One audio/video player with Song/Video import selection. No DJ mode, mixer surface or synthetic Demo.
+- One audio/video player with a single Open action and automatic media-type detection. No DJ mode, mixer surface or synthetic Demo.
 - Classroom engine creation without DJ decks or their worklet processors.
 - Compact phone header, media-panel title, inline speed percentage, supplied Now Playing logo and distinct controls.
 - Key-preserving audio speed at 50–150%; native-video speed/pitch preservation where supported.
 - Native video loading without a duplicate audio decode, explicit readiness/errors and same-element Stage transitions.
 - Keep awake, Stage playback controls, video mirror/zoom and Talk (audio attenuates; native video pauses).
-- IndexedDB media library with recents, multiple imports, local-copy removal and honest save failures.
+- Media lists all saved songs/videos with type badges, recents, saved-media search, import-and-open, local-copy removal and honest save failures.
+- Classes opens to named cards, then an ordered exercise detail view; backup utilities stay collapsed.
 - Named ordered class sets, repeated titles, manual advancement and independent practice settings per exercise.
 - Named A–B practice sections, play once/stop, finite or unlimited repeats, gaps and seconds-based start delay.
 - Cue edit lock and Undo; stable saved-cue keys preserve existing users' work.
