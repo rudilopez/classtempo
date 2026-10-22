@@ -7,14 +7,14 @@ iPad; desktop browsers work but are not what the product is designed around. It 
 site: songs never leave the device, cues leave it only with opt-in sync (Phase 7), and there is no account and
 no server in the audio path.
 
-The start screen offers two modes:
+The app opens in Dancer mode; header pills switch between two persistent modes:
 
 - **DJ mode** — two decks and a mixer (EQ, crossfader, sync, loops, cues): the djay-parity track described below.
 - **Dancer mode** — a first-class product surface, not a cut-down DJ mode. One song, 8 launchable cue pads
   (tap an empty pad to set a cue at the playhead, tap a set pad to jump there and play, *Edit cues* to move a
   pad to the playhead, clear it (✕) or rename it (✎)), tempo 50–150 % with key lock (Signalsmith Stretch),
   cues saved per track on the device, minimal UI with no EQ or mixer, lock-screen and headphone controls
-  (previous/next = previous/next cue) and an optional *Keep screen on*. It is built for rehearsal: marking
+  (previous/next = previous/next cue) and an optional *Screen on*. It is built for rehearsal: marking
   choreography sections, jumping straight back to "the bridge" or "the second chorus", and slowing a song down
   to learn it without changing its key.
 
@@ -59,7 +59,7 @@ djay is the benchmark mobile DJ app. Its pillars:
 
 ## What MixDeck must match (parity targets)
 
-Everything in the table above except the two pillars listed under *Deliberately out of scope* below, with these mapped to web technology:
+Everything in the table above except the excluded functionality listed under *Deliberately out of scope* below, with these mapped to web technology:
 
 | djay feature | MixDeck implementation | Phase |
 |---|---|---|
@@ -127,9 +127,18 @@ Everything in the table above except the two pillars listed under *Deliberately 
   beat-matching by ear; wired output is fine for mixing and marginal for scratching; jog-wheel scratch gets its
   own tuning pass.
 
+## Dancer stems — in scope, gated on phone performance
+
+A local-only HTDemucs feasibility benchmark comes first. If the owner's iPhone can separate a four-minute song
+in roughly two minutes without crashing, build Vocal, Instru (other), Bass, Drums, Kick and HiHat pads plus
+Acapella / Instrumental / All shortcuts. Kick and HiHat are drum-frequency bands, not isolated model outputs.
+Audio files first; no Stems FX. Downloads are on demand, with offline caching after installation. Full playback
+integration waits for the owner's benchmark decision and clear production weight permission; the initial
+HTDemucs candidate is research-only. A server fallback is not authorized. See HANDOFF section 2
+and BUILD_PLAN for the acceptance gate.
+
 ## Deliberately out of scope
 
-- **Stem separation.** Product decision: MixDeck does not ship stem separation, and it also happens to be one of the weakest bets on the web platform (80–170 MB models with unproven mobile performance).
 - **Streaming-service integration.** Product decision: MixDeck does not integrate music streaming services, and it also happens to be one of the weakest bets on the web platform (DRM streams never expose PCM, so nothing can be analysed, EQ'd or mixed); the user's own files on cloud drives (Google Drive, Dropbox, OneDrive) stay in scope.
 
 ## Non-goals (v1)

@@ -4,8 +4,8 @@ Working title. A **phone- and tablet-first web app, installed to the Home Screen
 Android phones/tablets are the primary targets; desktop browsers are supported but not optimised. It is a
 static, fully client-side site — songs and cues never leave the device (any future cloud sync is opt-in).
 
-Goal: match djay (iOS / djay Pro 5) feature-for-feature where the web platform allows it — minus stem
-separation and streaming-service integration, which are deliberately out of scope — and beat it where the web
+Goal: match djay (iOS / djay Pro 5) feature-for-feature where the web platform allows it. Streaming-service
+integration stays out of scope; Dancer stems are gated on phone performance and weight permission. The web
 gives us an edge: one link instead of an App Store install, a rehearsal-oriented Dancer mode djay does not have,
 shareable sets and mappings, real-time collaboration, and an open plugin surface.
 
@@ -13,8 +13,9 @@ shareable sets and mappings, real-time collaboration, and an open plugin surface
 or Chrome on Android (Install app). Every push to `main` redeploys via GitHub Actions.
 
 **Status:** Phase 0 vertical slice done; Phase 0.5 (phone & iPad foundation: installable PWA, lock-screen and
-headphone controls, touch layouts) is built and hosted on GitHub Pages, with real-device testing still to do. The
-start screen offers two modes:
+headphone controls, touch layouts) is built and hosted on GitHub Pages, with real-device testing still to do.
+The app opens directly in **Dancer**. The **Dancer / DJ** pills switch modes, pause the mode being left, and
+keep its songs and settings loaded:
 
 - **DJ mode** — two decks, 3-band EQ, crossfader, master, pitch ±8 % (changes key until DJ key lock lands in
   Phase 1), 4-beat loop, cue, tempo sync, BPM + beatgrid analysis, overview waveform — all on Web Audio +
@@ -24,9 +25,26 @@ start screen offers two modes:
   50–150 % with key lock (Signalsmith Stretch), cues saved per track on the device, minimal UI with no EQ.
   Lock-screen and headphone controls (iPhone/iPad lock screen and Control Center, Android media notification,
   Bluetooth headphone buttons, car stereos): play/pause, seek, and previous/next = previous/next cue; playback is
-  meant to continue with the screen locked if it was started first. Optional *Keep screen on* (where the browser
+  meant to continue with the screen locked if it was started first. Optional labelled *Screen on* (where the browser
   supports Screen Wake Lock) keeps the screen from dimming and locking mid-routine. Built for rehearsal:
   choreography sections on pads, and slowing a song down to learn it without changing its key.
+
+Dancer also loads browser-supported videos (including MP4) through a native video element, preserving pitch
+at 50–150% tempo without decoding the whole video into memory. **Stage** expands video, or the current cue name
+and time for audio, with Play/Pause, Restart and launch-only cue pads. The same video element returns to the
+waveform area when Stage closes. Cue storage remains per file name and duration; **Cues restored** confirms a
+saved set was found. **Screen on** prevents dimming while enabled and supported.
+
+**iPhone verification still required:** the lock-screen scrubber fix needs confirmation on a real iPhone.
+Start playback before locking, then test dragging the progress bar while playing, Pause → Play, the current/next
+cue line, and headphone next/previous. Paused scrubbing remains a known WebKit limitation. Also check video,
+Stage open/close, and switching the mode pills in the installed Home Screen app. Quit and reopen after an online
+launch to pick up an update; a running session is never forcibly reloaded.
+
+The experimental [stems benchmark](https://rudilopez.github.io/mixdeck/#stems-benchmark) is separate from normal
+playback. It downloads a 166 MB model only when requested, processes songs locally, and saves a benchmark report.
+Run 30 seconds first, then four minutes on the iPhone. Full stems pads depend on that result and production
+weight permission; upstream limits these weights to research. No server upload or Stems FX is enabled. See [the test guide](docs/STEMS_BENCHMARK.md).
 
 ## Quick start
 
@@ -35,9 +53,8 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173, tap **DJ mode** or **Dancer mode** (that tap starts the audio engine), then drop or
-load audio files (MP3, M4A/AAC, WAV, AIFF; FLAC and OGG where the browser decodes them, which not every
-iPhone/iPad version does).
+Open http://localhost:5173 in Dancer mode; use the pills for DJ mode. Drop or load audio files (MP3, M4A/AAC,
+WAV, AIFF; FLAC and OGG where the browser decodes them, which not every iPhone/iPad version does).
 
 Other scripts: `npm run typecheck`, `npm test`, `npm run build` (a static site in `apps/web/dist`, no server
 code; deployable to any static HTTPS host), `npm run preview` (serves that build on http://localhost:5173 with the
@@ -55,7 +72,7 @@ on an iPhone/iPad or Android device with a deployed build rather than the LAN de
 ## Repo layout
 
 ```
-apps/web            Vite + React UI (the app): start screen, DJ mode, Dancer mode
+apps/web            Vite + React UI: mode pills, DJ mode, Dancer audio/video and Stage view
 packages/engine     Audio engine: AudioWorklet deck processor, decks, mixer graph, key-locked StretchDeck
 packages/analysis   Pure DSP: BPM/beatgrid detection, waveform overview (runs in a Worker)
 packages/midi       Web MIDI wrapper + controller mapping schema (stub; Android/desktop only)
@@ -85,7 +102,7 @@ What iOS / iPadOS Safari lacks (and so every browser on iPhone and iPad, since t
   Android Chrome and desktop Chromium; controller support is planned for Phase 3).
 - **No `setSinkId`** — no separate headphone-cue device; headphone cueing will use split output (master left,
   cue right), Phase 3.
-- **Audio must be started by a tap** — nothing plays until you tap a mode button. After a call or Siri
+- **Audio must be started by a tap** — nothing plays until you tap Play or launch a cue. After a call or Siri
   interrupts it, audio resumes on its own where the browser allows; otherwise tap **Tap to resume audio**. Start
   playback before locking the screen.
 

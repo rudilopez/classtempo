@@ -1,0 +1,44 @@
+HTDemucs model provenance
+
+Original model: Meta Platforms, Inc. and affiliates, facebookresearch/demucs.
+ONNX export: StemSplit (StemSplitio/htdemucs-onnx).
+Artifact: htdemucs_fp16weights.onnx, repository revision
+d54ed9eb60e258ea82131c6ee14578628816456a.
+The exporter's model card labels its repository MIT. This is not proof of
+production permission for the pretrained weights: the upstream author says
+weights are provided for research purpose in issue 508. This page is a
+research feasibility test; production weight clearance is unresolved.
+Model weights are fetched directly from the pinned Hugging Face revision
+only when the user runs the benchmark, and are not bundled in the app.
+
+Model card:
+https://huggingface.co/StemSplitio/htdemucs-onnx/blob/d54ed9eb60e258ea82131c6ee14578628816456a/README.md
+Upstream license:
+https://github.com/facebookresearch/demucs/blob/main/LICENSE
+Upstream weight terms:
+https://github.com/facebookresearch/demucs/issues/508
+
+The following MIT notice applies to the upstream code. It is not presented
+as a grant of production rights for the pretrained model weights.
+
+MIT License
+
+Copyright (c) Meta Platforms, Inc. and affiliates.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

@@ -10,13 +10,16 @@ const RAMP = 0.01;
  *   deck[0].output → xf[0] ┐
  *                          ├→ master → destination
  *   deck[1].output → xf[1] ┘
- *   stretch deck ──────────┘  (Dancer mode, see getStretchDeck)
- * Create it from a user gesture (autoplay policy).
+ *   stretch deck → dancer gain (0.9) → destination
+ * DJ master and crossfader settings never affect Dancer mode (see getStretchDeck).
+ * It can be created without a user gesture: the context then starts 'suspended' (autoplay policy) and the first
+ * tap, click or key press calls `unlock()` (or `resume()`) to start it.
  */
 export class Engine {
   readonly ctx: AudioContext;
   readonly decks: readonly [Deck, Deck];
   readonly master: GainNode;
+  private readonly dancerGain: GainNode;
   private readonly xf: readonly [GainNode, GainNode];
   private _crossfader = 0;
   private stretchDeck: Promise<StretchDeck> | null = null;
@@ -25,6 +28,8 @@ export class Engine {
     this.ctx = ctx;
     this.master = new GainNode(ctx, { gain: 0.9 });
     this.master.connect(ctx.destination);
+    this.dancerGain = new GainNode(ctx, { gain: 0.9 });
+    this.dancerGain.connect(ctx.destination);
     this.xf = [new GainNode(ctx), new GainNode(ctx)];
     this.decks = [new Deck(ctx), new Deck(ctx)];
     this.decks[0].output.connect(this.xf[0]).connect(this.master);
@@ -32,6 +37,11 @@ export class Engine {
     this.setCrossfader(0);
   }
 
+  /**
+   * Creates the context and loads the deck worklet. Needs no user gesture and never waits for one: outside a gesture
+   * the context stays 'suspended' until `unlock()` / `resume()` is called from one (awaiting `resume()` here would
+   * hang on iOS / iPadOS until the first tap).
+   */
   static async create(): Promise<Engine> {
     // Before the context exists, so its very first output is already treated as media playback.
     setPlaybackAudioSession();
@@ -39,10 +49,12 @@ export class Engine {
     const url = URL.createObjectURL(new Blob([DECK_PROCESSOR_SOURCE], { type: 'application/javascript' }));
     try {
       await ctx.audioWorklet.addModule(url);
+    } catch (e) {
+      void ctx.close().catch(() => {});
+      throw e;
     } finally {
       URL.revokeObjectURL(url);
     }
-    if (ctx.state !== 'running') await ctx.resume();
     return new Engine(ctx);
   }
 
@@ -64,14 +76,14 @@ export class Engine {
   }
 
   /**
-   * The key-locked single-track deck (Dancer mode), connected straight to the master bus. Created on
+   * The key-locked single-track deck (Dancer mode), connected through its own fixed gain to the output. Created on
    * first use and shared from then on: once its processor exists it renders for the life of the
    * context whether or not it is connected, so there is one per engine, not one per use — callers
    * `release()` it when done instead of discarding it. A failed creation is retried on the next call.
    */
   getStretchDeck(): Promise<StretchDeck> {
     if (!this.stretchDeck) {
-      this.stretchDeck = StretchDeck.create(this.ctx, this.master).catch((e: unknown) => {
+      this.stretchDeck = StretchDeck.create(this.ctx, this.dancerGain).catch((e: unknown) => {
         this.stretchDeck = null;
         throw e;
       });
@@ -91,6 +103,21 @@ export class Engine {
 
   resume(): Promise<void> {
     return this.ctx.resume();
+  }
+
+  /**
+   * Starts a context that is not running ('suspended' before the first gesture, or 'interrupted'). Call it
+   * synchronously inside a user gesture (tap, click, key press) or a Media Session action handler: browsers only let
+   * a context start from one. Fire-and-forget; a refused or failed resume is ignored (a later gesture tries again).
+   */
+  unlock(): void {
+    const state = this.ctx.state;
+    if (state === 'running' || state === 'closed') return;
+    try {
+      void this.ctx.resume().catch(() => {});
+    } catch {
+      // closed, or resume() threw synchronously: nothing to start
+    }
   }
 
   async close(): Promise<void> {

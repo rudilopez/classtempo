@@ -14,11 +14,12 @@ interface Props {
   state: DeckUiState;
   setState: Dispatch<SetStateAction<DeckUiState>>;
   other: DeckUiState;
+  active: boolean;
 }
 
 const PITCH_RANGE = 8;
 
-export function DeckView({ label, accent, engine, deck, state, setState, other }: Props) {
+export function DeckView({ label, accent, engine, deck, state, setState, other, active }: Props) {
   const positionRef = useRef(0);
   const [displayPos, setDisplayPos] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -30,13 +31,18 @@ export function DeckView({ label, accent, engine, deck, state, setState, other }
       positionRef.current = s;
     };
     deck.onEnded = () => setState((s) => ({ ...s, playing: false }));
-    const t = setInterval(() => setDisplayPos(positionRef.current), 100);
     return () => {
       deck.onPosition = null;
       deck.onEnded = null;
-      clearInterval(t);
     };
   }, [deck, setState]);
+
+  useEffect(() => {
+    if (!active) return;
+    setDisplayPos(positionRef.current);
+    const t = setInterval(() => setDisplayPos(positionRef.current), 100);
+    return () => clearInterval(t);
+  }, [active]);
 
   const loadBuffer = useCallback(
     async (buffer: AudioBuffer, name: string) => {
@@ -183,6 +189,7 @@ export function DeckView({ label, accent, engine, deck, state, setState, other }
       </div>
 
       <Waveform
+        active={active}
         peaks={t?.peaks ?? null}
         duration={t?.duration ?? 0}
         bpm={t?.bpm ?? null}

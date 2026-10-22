@@ -1,36 +1,62 @@
 import { downmix } from '@mixdeck/analysis';
-import type { Engine, StretchDeck } from '@mixdeck/engine';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { VideoDeck, type DancerPlayer, type Engine, type StretchDeck } from '@mixdeck/engine';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { analysis } from '../analysisClient';
 import { Waveform, type WaveformMarker } from '../components/Waveform';
 import { makeDemoTrack } from '../demo';
+import { cueSection, lockScreenLine } from '../platform/cueLabel';
 import { nextCueTime, previousCueTime } from '../platform/cueNavigation';
 import { createKeepAlive } from '../platform/keepAlive';
-import { clearMediaSession, setHandlers, setNowPlaying, setPlaybackState, setPosition } from '../platform/mediaSession';
+import {
+  clearMediaSession,
+  refreshHandlers,
+  setHandlers,
+  setNowPlaying,
+  setNowPlayingArtist,
+  setPlaybackState,
+  setPosition,
+} from '../platform/mediaSession';
 import { requestPersistentStorage } from '../platform/persist';
 import { createWakeLock } from '../platform/wakeLock';
 import { formatTime, type TrackState } from '../types';
 import { CuePads, padColor } from './CuePads';
 import { emptyCues, loadCues, saveCues, type CueSlots } from './cueStore';
 import { dancerAudio } from './dancerAudio';
+import { ACCEPT_MEDIA, canAnalyzeVideo, countCues, isVideoFile } from './media';
+import { StageView } from './StageView';
 import { clampTempo, TempoControl } from './TempoControl';
+import { VideoView } from './VideoView';
+import './dancer.css';
 
 interface Props {
   engine: Engine;
+  /**
+   * Dancer mode is the mode on screen. It stays mounted while DJ mode shows, so the song, cues and tempo survive a
+   * switch; while inactive it is paused, off the lock screen and ignores the keyboard.
+   */
+  active: boolean;
 }
 
 /** The loaded song and its cues travel together so a cue save can never target the wrong track. */
 interface Song {
+  /** Load number: background analysis only ever updates the load that started it. */
+  id: number;
+  /** 'audio': decoded into the key-locked StretchDeck; 'video': played by the VideoDeck's `<video>` from the file. */
+  kind: 'audio' | 'video';
   track: TrackState;
   cues: CueSlots;
+  /** Width / height of a video's picture; null for audio, and for a video file without a picture. */
+  aspect: number | null;
 }
 
 const NO_CUES: CueSlots = emptyCues();
 
-/** Second line of the lock-screen Now Playing card. */
-const MEDIA_ARTIST = 'MixDeck · Dancer mode';
 /** Lock-screen scrubber refresh while playing, ms (the OS extrapolates in between). */
 const POSITION_SYNC_MS = 5000;
+/** How often the lock-screen cue line is checked while playing, ms (it is only written when the section changes). */
+const SECTION_CHECK_MS = 250;
+/** How long a status toast ("Cues restored", a load error) stays up, ms. */
+const TOAST_MS = 3500;
 
 /** Keys are ignored while typing; range sliders and buttons still get the shortcuts. */
 function isTyping(e: KeyboardEvent): boolean {
@@ -41,10 +67,27 @@ function isTyping(e: KeyboardEvent): boolean {
   return false;
 }
 
-/** Minimal single-song player: launchable cue pads and key-locked tempo. No EQ, no mixer. */
-export function DancerMode({ engine }: Props) {
-  const [deck, setDeck] = useState<StretchDeck | null>(null);
+/** Second line of the lock-screen Now Playing card: where the playhead is among the cues (contract D). */
+function sectionLine(cues: CueSlots, position: number): string {
+  return lockScreenLine(cueSection(cues, position), countCues(cues) > 0);
+}
+
+function errorText(e: unknown, fallback: string): string {
+  return e instanceof Error && e.message ? e.message : fallback;
+}
+
+/**
+ * Minimal single-song player: launchable cue pads and key-locked tempo, no EQ, no mixer. Audio files play on the
+ * engine's StretchDeck, video files on a VideoDeck (shown in place of the waveform, and full screen in Stage view).
+ */
+export function DancerMode({ engine, active }: Props) {
+  const [stretch, setStretch] = useState<StretchDeck | null>(null);
   const [deckError, setDeckError] = useState<string | null>(null);
+  /** The player the transport drives: the StretchDeck, or the VideoDeck while a video is loaded. */
+  const [player, setPlayer] = useState<DancerPlayer | null>(null);
+  const playerRef = useRef<DancerPlayer | null>(null);
+  /** Created on the first video load, disposed on unmount. */
+  const videoRef = useRef<VideoDeck | null>(null);
   const [song, setSong] = useState<Song | null>(null);
   const [loading, setLoading] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -52,14 +95,41 @@ export function DancerMode({ engine }: Props) {
   const [tempo, setTempo] = useState(100);
   const [editing, setEditing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [stageOpen, setStageOpen] = useState(false);
+  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const positionRef = useRef(0);
   const [displayPos, setDisplayPos] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
-  // one of each per mount; nothing is built until first use
-  const [keepAlive] = useState(createKeepAlive);
+  const stageButton = useRef<HTMLButtonElement>(null);
+  const nextLoadId = useRef(0);
+  const nextToastId = useRef(0);
+  /** The lock-screen second line as last written, so it is only rewritten when the cue section changes. */
+  const artistLine = useRef<string | null>(null);
+  // latest props / state for callbacks that outlive a render (player callbacks, Media Session handlers, timers)
+  const activeRef = useRef(active);
+  const songRef = useRef(song);
+  useLayoutEffect(() => {
+    activeRef.current = active;
+    songRef.current = song;
+  });
+
+  // one of each per mount; nothing is built until first use. The keep-alive re-takes WebKit's "started last"
+  // when the context starts after it, and re-registers the lock-screen handlers each time it really starts.
+  const [keepAlive] = useState(() => {
+    const keep = createKeepAlive({
+      context: engine.ctx,
+      onStarted: () => {
+        // Native media keys can restart a loaded element after our Media Session handlers are cleared.
+        const p = playerRef.current;
+        if (activeRef.current && p?.kind === 'audio' && p.playing) refreshHandlers();
+        else keep.stop();
+      },
+    });
+    return keep;
+  });
   const [screenOn, setScreenOn] = useState(false);
-  // "Keep screen on" follows the lock the browser actually holds: a refused request, a failed re-acquire on
-  // return, or a lock the system drops (battery saver / Low Power Mode) switches the toggle back off
+  // "Screen on" follows the lock the browser actually holds: a refused request, a failed re-acquire on return, or
+  // a lock the system drops (battery saver / Low Power Mode) switches the toggle back off
   const [wakeLock] = useState(() => {
     const lock = createWakeLock({
       onChange: (held) => {
@@ -70,6 +140,18 @@ export function DancerMode({ engine }: Props) {
     return lock;
   });
 
+  const selectPlayer = (p: DancerPlayer) => {
+    playerRef.current = p;
+    setPlayer(p);
+  };
+
+  const showToast = (text: string) => setToast({ id: ++nextToastId.current, text });
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   // the engine's shared key-locked deck (its processor cannot be destroyed, so it is never recreated);
   // released on unmount, which also covers StrictMode's double mount
   useEffect(() => {
@@ -78,7 +160,8 @@ export function DancerMode({ engine }: Props) {
       (d) => {
         if (!slot.live) return;
         slot.deck = d;
-        setDeck(d);
+        setStretch(d);
+        if (!playerRef.current) selectPlayer(d);
       },
       (e: unknown) => {
         if (slot.live) setDeckError(e instanceof Error ? e.message : String(e));
@@ -90,214 +173,382 @@ export function DancerMode({ engine }: Props) {
     };
   }, [engine]);
 
-  // silent keep-alive and screen wake lock go with the mode
+  // silent keep-alive, screen wake lock and the video player go with the component
   useEffect(
     () => () => {
       keepAlive.stop();
       keepAlive.dispose();
       void wakeLock.disable();
+      videoRef.current?.dispose();
+      videoRef.current = null;
     },
     [keepAlive, wakeLock],
   );
 
-  // App's audio recovery reads whether we are playing and restarts our keep-alive after an interruption
+  // App's audio recovery reads whether the Web Audio player is playing and restarts our keep-alive after an
+  // interruption; a video is its own media element and needs neither (the StretchDeck is empty and paused then)
   useEffect(() => {
-    if (!deck) return;
-    dancerAudio.deck = deck;
+    if (!stretch) return;
+    dancerAudio.deck = stretch;
     dancerAudio.keepAlive = keepAlive;
     return () => {
-      if (dancerAudio.deck !== deck) return;
+      if (dancerAudio.deck !== stretch) return;
       dancerAudio.deck = null;
       dancerAudio.keepAlive = null;
     };
-  }, [deck, keepAlive]);
+  }, [stretch, keepAlive]);
 
-  /** Lock-screen play/pause state and scrubber, from the deck itself (always current, also mid-load). */
+  /** Lock-screen cue line, rewritten only when the playhead has moved into another section. */
+  const syncSection = useCallback(() => {
+    const p = playerRef.current;
+    const s = songRef.current;
+    if (!activeRef.current || !p?.track || !s) return;
+    // mid-load the player already has the new track while the song (and its cues) is still the previous one
+    if (p.track.name !== s.track.name || p.track.duration !== s.track.duration) return;
+    const line = sectionLine(s.cues, p.position);
+    if (line === artistLine.current) return;
+    artistLine.current = line;
+    setNowPlayingArtist(line);
+  }, []);
+
+  /**
+   * Lock-screen play/pause state and scrubber, from the player itself (always current, also mid-load); the audio
+   * keep-alive's clock follows the song so WebKit reads the same position from it.
+   */
   const syncMedia = useCallback(() => {
-    const track = deck?.track;
-    if (!deck || !track) return;
-    setPlaybackState(deck.playing ? 'playing' : 'paused');
-    setPosition({ duration: track.duration, position: deck.position, rate: deck.tempo });
-  }, [deck]);
+    const p = playerRef.current;
+    const track = p?.track;
+    if (!activeRef.current || !p || !track) return;
+    if (setPlaybackState(p.playing ? 'playing' : 'paused')) keepAlive.claim();
+    setPosition({ duration: track.duration, position: p.position, rate: p.tempo });
+    if (p.kind === 'audio') keepAlive.sync(p.position, p.tempo);
+    syncSection();
+  }, [keepAlive, syncSection]);
 
-  // deck → ref (~every 50 ms); ref → text at 10 Hz; the waveform reads the ref via rAF
+  // player → ref (~every 50 ms); ref → text at 10 Hz; the waveform reads the ref via rAF. onPlayingChange keeps
+  // the button true to the player, including pauses the OS makes (iOS pauses a video when the screen locks).
   useEffect(() => {
-    if (!deck) return;
-    deck.onPosition = (s) => {
+    if (!player) return;
+    player.onPosition = (s) => {
       positionRef.current = s;
     };
-    deck.onEnded = () => {
-      setPlaying(false);
-      keepAlive.stop();
+    player.onPlayingChange = (isPlaying) => {
+      if (isPlaying && !activeRef.current) {
+        player.pause();
+        return;
+      }
+      setPlaying(isPlaying);
+      if (!isPlaying && player.kind === 'audio') keepAlive.stop();
+      // WebKit ignores handlers registered before the page had a playing media element: register them again
+      if (isPlaying && player.kind === 'video') refreshHandlers();
       syncMedia();
     };
-    const t = setInterval(() => setDisplayPos(positionRef.current), 100);
+    player.onEnded = syncMedia;
     return () => {
-      deck.onPosition = null;
-      deck.onEnded = null;
-      clearInterval(t);
+      player.onPosition = null;
+      player.onPlayingChange = null;
+      player.onEnded = null;
     };
-  }, [deck, keepAlive, syncMedia]);
+  }, [player, keepAlive, syncMedia]);
+
+  useEffect(() => {
+    if (!active) return;
+    const t = setInterval(() => setDisplayPos(positionRef.current), 100);
+    return () => clearInterval(t);
+  }, [active]);
 
   // the OS extrapolates the scrubber at the tempo; re-anchor it now and then against drift
   useEffect(() => {
-    if (!playing) return;
+    if (!active || !playing) return;
     const t = setInterval(syncMedia, POSITION_SYNC_MS);
     return () => clearInterval(t);
-  }, [playing, syncMedia]);
+  }, [active, playing, syncMedia]);
 
-  // cues persist per track
+  // the lock-screen cue line follows the playhead (checked ≤ 4×/s, written only on a section change)
   useEffect(() => {
-    if (song) saveCues(song.track.name, song.track.duration, song.cues);
-  }, [song]);
+    if (!active || !playing) return;
+    const t = setInterval(syncSection, SECTION_CHECK_MS);
+    return () => clearInterval(t);
+  }, [active, playing, syncSection]);
 
-  const loadBuffer = useCallback(
-    async (buffer: AudioBuffer, name: string) => {
-      if (!deck) return;
-      setLoading(true);
-      const channels: Float32Array[] = [];
-      for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c));
-      const mono = downmix(channels);
-      keepAlive.stop(); // loading pauses the deck
-      try {
-        await deck.load(buffer, name);
-        deck.setTempo(1);
-        positionRef.current = 0;
-        setDisplayPos(0);
-        setPlaying(false);
-        setTempo(100);
-        setEditing(false);
-        setSong({
-          track: { name, duration: buffer.duration, bpm: null, firstBeat: 0, peaks: null, analyzing: true },
-          cues: loadCues(name, buffer.duration),
-        });
-        syncMedia(); // the Now Playing effect below only re-runs when the name changes
-      } catch (e) {
-        // the deck dropped its buffers before failing, so the previous song is gone too: back to the empty state
-        console.error(e);
+  // cues persist per track; a cue edit can change the lock-screen line
+  useEffect(() => {
+    if (!song) return;
+    saveCues(song.track.name, song.track.duration, song.cues);
+    syncSection();
+  }, [song, syncSection]);
+
+  // leaving the mode: silence it (the Media Session effect below clears the lock screen), close Stage, and let
+  // the screen sleep again
+  useEffect(() => {
+    if (active) return;
+    playerRef.current?.pause();
+    keepAlive.stop();
+    setStageOpen(false);
+    setScreenOn(false);
+    void wakeLock.disable();
+  }, [active, keepAlive, wakeLock]);
+
+  /** A freshly loaded song starts paused at 0:00, 100 %, out of edit mode. */
+  const resetTransport = () => {
+    positionRef.current = 0;
+    setDisplayPos(0);
+    setPlaying(false);
+    setTempo(100);
+    setEditing(false);
+  };
+
+  /** Shows that cues are kept per song: they come back whenever the same file is loaded again. */
+  const announceCues = (cues: CueSlots) => {
+    const n = countCues(cues);
+    if (n > 0) showToast(`Cues restored · ${n} saved for this song`);
+  };
+
+  const loadBuffer = async (buffer: AudioBuffer, name: string) => {
+    const deck = stretch;
+    if (!deck) return;
+    const id = ++nextLoadId.current;
+    setLoading(true);
+    const channels: Float32Array[] = [];
+    for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c));
+    const mono = downmix(channels);
+    keepAlive.stop(); // loading pauses the deck
+    const previous = playerRef.current;
+    if (previous && previous !== deck) previous.unload(); // leaving a video: stop it and let go of its file
+    selectPlayer(deck);
+    try {
+      await deck.load(buffer, name);
+      if (!deck.track || id !== nextLoadId.current) return;
+      deck.setTempo(1);
+      resetTransport();
+      const cues = loadCues(name, buffer.duration);
+      setSong({
+        id,
+        kind: 'audio',
+        track: { name, duration: buffer.duration, bpm: null, firstBeat: 0, peaks: null, analyzing: true },
+        cues,
+        aspect: null,
+      });
+      keepAlive.setTrack(buffer.duration); // a silent file as long as the song, built now, outside the tap that plays it
+      announceCues(cues);
+      syncMedia(); // the Now Playing effect below only re-runs when the song changes
+    } catch (e) {
+      // the deck dropped its buffers before failing, so the previous song is gone too: back to the empty state
+      console.error(e);
+      positionRef.current = 0;
+      setDisplayPos(0);
+      setPlaying(false);
+      setSong(null);
+      keepAlive.setTrack(null);
+      showToast(`“${name}” could not be loaded.`);
+      return;
+    } finally {
+      setLoading(false);
+    }
+    // analysis runs on after loading has finished; a failure just leaves the track un-analysed
+    try {
+      const r = await analysis.analyze(mono, buffer.sampleRate);
+      setSong((s) =>
+        s && s.id === id
+          ? { ...s, track: { ...s.track, bpm: r.confidence > 1.5 ? r.bpm : null, firstBeat: r.firstBeat, peaks: r.peaks, analyzing: false } }
+          : s,
+      );
+    } catch (e) {
+      console.error(e);
+      setSong((s) => (s && s.id === id ? { ...s, track: { ...s.track, analyzing: false } } : s));
+    }
+  };
+
+  /**
+   * Opens a video on the VideoDeck: played by the `<video>` element straight from the file (never decoded whole,
+   * so a phone video of hundreds of MB is fine). Small, short videos also get BPM and peaks from their sound,
+   * decoded in the background; playback never waits for it.
+   */
+  const loadVideo = async (file: File) => {
+    const id = ++nextLoadId.current;
+    setLoading(true);
+    keepAlive.stop();
+    const previous = playerRef.current;
+    previous?.pause();
+    const video = (videoRef.current ??= new VideoDeck());
+    try {
+      await video.load(file, file.name);
+    } catch (e) {
+      console.error(e);
+      showToast(errorText(e, `“${file.name}” could not be opened.`));
+      if (previous === video) {
+        // the failed load replaced the previous video; a previous audio song is still loaded (paused)
         positionRef.current = 0;
         setDisplayPos(0);
         setPlaying(false);
         setSong(null);
-        return;
-      } finally {
-        setLoading(false);
       }
-      // analysis runs on after loading has finished; a failure just leaves the track un-analysed
-      try {
-        const r = await analysis.analyze(mono, buffer.sampleRate);
-        setSong((s) =>
-          s && s.track.name === name
-            ? { ...s, track: { ...s.track, bpm: r.confidence > 1.5 ? r.bpm : null, firstBeat: r.firstBeat, peaks: r.peaks, analyzing: false } }
-            : s,
-        );
-      } catch (e) {
-        console.error(e);
-        setSong((s) => (s && s.track.name === name ? { ...s, track: { ...s.track, analyzing: false } } : s));
-      }
-    },
-    [deck, keepAlive, syncMedia],
-  );
+      setLoading(false);
+      return;
+    }
+    const track = video.track;
+    if (!track || id !== nextLoadId.current) {
+      setLoading(false);
+      return;
+    }
+    if (previous && previous !== video) previous.unload(); // the audio song: silence it and free its buffers
+    video.setTempo(1);
+    selectPlayer(video);
+    keepAlive.setTrack(null); // never started for a video: the video element is the page's media element
+    resetTransport();
+    const { videoWidth, videoHeight } = video.element;
+    const analyze = canAnalyzeVideo(file.size, track.duration);
+    const cues = loadCues(track.name, track.duration);
+    setSong({
+      id,
+      kind: 'video',
+      track: { name: track.name, duration: track.duration, bpm: null, firstBeat: 0, peaks: null, analyzing: analyze },
+      cues,
+      aspect: videoWidth > 0 && videoHeight > 0 ? videoWidth / videoHeight : null,
+    });
+    setLoading(false);
+    announceCues(cues);
+    syncMedia();
+    if (!analyze) return;
+    try {
+      const buffer = await engine.decode(file);
+      if (id !== nextLoadId.current) return;
+      const channels: Float32Array[] = [];
+      for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c));
+      const r = await analysis.analyze(downmix(channels), buffer.sampleRate);
+      setSong((s) =>
+        s && s.id === id
+          ? { ...s, track: { ...s.track, bpm: r.confidence > 1.5 ? r.bpm : null, firstBeat: r.firstBeat, peaks: r.peaks, analyzing: false } }
+          : s,
+      );
+    } catch (e) {
+      // e.g. a codec decodeAudioData does not read: the video still plays, just without BPM and peaks
+      console.warn('[mixdeck] video sound not analysed', e);
+      setSong((s) => (s && s.id === id ? { ...s, track: { ...s.track, analyzing: false } } : s));
+    }
+  };
 
-  /** Decodes and loads one file. Ignored until the deck is ready and while another load is running (drops are not gated by a disabled button). */
-  const loadFile = useCallback(
-    async (file: File) => {
-      if (!deck || loading) return;
-      setLoading(true);
-      let buffer: AudioBuffer;
-      try {
-        buffer = await engine.decode(file);
-      } catch (e) {
-        console.error(e);
-        setLoading(false);
-        return;
-      }
-      await loadBuffer(buffer, file.name);
-    },
-    [engine, deck, loading, loadBuffer],
-  );
+  /** Loads one file: videos on the VideoDeck, audio decoded for the StretchDeck. Ignored while another load runs. */
+  const loadFile = async (file: File) => {
+    if (loading) return;
+    if (isVideoFile(file)) {
+      await loadVideo(file);
+      return;
+    }
+    if (!stretch) {
+      showToast(deckError ? 'The key-locked player failed to start.' : 'The player is still starting — try again in a moment.');
+      return;
+    }
+    setLoading(true);
+    let buffer: AudioBuffer;
+    try {
+      buffer = await engine.decode(file);
+    } catch (e) {
+      console.error(e);
+      setLoading(false);
+      showToast(`“${file.name}” could not be decoded. Try MP3, M4A or WAV.`);
+      return;
+    }
+    await loadBuffer(buffer, file.name);
+  };
 
-  const loadDemo = () => void loadBuffer(makeDemoTrack(engine.ctx, 120), 'Demo 120 BPM');
+  const loadDemo = () => {
+    if (!loading) void loadBuffer(makeDemoTrack(engine.ctx, 120), 'Demo 120 BPM');
+  };
 
   const seek = (seconds: number) => {
-    if (!deck || !song) return;
-    deck.seek(seconds); // reports the new position through onPosition
-    setDisplayPos(deck.position);
+    const p = playerRef.current;
+    if (!p?.track) return;
+    p.seek(seconds);
+    positionRef.current = p.position;
+    setDisplayPos(p.position);
     syncMedia();
   };
 
   /**
-   * Everything that starts playback runs inside a tap, key press or lock-screen action: start the keep-alive
-   * there (synchronously, it needs the gesture), and resume a context left suspended by an interruption that
-   * ended while paused (no statechange would bring it back).
+   * Everything that starts playback runs inside a tap, key press or lock-screen action. WebKit enables lock-screen
+   * scrubbing only when the session that started playback last can seek, and moving the Media Session into
+   * 'playing' starts a (non-seekable) session of its own, so 'playing' is set first, then the media element starts:
+   * the video itself, or for audio the silent keep-alive (synchronously, it needs the gesture) plus a context
+   * resume for an interruption that ended while paused.
    */
-  const wake = () => {
-    void keepAlive.start();
-    if (engine.ctx.state !== 'running') void engine.resume().catch(() => {});
+  const startPlayback = (run: (p: DancerPlayer) => void) => {
+    const p = playerRef.current;
+    if (!p?.track || !activeRef.current) return;
+    if (setPlaybackState('playing')) keepAlive.claim();
+    run(p);
+    if (p.kind === 'audio') {
+      if (p.playing) {
+        void keepAlive.start();
+        engine.unlock();
+      } else {
+        keepAlive.stop();
+      }
+    }
+    setPlaying(p.playing);
+    syncMedia(); // back to 'paused' if it did not start
   };
 
-  const play = () => {
-    if (!deck || !song) return;
-    wake();
-    deck.play();
-    if (!deck.playing) keepAlive.stop(); // e.g. mid-load (no track yet): don't leave the page "playing"
-    setPlaying(deck.playing);
-    syncMedia();
-  };
+  const play = () => startPlayback((p) => p.play());
 
   const pause = () => {
-    if (!deck || !song) return;
-    deck.pause();
+    const p = playerRef.current;
+    if (!p?.track) return;
+    p.pause();
     keepAlive.stop();
     setPlaying(false);
     syncMedia();
   };
 
-  const togglePlay = () => (deck?.playing ? pause() : play());
+  const togglePlay = () => (playerRef.current?.playing ? pause() : play());
 
   const restart = () => seek(0);
 
   /** Jump to `seconds` and play: cue launch, and lock-screen / headphone previous and next. */
-  const launch = (seconds: number) => {
-    if (!deck || !song) return;
-    wake();
-    deck.jumpTo(seconds);
-    if (!deck.playing) keepAlive.stop();
-    setPlaying(deck.playing);
-    syncMedia();
-  };
+  const launch = (seconds: number) =>
+    startPlayback((p) => {
+      p.jumpTo(seconds);
+      positionRef.current = p.position;
+    });
 
   const cueTimes = (): (number | null)[] => song?.cues.map((c) => c?.time ?? null) ?? [];
 
   const previousCue = () => {
-    if (deck) launch(previousCueTime(cueTimes(), deck.position));
+    const p = playerRef.current;
+    if (p) launch(previousCueTime(cueTimes(), p.position));
   };
 
   const nextCue = () => {
-    if (!deck) return;
-    const t = nextCueTime(cueTimes(), deck.position);
+    const p = playerRef.current;
+    if (!p) return;
+    const t = nextCueTime(cueTimes(), p.position);
     if (t !== null) launch(t);
   };
 
   const changeTempo = (percent: number) => {
-    if (!deck) return;
-    const p = clampTempo(percent);
-    deck.setTempo(p / 100);
-    setTempo(p);
+    const p = playerRef.current;
+    if (!p) return;
+    const v = clampTempo(percent);
+    p.setTempo(v / 100);
+    setTempo(v);
     syncMedia();
   };
 
-  /** Launch a set pad; set an empty one; while editing, (re)set any pad to the current position. */
-  const pressPad = (i: number) => {
-    if (!deck || !song) return;
+  /**
+   * Launch a set pad; set an empty one; while editing, (re)set any pad to the current position. `launchOnly`
+   * (Stage view) never sets or moves a cue.
+   */
+  const pressPad = (i: number, launchOnly = false) => {
+    const p = playerRef.current;
+    if (!p?.track || !song) return;
     const cue = song.cues[i] ?? null;
-    if (editing || !cue) {
-      const time = deck.position; // live, not the last ~50 ms report
+    if (!launchOnly && (editing || !cue)) {
+      const time = p.position; // live, not the last ~50 ms report
       setSong((s) => s && { ...s, cues: s.cues.map((c, j) => (j === i ? { time, name: c?.name ?? `Cue ${i + 1}` } : c)) });
       void requestPersistentStorage(); // once per page load: keep saved cues from being evicted
       return;
     }
-    launch(cue.time);
+    if (cue) launch(cue.time);
   };
 
   const clearPad = (i: number) => setSong((s) => s && { ...s, cues: s.cues.map((c, j) => (j === i ? null : c)) });
@@ -311,7 +562,7 @@ export function DancerMode({ engine }: Props) {
     setSong((s) => s && { ...s, cues: s.cues.map((c, j) => (j === i && c ? { ...c, name } : c)) });
   };
 
-  /** "Keep screen on": shown on at once; the wake lock's onChange switches it back off if the lock is refused. */
+  /** "Screen on": shown on at once; the wake lock's onChange switches it back off if the lock is refused. */
   const toggleScreenOn = () => {
     if (screenOn) {
       setScreenOn(false);
@@ -322,20 +573,29 @@ export function DancerMode({ engine }: Props) {
     void wakeLock.enable();
   };
 
+  const closeStage = () => {
+    setStageOpen(false);
+    stageButton.current?.focus({ preventScroll: true });
+  };
+
   // keyboard and lock-screen controls: the latest handlers live in refs so the single listener and the
   // once-registered Media Session handlers never see a stale closure
-  const keys = useRef({ pressPad, togglePlay, restart, changeTempo, tempo });
+  const keys = useRef({ pressPad, togglePlay, restart, changeTempo, tempo, stageOpen });
   const remote = useRef({ play, pause, seek, previousCue, nextCue });
   useEffect(() => {
-    keys.current = { pressPad, togglePlay, restart, changeTempo, tempo };
+    keys.current = { pressPad, togglePlay, restart, changeTempo, tempo, stageOpen };
     remote.current = { play, pause, seek, previousCue, nextCue };
   });
 
-  // lock-screen and headphone controls for the loaded song; cleared when it is unloaded and on unmount
+  // lock-screen and headphone controls for the loaded song while the mode is on screen; cleared when the song is
+  // unloaded or replaced, when the mode is left, and on unmount
+  const songId = song?.id ?? null;
   const trackName = song?.track.name ?? null;
   useEffect(() => {
-    if (!deck || trackName === null) return;
-    setNowPlaying({ title: trackName, artist: MEDIA_ARTIST });
+    if (!active || !player || songId === null || trackName === null) return;
+    const line = sectionLine(songRef.current?.cues ?? NO_CUES, player.position);
+    artistLine.current = line;
+    setNowPlaying({ title: trackName, artist: line });
     setHandlers({
       play: () => remote.current.play(),
       pause: () => remote.current.pause(),
@@ -345,25 +605,30 @@ export function DancerMode({ engine }: Props) {
       },
       previoustrack: () => remote.current.previousCue(),
       nexttrack: () => remote.current.nextCue(),
-      // fastSeek (a scrub in progress) needs nothing different: a seek is a single scheduled change
+      // fastSeek (a scrub in progress) needs nothing different: a seek is a single change
       seekto: (details) => {
         if (details.seekTime !== undefined) remote.current.seek(details.seekTime);
       },
     });
     syncMedia();
-    return clearMediaSession;
-  }, [deck, trackName, syncMedia]);
+    return () => {
+      artistLine.current = null;
+      clearMediaSession();
+    };
+  }, [active, player, songId, trackName, syncMedia]);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.target instanceof Element && e.target.closest('.resume-audio')) return;
+      if (!activeRef.current || isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       const h = keys.current;
       if (e.key.length === 1 && e.key >= '1' && e.key <= '8') {
-        if (!e.repeat) h.pressPad(Number(e.key) - 1);
+        if (!e.repeat) h.pressPad(Number(e.key) - 1, h.stageOpen);
       } else if (e.key === ' ') {
         if (!e.repeat) h.togglePlay();
-      } else if (e.key === 'ArrowLeft') {
+      } else if (e.key === 'ArrowLeft' && !h.stageOpen) {
         h.changeTempo(h.tempo - 1);
-      } else if (e.key === 'ArrowRight') {
+      } else if (e.key === 'ArrowRight' && !h.stageOpen) {
         h.changeTempo(h.tempo + 1);
       } else if (e.key === 'Home') {
         if (!e.repeat) h.restart();
@@ -374,7 +639,8 @@ export function DancerMode({ engine }: Props) {
     };
     // a focused button would also "click" on Space keyup; swallow it so play/pause fires once
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === ' ' && !isTyping(e)) e.preventDefault();
+      if (e.target instanceof Element && e.target.closest('.resume-audio')) return;
+      if (activeRef.current && e.key === ' ' && !isTyping(e)) e.preventDefault();
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
@@ -389,46 +655,59 @@ export function DancerMode({ engine }: Props) {
     [song],
   );
 
-  /** Drops are accepted (and the panel highlighted) only when a load could start. */
-  const canLoad = deck !== null && !loading;
-
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
+    if (stageOpen || !active) return;
     const file = e.dataTransfer.files[0];
-    if (file && canLoad) void loadFile(file);
+    if (file && !loading) void loadFile(file);
   };
 
   const track = song?.track ?? null;
   const bpm = track?.bpm ? track.bpm * (tempo / 100) : null;
-  const ready = deck !== null && song !== null;
+  const ready = player !== null && song !== null;
+  /** The `<video>` to show: only for a loaded video that has a picture (a sound-only file keeps the waveform). */
+  const videoElement = song?.kind === 'video' && song.aspect !== null && player instanceof VideoDeck ? player.element : null;
+  const waveformProps = {
+    active: active && !stageOpen,
+    peaks: track?.peaks ?? null,
+    duration: track?.duration ?? 0,
+    bpm: track?.bpm ?? null,
+    firstBeat: track?.firstBeat ?? 0,
+    loop: null,
+    positionRef,
+    onSeek: seek,
+    markers,
+    scrub: true,
+  };
 
   return (
     <section
-      className={`dancer ${dragOver ? 'drag' : ''}`}
+      className={`dancer ${dragOver ? 'drag' : ''} ${videoElement ? 'has-video' : ''} ${editing ? 'editing' : ''}`}
       onDragOver={(e) => {
         e.preventDefault();
-        if (canLoad) setDragOver(true);
+        if (stageOpen || !active) return;
+        if (!loading) setDragOver(true);
       }}
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
     >
       <div className="dancer-head">
         <div className="deck-title" title={track?.name}>
-          {deckError
-            ? `Player failed to start: ${deckError}`
-            : !deck
-              ? 'Preparing key-locked player…'
-              : loading
-                ? 'Decoding…'
-                : track
-                  ? track.name
-                  : 'Load a song or drop one here'}
+          {loading
+            ? 'Loading…'
+            : track
+              ? track.name
+              : deckError
+                ? `Player failed to start: ${deckError}`
+                : !stretch
+                  ? 'Preparing key-locked player…'
+                  : 'No song loaded'}
         </div>
-        <button onClick={loadDemo} disabled={!canLoad} title="Synthesised test track">
+        <button onClick={loadDemo} disabled={!stretch || loading} title="Synthesised test track">
           Demo
         </button>
-        <button onClick={() => fileInput.current?.click()} disabled={!canLoad}>
+        <button onClick={() => fileInput.current?.click()} disabled={loading} title="Open a song or a video">
           Load
         </button>
         {wakeLock.supported && (
@@ -436,29 +715,19 @@ export function DancerMode({ engine }: Props) {
             className={`screen-on ${screenOn ? 'on' : ''}`}
             onClick={toggleScreenOn}
             aria-pressed={screenOn}
-            aria-label="Keep screen on"
-            title="Keep screen on"
+            title={screenOn ? 'Screen stays on — tap to let it sleep again' : 'Keep the screen on (no dimming or auto-lock)'}
           >
-            <svg
-              viewBox="0 0 24 24"
-              width="18"
-              height="18"
-              aria-hidden="true"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="4" />
               <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
             </svg>
-            <span className="screen-on-label">Keep screen on</span>
+            <span className="screen-on-label">Screen on</span>
           </button>
         )}
         <input
           ref={fileInput}
           type="file"
-          accept="audio/*,.mp3,.m4a,.aac,.wav,.aif,.aiff,.flac,.ogg"
+          accept={ACCEPT_MEDIA}
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -472,21 +741,40 @@ export function DancerMode({ engine }: Props) {
         <span className="elapsed">{formatTime(displayPos)}</span>
         <span className="total">/ {formatTime(track?.duration ?? 0)}</span>
         <span className="bpm">
-          <span className="big">{bpm ? bpm.toFixed(1) : track?.analyzing ? '…' : '--'}</span>
-          <span className="unit">BPM</span>
+          {bpm ? (
+            <>
+              <span className="big">{bpm.toFixed(1)}</span>
+              <span className="unit">BPM</span>
+            </>
+          ) : track?.analyzing ? (
+            <>
+              <span className="big">…</span>
+              <span className="unit">BPM</span>
+            </>
+          ) : song?.kind === 'video' ? (
+            // a video too large to analyse: tempo instead of a BPM it does not have
+            <>
+              <span className="big">{tempo}%</span>
+              <span className="unit">tempo</span>
+            </>
+          ) : (
+            <>
+              <span className="big">--</span>
+              <span className="unit">BPM</span>
+            </>
+          )}
         </span>
       </div>
 
-      <Waveform
-        peaks={track?.peaks ?? null}
-        duration={track?.duration ?? 0}
-        bpm={track?.bpm ?? null}
-        firstBeat={track?.firstBeat ?? 0}
-        loop={null}
-        positionRef={positionRef}
-        onSeek={seek}
-        markers={markers}
-      />
+      {videoElement && song ? (
+        <div className="dancer-media" style={{ ['--video-ar' as string]: String(song.aspect) }}>
+          {/* Stage view borrows the element while open; this frame stays as a black placeholder behind it */}
+          <VideoView element={stageOpen ? null : videoElement} playing={playing} onTap={togglePlay} className="dancer-video" />
+          <Waveform {...waveformProps} className="strip" />
+        </div>
+      ) : (
+        <Waveform {...waveformProps} />
+      )}
 
       <div className="dancer-transport">
         <button className={`play ${playing ? 'on' : ''}`} onClick={togglePlay} disabled={!ready} title="Space">
@@ -495,31 +783,71 @@ export function DancerMode({ engine }: Props) {
         <button onClick={restart} disabled={!ready} title="Home">
           ⟲ Restart
         </button>
+        <button
+          ref={stageButton}
+          className="stage-open"
+          onClick={() => setStageOpen(true)}
+          disabled={!ready}
+          title="Stage: full screen with only play, restart and the cue pads"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+          </svg>
+          Stage
+        </button>
       </div>
 
-      <TempoControl value={tempo} onChange={changeTempo} disabled={!ready} />
+      {/* one box only where a layout needs it (phone landscape with a video: tempo above the pads); elsewhere its
+          children sit straight on the card's grid (display: contents) */}
+      <div className="dancer-side">
+        <TempoControl value={tempo} onChange={changeTempo} disabled={!ready} />
 
-      <div className="cues">
-        <div className="cues-head">
-          <h2>Cues</h2>
-          {editing ? (
-            <span className="dim cues-hint">Press a pad to move it here · ✕ clears · ✎ renames</span>
-          ) : (
-            <span className="dim cues-hint">
-              <span className="hint-long">Empty pad: set a cue here · set pad: launch it</span>
-              <span className="hint-short">Tap empty pad to set · tap set pad to launch</span>
-            </span>
-          )}
-          <button className={`cues-edit ${editing ? 'on' : ''}`} onClick={() => setEditing((v) => !v)} disabled={!ready}>
-            Edit cues
-          </button>
+        <div className="cues">
+          <div className="cues-head">
+            <h2>Cues</h2>
+            {editing ? (
+              <span className="dim cues-hint">Press a pad to move it here · ✕ clears · ✎ renames</span>
+            ) : (
+              <span className="dim cues-hint">
+                <span className="hint-long">Empty pad: set a cue here · set pad: launch it · saved per song</span>
+                <span className="hint-short">Tap empty pad to set · tap set pad to launch</span>
+              </span>
+            )}
+            <button className={`cues-edit ${editing ? 'on' : ''}`} onClick={() => setEditing((v) => !v)} disabled={!ready}>
+              Edit cues
+            </button>
+          </div>
+          <CuePads cues={song?.cues ?? NO_CUES} editing={editing} disabled={!ready} onPress={pressPad} onClear={clearPad} onRename={renamePad} />
         </div>
-        <CuePads cues={song?.cues ?? NO_CUES} editing={editing} disabled={!ready} onPress={pressPad} onClear={clearPad} onRename={renamePad} />
       </div>
 
       <p className="dancer-hint kbd-hint">
         <kbd>1</kbd>–<kbd>8</kbd> pads · <kbd>Space</kbd> play / pause · <kbd>←</kbd> <kbd>→</kbd> tempo ±1 % · <kbd>Home</kbd> restart
       </p>
+
+      <div className="dancer-toast-region" role="status" aria-live="polite">
+        {toast && (
+          <span key={toast.id} className="dancer-toast">
+            {toast.text}
+          </span>
+        )}
+      </div>
+
+      {stageOpen && song && (
+        <StageView
+          video={videoElement}
+          aspect={song.aspect}
+          title={song.track.name}
+          playing={playing}
+          position={displayPos}
+          cues={song.cues}
+          section={cueSection(song.cues, displayPos).current?.name ?? null}
+          onTogglePlay={togglePlay}
+          onRestart={restart}
+          onLaunch={(i) => pressPad(i, true)}
+          onClose={closeStage}
+        />
+      )}
     </section>
   );
 }

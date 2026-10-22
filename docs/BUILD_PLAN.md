@@ -17,7 +17,7 @@ run in parallel with 2–5 once Phase 1 is stable.
 - [x] Tempo analysis in a Worker (onset envelope → comb scoring with tempo prior), beat phase, overview waveform
 - [x] UI: two decks, drag-and-drop load, play/pause, cue, pitch ±8 %, 4-beat loop, tempo sync, waveform with beat markers
 - [x] Unit test: synthetic click track → BPM within ±0.5
-- [x] Start screen with two modes (the mode tap starts the audio engine): DJ mode and Dancer mode
+- [x] Dancer-default shell with mode pills; both modes remain loaded and pause when left
 - [x] Dancer mode: one key-locked player (Signalsmith Stretch WASM AudioWorklet, tempo 50–150 %), 8 launchable cue
   pads (tap empty = set, tap set = jump & play, edit mode to re-set a pad, ✕ clear, ✎ rename), cues saved per track in
   localStorage, keyboard shortcuts, minimal UI with no EQ
@@ -40,7 +40,7 @@ Tasks
   that redirect `index.html` to `./`); preview deploys per branch (built into Vercel; on GitHub Pages use a
   separate preview host or a PR build artifact)
 - [x] Audio session and background playback: `navigator.audioSession.type = 'playback'` (plays with the
-  Ring/Silent switch on; skipped where the API is missing); silent looping `<audio>` keep-alive started in the
+  Ring/Silent switch on; skipped where the API is missing); song-length silent `<audio>` keep-alive started in the
   same tap as playback (Dancer mode); automatic resume on `visibilitychange` and when the context reports
   `'interrupted'`/`'suspended'`, with a full-screen "Tap to resume audio" overlay when the browser insists on a tap
 - [ ] Tell the user in the UI to start playback before locking the screen (only the README says so today)
@@ -52,7 +52,7 @@ Tasks
 - [ ] DJ mode keep-alive and lock-screen controls (play/pause → master deck)
 - [x] Touch-first responsive layouts for iPhone portrait/landscape and iPad portrait/landscape (chosen by
   viewport, so Android phones/tablets and iPad Split View / Slide Over get them too): safe-area insets,
-  `100dvh`, ≥ 44 px touch targets, no double-tap zoom, no pull-to-refresh; optional "Keep screen on" toggle in
+  `100dvh`, ≥ 44 px touch targets, no double-tap zoom, no pull-to-refresh; optional "Screen on" toggle in
   Dancer mode (Screen Wake Lock API, feature-detected)
 - [x] File import from the Files app (or any system file picker): MP3, M4A/AAC, WAV, AIFF; FLAC and OGG where the
   browser decodes them
@@ -72,6 +72,32 @@ Acceptance
   1024×1366 (iPad), in both portrait and landscape, and in an iPad Split View / Slide Over window (≈ 320–507 px wide)
 - In Home Screen mode nothing sits under the status bar, notch / Dynamic Island or home indicator (iPhone and
   iPad, portrait and landscape)
+
+## Dancer v2 — release and device acceptance
+
+- [x] Dancer default and persistent Dancer / DJ mode pills.
+- [x] Native video with pitch-preserving tempo, cue strip and Stage view using the same media element.
+- [x] Labelled Screen on toggle, restored-cue message, current/next cue line on the lock screen.
+- [x] Song-length keep-alive and seekable-session ordering fix; inactive playback guards and fullscreen recovery.
+- [ ] Owner confirms lock-screen scrubbing on a real iPhone, Pause → Play, cue metadata, video/Stage and pills.
+
+## Dancer stems — feasibility gate (new scope; no Stems FX)
+
+First ship a hidden 30-second / 4-minute HTDemucs benchmark with on-demand model download, Worker inference,
+WebGPU where supported and WASM fallback. Record actual provider, elapsed separation time, download size and
+memory availability honestly; Safari may not expose peak process memory. Model and exact weight licensing must
+be documented. The initial four-stem export is 166 MB. Upstream weights are research-restricted despite the exporter MIT tag;
+clear production weight permission is a separate gate. See [STEMS_BENCHMARK.md](STEMS_BENCHMARK.md).
+
+**Gate:** the owner's iPhone separates a four-minute song in approximately two minutes or less without crashing.
+Decide with the owner after the measurements. A server fallback uploads songs and costs money and is **not
+approved**. Until that decision, no full stems playback integration.
+
+After acceptance (estimated 3–4 weeks): on-demand/offline model cache; chunked overlap-add with cancellation;
+per-song OPFS cache and LRU management; four sample-locked stereo stems through one multichannel Signalsmith
+node; Vocal, Instru (other), Bass, Drums, Kick, HiHat pads and Acapella / Instrumental / All shortcuts. Kick/HiHat
+are filtered drum bands, not independently separated instruments. Audio files first; video and DJ stems later.
+No Stems FX. Test reconstruction/crossovers, routing, cache eviction, timing across 50–150% tempo and offline use.
 
 ## Phase 1 — Core DJ engine (weeks 3–8)
 

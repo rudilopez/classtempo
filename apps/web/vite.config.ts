@@ -20,7 +20,7 @@ export default defineConfig({
   // Blob, so the package must reach the browser untranspiled: the dev-server optimizer would lower its class
   // fields to an `__publicField` helper that does not exist inside the AudioWorkletGlobalScope, and the
   // player would never become ready. `build.target` es2022 keeps them intact in production.
-  optimizeDeps: { exclude: ['signalsmith-stretch'] },
+  optimizeDeps: { exclude: ['signalsmith-stretch', 'onnxruntime-web'] },
   build: { target: 'es2022' },
 });
 
@@ -50,7 +50,12 @@ function mixdeckServiceWorker(): Plugin {
         }
       }
       files.delete(SW_FILE);
-      const precache = [...files.keys()].filter((path) => !path.split('/').some((part) => part.startsWith('.'))).sort();
+      // The experimental lab and its large inference runtime are opt-in. Opening the normal player must not
+      // download ONNX/WASM. Once requested, same-origin lab assets use the existing cache-first fetch path.
+      const precache = [...files.keys()].filter((path) =>
+        !path.split('/').some((part) => part.startsWith('.')) &&
+        !/(?:StemsBenchmark|stems\.worker|ort-wasm|stems-runtime)/i.test(path),
+      ).sort();
       const version = await contentHash(precache.flatMap((path) => [path, files.get(path) ?? '']).concat(swSource('', [])));
       this.emitFile({ type: 'asset', fileName: SW_FILE, source: swSource(version, precache) });
     },

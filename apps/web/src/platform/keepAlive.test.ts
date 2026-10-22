@@ -1,8 +1,68 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createKeepAlive, makeSilentWav } from './keepAlive';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createKeepAlive, makeSilentWav, silentTrackPlan, type AudioContextLike } from './keepAlive';
 
 function text(bytes: Uint8Array, offset: number, length: number): string {
   return String.fromCharCode(...bytes.subarray(offset, offset + length));
+}
+
+/** A stand-in <audio>: records seeks, and play()/pause() flip `paused` like the real one. */
+function fakeAudio(playResult: () => Promise<void> = () => Promise.resolve()) {
+  const seeks: number[] = [];
+  const playingListeners = new Set<() => void>();
+  let time = 0;
+  const el = {
+    loop: false,
+    preload: '',
+    hidden: false,
+    src: '',
+    paused: true,
+    playbackRate: 1,
+    defaultPlaybackRate: 1,
+    get currentTime() {
+      return time;
+    },
+    set currentTime(t: number) {
+      seeks.push(t);
+      time = t;
+    },
+    setAttribute: vi.fn(),
+    addEventListener: (_type: 'playing', listener: () => void) => void playingListeners.add(listener),
+    removeEventListener: (_type: 'playing', listener: () => void) => void playingListeners.delete(listener),
+    removeAttribute: vi.fn(),
+    load: vi.fn(),
+    remove: vi.fn(),
+    pause: vi.fn(() => {
+      el.paused = true;
+    }),
+    play: vi.fn(() => {
+      el.paused = false;
+      return playResult().then(() => {
+        if (!el.paused) for (const listener of playingListeners) listener();
+      });
+    }),
+  };
+  return { el, seeks };
+}
+
+/** A stand-in AudioContext whose state can be changed from the test. */
+function fakeContext(state = 'suspended') {
+  const listeners = new Set<() => void>();
+  return {
+    state,
+    listeners,
+    addEventListener: (_type: 'statechange', l: () => void) => void listeners.add(l),
+    removeEventListener: (_type: 'statechange', l: () => void) => void listeners.delete(l),
+    set(next: string) {
+      this.state = next;
+      for (const l of listeners) l();
+    },
+  };
+}
+
+/** Seconds of audio in a generated WAV (data bytes / byte rate). */
+async function wavSeconds(blob: Blob): Promise<number> {
+  const view = new DataView(await blob.arrayBuffer());
+  return view.getUint32(40, true) / view.getUint32(28, true);
 }
 
 describe('makeSilentWav', () => {
@@ -37,43 +97,243 @@ describe('makeSilentWav', () => {
   });
 });
 
+describe('silentTrackPlan', () => {
+  it('loops 10 s without a song', () => {
+    expect(silentTrackPlan(null)).toEqual({ seconds: 10, loop: true });
+    expect(silentTrackPlan(NaN)).toEqual({ seconds: 10, loop: true });
+    expect(silentTrackPlan(0)).toEqual({ seconds: 10, loop: true });
+  });
+
+  it('outlasts the song by a second and does not loop', () => {
+    expect(silentTrackPlan(180.2)).toEqual({ seconds: 182, loop: false });
+    expect(silentTrackPlan(240)).toEqual({ seconds: 241, loop: false });
+  });
+
+  it('stays over the 5 s Chrome needs for its media notification', () => {
+    expect(silentTrackPlan(2)).toEqual({ seconds: 10, loop: false });
+  });
+
+  it('caps the file (and memory) for very long songs, looping it', () => {
+    expect(silentTrackPlan(25 * 60)).toEqual({ seconds: 20 * 60, loop: true });
+  });
+});
+
 describe('createKeepAlive', () => {
+  let blobs: Blob[];
+  let revoked: string[];
+
+  beforeEach(() => {
+    blobs = [];
+    revoked = [];
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+      if (blob instanceof Blob) blobs.push(blob);
+      return `blob:keep-alive-${blobs.length}`;
+    });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation((u) => void revoked.push(u));
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it('loops a silent WAV longer than the 5 s Chrome needs for its media notification', async () => {
-    const blobs: Blob[] = [];
-    vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
-      if (blob instanceof Blob) blobs.push(blob);
-      return 'blob:keep-alive';
-    });
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
-    const el = {
-      loop: false,
-      preload: '',
-      hidden: false,
-      src: '',
-      paused: true,
-      setAttribute: vi.fn(),
-      removeAttribute: vi.fn(),
-      load: vi.fn(),
-      remove: vi.fn(),
-      pause: vi.fn(),
-      play: vi.fn(() => Promise.resolve()),
-    };
-    vi.stubGlobal('document', { createElement: () => el, body: { appendChild: vi.fn() } });
+  function stubDom(el: unknown, visibilityState = 'visible', webkit = true) {
+    vi.stubGlobal('document', { createElement: () => el, body: { appendChild: vi.fn() }, visibilityState });
+    vi.stubGlobal('navigator', webkit ? { audioSession: { type: 'playback' } } : {});
+  }
 
+  it('loops a silent WAV longer than the 5 s Chrome needs for its media notification', async () => {
+    const { el } = fakeAudio();
+    stubDom(el);
     const keepAlive = createKeepAlive();
     await keepAlive.start();
     expect(el.play).toHaveBeenCalledOnce();
     expect(el.loop).toBe(true);
     expect(blobs).toHaveLength(1);
-    const wav = new Uint8Array(await blobs[0]!.arrayBuffer());
-    const view = new DataView(wav.buffer);
-    const seconds = view.getUint32(40, true) / view.getUint32(28, true); // data bytes / byte rate
-    expect(seconds).toBeGreaterThan(5);
+    expect(await wavSeconds(blobs[0]!)).toBeGreaterThan(5);
+    keepAlive.dispose();
+  });
+
+  it('builds a non-looping file as long as the song outside the tap, then plays it', async () => {
+    const { el } = fakeAudio();
+    stubDom(el);
+    const keepAlive = createKeepAlive();
+    keepAlive.setTrack(95.5);
+    expect(el.play).not.toHaveBeenCalled();
+    expect(el.loop).toBe(false);
+    expect(el.src).toBe('blob:keep-alive-1');
+    expect(await wavSeconds(blobs[0]!)).toBe(97);
+    expect(blobs[0]!.size).toBe(44 + 97 * 8000 * 2);
+    await keepAlive.start();
+    expect(el.play).toHaveBeenCalledOnce();
+    expect(blobs).toHaveLength(1); // nothing generated inside the tap
+    keepAlive.dispose();
+    expect(revoked).toEqual(['blob:keep-alive-1']);
+  });
+
+  it('swaps files per song, frees the old one, and goes back to the short loop on unload', async () => {
+    const { el } = fakeAudio();
+    stubDom(el);
+    const keepAlive = createKeepAlive();
+    keepAlive.setTrack(60);
+    await keepAlive.start();
+    keepAlive.setTrack(120);
+    expect(el.pause).toHaveBeenCalled();
+    expect(el.paused).toBe(true);
+    expect(el.src).toBe('blob:keep-alive-2');
+    expect(revoked).toEqual(['blob:keep-alive-1']);
+    keepAlive.setTrack(119.5); // same file length (121 s): nothing rebuilt
+    expect(blobs).toHaveLength(2);
+    keepAlive.setTrack(null);
+    expect(el.loop).toBe(true);
+    expect(await wavSeconds(blobs[2]!)).toBe(10);
+    expect(revoked).toEqual(['blob:keep-alive-1', 'blob:keep-alive-2']);
+    keepAlive.dispose();
+  });
+
+  it('follows the song clock: rate always, position only when off by more than 0.25 s', () => {
+    const { el, seeks } = fakeAudio();
+    stubDom(el);
+    const keepAlive = createKeepAlive();
+    keepAlive.sync(42, 0.9); // before the element exists: remembered
+    keepAlive.setTrack(200); // a new song starts at 0
+    expect(el.playbackRate).toBe(0.9);
+    expect(el.defaultPlaybackRate).toBe(0.9);
+    keepAlive.sync(42, 0.9);
+    expect(seeks).toEqual([42]);
+    keepAlive.sync(42.2, 0.9); // within tolerance
+    expect(seeks).toEqual([42]);
+    keepAlive.sync(10, 1.1);
+    expect(seeks).toEqual([42, 10]);
+    expect(el.playbackRate).toBe(1.1);
+    keepAlive.sync(500, 9); // past the file: clamped inside it; absurd rate clamped
+    expect(seeks.at(-1)).toBe(200.5);
+    expect(el.playbackRate).toBe(4);
+    keepAlive.sync(NaN, -1); // ignored
+    expect(seeks).toHaveLength(3);
+    expect(el.playbackRate).toBe(4);
+    keepAlive.dispose();
+  });
+
+  it('never seeks a looping file (no song, or one longer than the cap)', () => {
+    const { el, seeks } = fakeAudio();
+    stubDom(el);
+    const keepAlive = createKeepAlive();
+    keepAlive.setTrack(30 * 60);
+    keepAlive.sync(900, 1);
+    keepAlive.setTrack(null);
+    keepAlive.sync(5, 1);
+    expect(seeks).toEqual([]);
+    keepAlive.dispose();
+  });
+
+  it('starts at the song position', async () => {
+    const { el, seeks } = fakeAudio();
+    stubDom(el);
+    const keepAlive = createKeepAlive();
+    keepAlive.setTrack(100);
+    keepAlive.stop();
+    keepAlive.sync(33, 1);
+    await keepAlive.start();
+    expect(seeks).toEqual([33]);
+    expect(el.play).toHaveBeenCalledOnce();
+    keepAlive.dispose();
+  });
+
+  it('claims the current media session again with pause + play while playing', async () => {
+    const { el } = fakeAudio();
+    stubDom(el);
+    const onStarted = vi.fn();
+    const keepAlive = createKeepAlive({ onStarted });
+    keepAlive.claim(); // nothing built yet
+    keepAlive.setTrack(100);
+    keepAlive.claim(); // not playing
+    expect(el.play).not.toHaveBeenCalled();
+    await keepAlive.start();
+    expect(onStarted).toHaveBeenCalledOnce();
+    keepAlive.claim();
+    expect(el.pause.mock.invocationCallOrder.at(-1)!).toBeLessThan(el.play.mock.invocationCallOrder.at(-1)!);
+    expect(el.play).toHaveBeenCalledTimes(2);
+    expect(el.paused).toBe(false);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onStarted).toHaveBeenCalledTimes(2);
+    keepAlive.dispose();
+  });
+
+  it('does not claim where it could hurt: hidden page, or not WebKit', async () => {
+    const hidden = fakeAudio();
+    stubDom(hidden.el, 'hidden');
+    const a = createKeepAlive();
+    await a.start();
+    a.claim();
+    expect(hidden.el.play).toHaveBeenCalledOnce();
+    a.dispose();
+
+    const chrome = fakeAudio();
+    stubDom(chrome.el, 'visible', false);
+    const b = createKeepAlive();
+    await b.start();
+    b.claim();
+    expect(chrome.el.play).toHaveBeenCalledOnce();
+    b.dispose();
+  });
+
+  it('reports native playback starts so an inactive mode can immediately stop them', async () => {
+    const { el } = fakeAudio();
+    stubDom(el);
+    let active = true;
+    const onStarted = vi.fn(() => {
+      if (!active) keepAlive.stop();
+    });
+    const keepAlive = createKeepAlive({ onStarted });
+    keepAlive.setTrack(100);
+    await keepAlive.start();
+    expect(onStarted).toHaveBeenCalledOnce();
+    keepAlive.stop();
+    active = false;
+
+    // The browser can invoke play() directly when no page Media Session handler is registered.
+    await el.play();
+    expect(onStarted).toHaveBeenCalledTimes(2);
+    expect(el.paused).toBe(true);
+
+    keepAlive.dispose();
+    await el.play();
+    expect(onStarted).toHaveBeenCalledTimes(2);
+  });
+
+  it('claims when the AudioContext starts running after it, and stops listening on dispose', async () => {
+    const { el } = fakeAudio();
+    stubDom(el);
+    const ctx = fakeContext('suspended');
+    const keepAlive = createKeepAlive({ context: ctx });
+    keepAlive.setTrack(100);
+    expect(ctx.listeners.size).toBe(1);
+    ctx.set('running'); // not playing yet: nothing to claim
+    expect(el.play).not.toHaveBeenCalled();
+    await keepAlive.start();
+    ctx.set('interrupted');
+    expect(el.play).toHaveBeenCalledOnce();
+    ctx.set('running');
+    expect(el.play).toHaveBeenCalledTimes(2);
+    keepAlive.dispose();
+    expect(ctx.listeners.size).toBe(0);
+  });
+
+  it('accepts a real AudioContext', () => {
+    const accept = (ctx: AudioContext): AudioContextLike => ctx;
+    expect(typeof accept).toBe('function');
+  });
+
+  it('reports a refused start as not started', async () => {
+    const refusal = Object.assign(new Error('needs a tap'), { name: 'NotAllowedError' });
+    const { el } = fakeAudio(() => Promise.reject(refusal));
+    stubDom(el);
+    const onStarted = vi.fn();
+    const keepAlive = createKeepAlive({ onStarted });
+    await expect(keepAlive.start()).resolves.toBeUndefined();
+    expect(onStarted).not.toHaveBeenCalled();
     keepAlive.dispose();
   });
 
@@ -81,7 +341,12 @@ describe('createKeepAlive', () => {
     vi.stubGlobal('document', undefined);
     const keepAlive = createKeepAlive();
     await expect(keepAlive.start()).resolves.toBeUndefined();
-    expect(() => keepAlive.stop()).not.toThrow();
-    expect(() => keepAlive.dispose()).not.toThrow();
+    expect(() => {
+      keepAlive.setTrack(100);
+      keepAlive.sync(3, 1);
+      keepAlive.claim();
+      keepAlive.stop();
+      keepAlive.dispose();
+    }).not.toThrow();
   });
 });

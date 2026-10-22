@@ -1,6 +1,7 @@
 /// <reference path="./signalsmith-stretch.d.ts" />
 import SignalsmithStretch, { type StretchNode, type StretchSchedule } from 'signalsmith-stretch';
 import type { LoadedTrack } from './deck';
+import type { DancerPlayer } from './dancer-player';
 
 /** Position report cadence while playing, seconds. */
 const UPDATE_INTERVAL = 0.05;
@@ -36,7 +37,8 @@ interface Change {
  * detection — the node never stops by itself; past the end of its buffers it keeps advancing through
  * silence.
  */
-export class StretchDeck {
+export class StretchDeck implements DancerPlayer {
+  readonly kind = 'audio' as const;
   /** Already connected to the destination given to `create`. */
   readonly node: AudioNode;
 
@@ -46,6 +48,11 @@ export class StretchDeck {
   onPosition: ((seconds: number) => void) | null = null;
   /** Once when playback reaches the end; the deck is then paused at `duration`. */
   onEnded: (() => void) | null = null;
+  /**
+   * On every play/pause transition: play, pause, jumpTo, load / unload while playing, and the end of the
+   * track (before `onEnded`).
+   */
+  onPlayingChange: ((playing: boolean) => void) | null = null;
 
   private readonly ctx: AudioContext;
   private readonly stretch: StretchNode;
@@ -121,6 +128,7 @@ export class StretchDeck {
   release(): void {
     this.onPosition = null;
     this.onEnded = null;
+    this.onPlayingChange = null;
     this.unload();
     this.setTempo(1);
     this.setSemitones(0);
@@ -209,9 +217,11 @@ export class StretchDeck {
    * Applies `change` `lookahead` ahead of now, mirroring the node's own segment arithmetic (a new
    * segment inherits the previous one, with its input advanced by elapsed × rate while active) so
    * `position` stays in step with the worklet's time map. Only defined keys are sent: the wrapper
-   * treats a present-but-undefined `input` as given.
+   * treats a present-but-undefined `input` as given. Fires `onPlayingChange` last, once the change is
+   * sent, so a handler may call back into the deck.
    */
   private schedule(change: Change): void {
+    const wasPlaying = this._playing;
     const at = this.ctx.currentTime + this.lookahead;
     const elapsed = this._playing ? Math.max(0, at - this.segStart) : 0;
     this.segInput = change.input ?? this.segInput + elapsed * this._tempo;
@@ -226,6 +236,7 @@ export class StretchDeck {
     if (change.rate !== undefined) msg.rate = change.rate;
     if (change.semitones !== undefined) msg.semitones = change.semitones;
     void this.stretch.schedule(msg);
+    if (this._playing !== wasPlaying) this.onPlayingChange?.(this._playing);
   }
 
   /** Runs on every worklet time report: periodically while playing, and once per schedule. */
