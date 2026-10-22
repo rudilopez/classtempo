@@ -5,7 +5,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { analysis } from '../analysisClient';
 import nowPlayingLogo from '../assets/itda-logo-white.png';
 import { Waveform, type WaveformMarker } from '../components/Waveform';
-import { makeDemoTrack } from '../demo';
 import { cueSection, lockScreenLine } from '../platform/cueLabel';
 import { nextCueTime, previousCueTime } from '../platform/cueNavigation';
 import { createKeepAlive } from '../platform/keepAlive';
@@ -455,10 +454,6 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     await loadBuffer(buffer, file.name);
   };
 
-  const loadDemo = () => {
-    if (!loadingRef.current) void loadBuffer(makeDemoTrack(engine.ctx, 120), 'Demo 120 BPM');
-  };
-
   const seek = (seconds: number) => {
     const p = playerRef.current;
     if (!p?.track) return;
@@ -715,9 +710,6 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       onDrop={onDrop}
     >
       {actionsContainer && createPortal(<div className="dancer-actions" onKeyDown={(e) => e.stopPropagation()} onKeyUp={(e) => e.stopPropagation()}>
-        <button onClick={loadDemo} disabled={!stretch || loading} title="Synthesised test track">
-          Demo
-        </button>
         <button onClick={() => fileInput.current?.click()} disabled={loading} title="Open a song or a video">
           Load
         </button>

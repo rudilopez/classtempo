@@ -2,7 +2,6 @@ import { beatBefore, downmix } from '@mixdeck/analysis';
 import type { Deck, Engine } from '@mixdeck/engine';
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { analysis } from '../analysisClient';
-import { makeDemoTrack } from '../demo';
 import { effectiveBpm, formatTime, type DeckUiState } from '../types';
 import { Waveform } from './Waveform';
 
@@ -82,11 +81,6 @@ export function DeckView({ label, accent, engine, deck, state, setState, other, 
     [engine, loadBuffer, setState],
   );
 
-  const loadDemo = () => {
-    const bpm = label === 'A' ? 124 : 128;
-    void loadBuffer(makeDemoTrack(engine.ctx, bpm), `Demo ${bpm} BPM`);
-  };
-
   /**
    * Inside the tap: resume a context that an interruption (call, Siri, other app audio, page hidden) left
    * suspended while every deck was paused; no statechange would bring it back, so the deck would play silently.
@@ -164,9 +158,6 @@ export function DeckView({ label, accent, engine, deck, state, setState, other, 
         <div className="deck-title" title={t?.name}>
           {state.loading ? 'Decoding…' : t ? t.name : 'Load a track or drop one here'}
         </div>
-        <button onClick={loadDemo} title="Synthesised test track">
-          Demo
-        </button>
         <button onClick={() => fileInput.current?.click()}>Load</button>
         <input
           ref={fileInput}

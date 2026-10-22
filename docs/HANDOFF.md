@@ -36,6 +36,11 @@ checks pass for a matching 31-second, 2160×3840 H.264/24 fps, 78.2 MB synthetic
 audio; no audio decode calls were observed. Same-element Stage transitions and 75% key-locked tempo pass.
 This does not establish that the owner's exact video works on the physical iPhone; that retest remains open.
 
+## Demo removal (2026-10-22)
+
+Removed the synthetic Demo buttons from Dancer and both DJ decks, along with the unused track generator.
+Use Load or drag and drop to open audio/video files. Earlier Demo references below describe historical checks.
+
 ## 1. Finish and ship "Dancer v2" (mostly built — verify, fix, deploy)
 
 Owner's requests (verbatim): "on lock screen I can not move the sound bar. Can que show on lock? … what does the
