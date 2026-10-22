@@ -7,8 +7,8 @@ it portable to other static hosts. No account, media upload or application serve
 ## Application and playback
 
 `App.tsx` creates one `Engine.create({ dj: false })` and mounts the existing `DancerMode` component. The component
-name is historical: it is now the only product player. Song/Video opens the corresponding file picker and sets
-the library filter. Cancelling it preserves current media; no selection starts playback. The former DJ surface
+name is historical: it is now the only product player. Open accepts either audio or video and the actual file
+type selects the playback engine. Cancelling it preserves current media; no selection starts playback. The former DJ surface
 is not mounted; DJ decks and their processors are not initialized. Legacy engine methods/components remain for
 existing tests and can be removed separately.
 
@@ -28,6 +28,8 @@ Video files use a `VideoDeck` backed by one native `<video playsinline>` and an 
 `preservesPitch` control speed where supported. Video never triggers a second whole-file audio decode for BPM
 or waveform analysis. Its timeline is seekable but has no derived waveform/BPM. The element mounts during load,
 reports readiness/errors, and moves into and out of Stage without replacing the media element or its playback.
+A fatal native decoder error latches a paused/unavailable state until a fresh load; late play events cannot
+reactivate it. The readable recovery message replaces the picture controls in both player views.
 Mirror and zoom are visual transforms; they do not rewrite the source file. Native-video Talk pauses and resumes
 when appropriate because reliable per-element volume attenuation cannot be assumed on the target phone.
 
@@ -61,6 +63,17 @@ product rename. Eight slots store `{ time, name }` or null. Cue creation/movemen
 outside Edit, only existing cues launch. Undo stores recent cue edits for the current load. Stage is launch-only.
 
 ## Library, class sets and backups
+
+The dialog opens to **Media**, a single recent-first list of saved songs and videos with explicit type badges.
+**Classes** starts with a named-card overview; selecting a card opens its ordered exercises. Search appears only
+when media exists, filters saved filenames without case/accent sensitivity, and reports counts or a clear empty
+result. It is not a music-service search. Backup utilities are collapsed below the current view.
+
+Open in the player directly selects one file. Add media in the library saves the whole selection, then opens the
+first selected item paused and closes the dialog. `importFlow.ts` separates save and open outcomes: a null library
+ID tells the player that saving failed and prevents an automatic retry, while the user gets explicit unsaved
+feedback. Cancelling is a no-op. Save current only persists the file and preserves playback/practice. Updating
+recency cannot turn a successful load into a reported failure.
 
 `src/library/store.ts` uses the `classtempo-library` IndexedDB database with three stores:
 
@@ -118,8 +131,9 @@ applies restored per-track settings. Backups are user-controlled files, not clou
 
 The root uses `100dvh` with a `100vh` fallback and safe-area insets. Phone portrait fits the main player without
 vertical scrolling; landscape/tablet layouts use available columns. Buttons retain at least 44 px touch targets.
-Cue sizes depend on the view, with compact Stage controls. The header shares space between brand, Song/Video,
-Library and Keep awake. Titles live inside the media panel; the logo replaces the O in Now Playing.
+Cue sizes depend on the view, with compact Stage controls. The header shares space between the larger ClassTempo wordmark, Open,
+Library and Keep awake. Titles live inside the media panel; the palm logo replaces the O in Now Playing and the
+final o in ClassTempo.
 
 The production service worker caches normal app assets, worklets and WASM. Updates install in the background
 without forcibly reloading an active class. Registration checks again after returning to the foreground, with

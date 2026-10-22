@@ -9,10 +9,12 @@ original `mixdeck` name.
 
 ## Classroom workflow
 
-1. Tap **Song / Video** to open the matching file picker and choose an ordinary audio or video file. The pills
-   do not create separate players; cancelling the picker keeps the current track. Nothing starts until Play.
-2. Open **Library** to reopen saved files, find recent titles, or prepare an ordered, named class set. Class
-   entries advance manually. The same song can appear more than once, with different practice settings.
+1. Tap **Open** to choose an ordinary song or video file. The app recognizes its type automatically; cancelling
+   the picker keeps the current track. Nothing starts until Play.
+2. Open **Library → Media** for all saved songs and videos together, with clear type labels and a local search.
+   **Add media** saves your selection and opens it automatically, paused. With multiple files, all are saved and
+   the first opens. **Classes** holds ordered lesson lists made from that media; choose a class to prepare or use
+   its exercises. Class entries advance manually and can reuse a file with different practice settings.
 3. Adjust speed between **50% and 150%**, preserving pitch where the playback engine/browser supports it.
    The percentage sits between the minus and plus controls; **100%** restores original speed.
 4. Open **Practice** to name sections with start/end times. Play a section once and stop, or repeat it for a
@@ -44,7 +46,7 @@ needed to test authenticated MusicKit playback. See [the feasibility plan](docs/
 No streaming playback, streaming tempo control, or classroom-use permission is implied by this release.
 
 Media and settings stay on this device; there is no account, upload service or cloud sync. The supplied white
-logo forms the O in Now Playing. The former DJ interface and synthetic Demo have been removed from the product.
+logo forms the O in Now Playing and the final o in the larger ClassTempo wordmark. The former DJ interface and synthetic Demo have been removed from the product.
 
 ## Saved files, backups and offline use
 

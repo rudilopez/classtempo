@@ -28,7 +28,7 @@ import { formatTime, type TrackState } from '../types';
 import { CuePads, padColor } from './CuePads';
 import { emptyCues, loadCues, saveCues, type CueSlots } from './cueStore';
 import { dancerAudio } from './dancerAudio';
-import { countCues, isVideoFile } from './media';
+import { ACCEPT_MEDIA, countCues, isVideoFile } from './media';
 import { StageView } from './StageView';
 import { clampTempo, TempoControl } from './TempoControl';
 import { VideoView } from './VideoView';
@@ -106,12 +106,12 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   };
   const [pendingVideo, setPendingVideo] = useState<HTMLVideoElement | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   /** percent */
   const [tempo, setTempo] = useState(100);
   const [editing, setEditing] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [libraryKind, setLibraryKind] = useState<'audio' | 'video'>('audio');
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [practiceOpen, setPracticeOpen] = useState(false);
   const [practice, setPractice] = useState<PracticeSettings>(defaultPracticeSettings);
@@ -279,7 +279,22 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     if (!player) return;
     const video = player instanceof VideoDeck ? player.element : null;
     const rememberVideo = () => { videoStarted.current = true; };
+    const syncVideoError = () => {
+      const error = player instanceof VideoDeck ? player.error : null;
+      setVideoError(error);
+      if (error) {
+        practiceController.current?.cancel();
+        keepAlive.stop();
+        setPlaying(false);
+        setTalking(false);
+        talkResume.current = false;
+        syncMedia();
+      }
+    };
     video?.addEventListener('playing', rememberVideo);
+    video?.addEventListener('error', syncVideoError);
+    video?.addEventListener('loadstart', syncVideoError);
+    syncVideoError();
     player.onPosition = (s) => {
       positionRef.current = s;
       practiceController.current?.tick(s);
@@ -310,6 +325,8 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     };
     return () => {
       video?.removeEventListener('playing', rememberVideo);
+      video?.removeEventListener('error', syncVideoError);
+      video?.removeEventListener('loadstart', syncVideoError);
       player.onPosition = null;
       player.onPlayingChange = null;
       player.onEnded = null;
@@ -357,6 +374,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   /** A freshly loaded song starts paused at 0:00, 100 %, out of edit mode. */
   const resetTransport = (name: string, duration: number) => {
     practiceController.current?.cancel();
+    setVideoError(playerRef.current instanceof VideoDeck ? playerRef.current.error : null);
     const saved = loadPracticeSettings(name, duration);
     practiceRef.current = saved;
     setPractice(saved);
@@ -496,7 +514,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   };
 
   /** Loads one file: videos on the VideoDeck, audio decoded for the StretchDeck. Ignored while another load runs. */
-  const loadFile = async (file: File, libraryId?: string): Promise<boolean> => {
+  const loadFile = async (file: File, libraryId?: string | null): Promise<boolean> => {
     if (loadingRef.current) return false;
     const request = ++loadRequest.current;
     practiceController.current?.cancel();
@@ -528,14 +546,14 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     }
     if (!loaded || request !== loadRequest.current) return false;
     setCurrentFile(file);
-    setLibraryKind(isVideoFile(file) ? 'video' : 'audio');
     // Keep video loading native; saving the Blob never decodes a second copy for analysis.
-    void (async () => {
+    if (libraryId !== null) void (async () => {
       try {
         const id = libraryId ?? (await saveMedia(file)).id;
-        await markOpened(id);
+        // Saving and updating recency are separate: a recency failure does not lose the saved file.
+        await markOpened(id).catch(() => {});
       } catch {
-        if (request === loadRequest.current) showToast('Playing from this file. It could not be saved for offline use.');
+        if (request === loadRequest.current) showToast('File opened. It could not be saved for offline use.');
       }
     })();
     return true;
@@ -545,7 +563,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     practiceController.current?.cancel();
     talkResume.current = false;
     const p = playerRef.current;
-    if (!p?.track) return;
+    if (!p?.track || (p instanceof VideoDeck && p.error)) return;
     const wasPlaying = p.playing;
     // A delay or repeat gap has a running keep-alive but an already-paused player.
     // Its seek emits no pause event, so cancel the silent media session explicitly.
@@ -571,7 +589,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
    */
   const startPlayback = (run: (p: DancerPlayer) => void) => {
     const p = playerRef.current;
-    if (!p?.track || !activeRef.current || loadingRef.current) return;
+    if (!p?.track || !activeRef.current || loadingRef.current || (p instanceof VideoDeck && p.error)) return;
     if (setPlaybackState('playing')) keepAlive.claim();
     run(p);
     if (p.kind === 'audio') {
@@ -607,7 +625,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   const play = () => {
     const p = playerRef.current;
-    if (!p?.track || loadingRef.current || p.playing) return;
+    if (!p?.track || loadingRef.current || p.playing || (p instanceof VideoDeck && p.error)) return;
     if (['delay', 'gap', 'preparing'].includes(practiceController.current?.getState().phase ?? '')) return;
     if (p.kind === 'video' && talking) { setTalking(false); talkResume.current = false; }
     let settings = practiceRef.current;
@@ -643,6 +661,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   const previousCue = () => {
     const p = playerRef.current;
+    if (p instanceof VideoDeck && p.error) return;
     const selected = selectedPracticeSection(practiceRef.current);
     if (selected && p?.track && practiceRef.current.mode !== 'off') {
       if (p.kind === 'video') { setTalking(false); talkResume.current = false; }
@@ -661,7 +680,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   const changeTempo = (percent: number) => {
     const p = playerRef.current;
-    if (!p) return;
+    if (!p || (p instanceof VideoDeck && p.error)) return;
     const v = clampTempo(percent);
     p.setTempo(v / 100);
     setTempo(v);
@@ -683,7 +702,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   const toggleTalk = () => {
     const p = playerRef.current;
-    if (!p?.track) return;
+    if (!p?.track || (p instanceof VideoDeck && p.error)) return;
     if (!talking) {
       talkResume.current = p.playing;
       if (p.kind === 'video') { practiceController.current?.cancel(); pauseNow(); }
@@ -711,7 +730,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
    */
   const pressPad = (i: number, launchOnly = false) => {
     const p = playerRef.current;
-    if (!p?.track || !song) return;
+    if (!p?.track || !song || (p instanceof VideoDeck && p.error)) return;
     const cue = song.cues[i] ?? null;
     if (!launchOnly && editing) {
       const time = p.position; // live, not the last ~50 ms report
@@ -840,7 +859,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   const track = song?.track ?? null;
   const bpm = track?.bpm ? track.bpm * (tempo / 100) : null;
-  const ready = player !== null && song !== null && !loading;
+  const ready = player !== null && song !== null && !loading && !videoError;
   const selectedSection = selectedPracticeSection(practice);
   const pendingLabel = waiting
     ? `${practiceState.phase === 'gap' ? 'Next repetition' : 'Get ready'} · ${Math.ceil(practiceState.remainingSeconds)}s`
@@ -887,21 +906,8 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       onDrop={onDrop}
     >
       {actionsContainer && createPortal(<div className="dancer-actions" onKeyDown={(e) => e.stopPropagation()} onKeyUp={(e) => e.stopPropagation()}>
-        <div className="mode-switch source-switch" role="group" aria-label="Choose what to load">
-          {(['audio', 'video'] as const).map((kind) => (
-            <button key={kind} className="mode-pill" aria-pressed={libraryKind === kind} disabled={loading}
-              onClick={() => {
-                setLibraryKind(kind);
-                if (fileInput.current) {
-                  fileInput.current.accept = kind === 'video' ? 'video/*,.mp4,.mov,.m4v,.webm' : 'audio/*,.mp3,.m4a,.aac,.wav,.aif,.aiff,.flac,.ogg';
-                  fileInput.current.click();
-                }
-              }}
-              title={`Load a ${kind === 'audio' ? 'song' : 'video'}`}>
-              {kind === 'audio' ? 'Song' : 'Video'}
-            </button>
-          ))}
-        </div>
+        <button onClick={() => fileInput.current?.click()} disabled={loading}
+          title="Open a song or video from Files or Photos">Open</button>
         <button onClick={() => setLibraryOpen(true)} disabled={loading} title="Saved songs, videos and class sets">
           Library
         </button>
@@ -924,7 +930,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
         <input
           ref={fileInput}
           type="file"
-          accept={libraryKind === 'video' ? 'video/*,.mp4,.mov,.m4v,.webm' : 'audio/*,.mp3,.m4a,.aac,.wav,.aif,.aiff,.flac,.ogg'}
+          accept={ACCEPT_MEDIA}
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -970,16 +976,16 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
             <span aria-hidden="true">N</span><img className="now-playing-logo" src={nowPlayingLogo} alt="" aria-hidden="true" /><span aria-hidden="true">W PLAYING</span>
           </span>
           <div className="dancer-track-title" title={track?.name}>
-            {loading ? 'Opening video or song…' : loadError ? loadError : track?.name ?? (deckError ? `Player failed to start: ${deckError}` : 'Load a song or video to begin')}
+            {loading ? 'Opening video or song…' : loadError ? loadError : track?.name ?? (deckError ? `Player failed to start: ${deckError}` : 'Tap Open to choose a song or video')}
           </div>
         </div>
         {videoElement ? (
           <div className="dancer-media" style={{ ['--video-ar' as string]: String(song?.aspect ?? 16 / 9) }}>
             {/* Stage borrows this same media element, preserving playback and the iOS gesture. */}
             <VideoView element={stageOpen ? null : videoElement} playing={playing} onTap={ready ? togglePlay : undefined} className="dancer-video" mirrored={practice.videoMirrored} zoom={practice.videoZoom} />
-            <VideoTools mirrored={practice.videoMirrored} zoom={practice.videoZoom}
+            {!videoError && <VideoTools mirrored={practice.videoMirrored} zoom={practice.videoZoom}
               onMirroredChange={(value) => updatePractice({ ...practice, videoMirrored: value }, false)}
-              onZoomChange={(value) => updatePractice({ ...practice, videoZoom: value }, false)} />
+              onZoomChange={(value) => updatePractice({ ...practice, videoZoom: value }, false)} />}
             <Waveform {...waveformProps} className="strip" />
           </div>
         ) : (
@@ -991,7 +997,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
       <div className="dancer-transport">
         <button className={`play ${playing ? 'on' : ''}`} onClick={togglePlay} disabled={!ready} title="Space">
-          {waiting ? '✕  Cancel' : playing ? '❚❚  Pause' : '▶  Play'}
+          {videoError ? 'Video error' : waiting ? '✕  Cancel' : playing ? '❚❚  Pause' : '▶  Play'}
         </button>
         <button onClick={restart} disabled={!ready} title="Home">
           ⟲ {selectedSection ? 'Section' : 'Restart'}
@@ -1051,7 +1057,8 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
         </div>
       </div>
 
-      <LibraryModal open={libraryOpen} initialKind={libraryKind} onClose={() => setLibraryOpen(false)}
+      <LibraryModal open={libraryOpen} onClose={() => setLibraryOpen(false)}
+        onNotice={showToast}
         currentFile={currentFile} currentTitle={track?.name ?? null}
         currentPractice={practice} currentDuration={track?.duration}
         onLoad={async (file, id, exercise) => {

@@ -1,5 +1,5 @@
 /*
- * One-player app shell. The player portals its Song / Video filters, Library and Keep awake action into
+ * One-player app shell. The player portals its Open, Library and Keep awake actions into
  * this compact header. Base header rules live in styles.css.
  */
 
@@ -14,12 +14,30 @@
   text-align: center;
 }
 .splash-logo {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
-.splash-logo > span {
+.brand-wordmark {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  line-height: 1;
+}
+.brand-wordmark .brand-class {
+  color: var(--text);
+}
+.brand-wordmark .brand-tempo {
   color: var(--a);
+}
+.brand-mark {
+  display: block;
+  flex: none;
+  width: .79em;
+  height: .79em;
+  margin-left: .015em;
+  object-fit: contain;
+  transform: translateY(.025em);
 }
 .splash p {
   margin: 0;
@@ -108,7 +126,7 @@
   }
 }
 
-/* One useful row on phones: identity, content filters, library and wake lock. */
+/* One useful row on phones: identity, open, library and wake lock. */
 .app > header {
   flex: none;
   min-height: 52px;
@@ -124,12 +142,9 @@
   flex: none;
 }
 .app > header .logo {
-  font-size: 17px;
+  font-size: 28px;
   white-space: nowrap;
   letter-spacing: -0.045em;
-}
-.logo > span {
-  color: var(--a);
 }
 .header-actions {
   display: flex;
@@ -195,8 +210,8 @@
     gap: 6px;
   }
   .app > header .logo {
-    font-size: 14px;
-    letter-spacing: -0.05em;
+    font-size: clamp(22px, 6.2vw, 26px);
+    letter-spacing: -0.045em;
   }
   .app > header .mode-pill {
     min-width: 44px;

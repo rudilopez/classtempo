@@ -92,6 +92,9 @@ class FakeVideo extends EventTarget {
   setAttribute(name: string, value: string): void {
     this.attrs.set(name, value);
   }
+  getAttribute(name: string): string | null {
+    return this.attrs.get(name) ?? null;
+  }
   removeAttribute(name: string): void {
     this.attrs.delete(name);
   }
@@ -310,6 +313,51 @@ describe('VideoDeck', () => {
     expect(deck.playing).toBe(false);
     expect(events).toEqual(['playing', 'paused']);
     expect(mediaErrorMessage(video.error.code, 'clip.mp4')).toContain('1080p MP4 with H.264');
+  });
+
+  it('keeps a fatal decoder error paused despite late native play events and further play requests', async () => {
+    await loadVideo(31);
+    const play = vi.spyOn(video, 'play');
+    deck.play();
+    video.currentTime = 12;
+    video.error = { code: 3 };
+    video.fire('error');
+    expect(video.paused).toBe(true);
+    expect(deck.error).toContain('could not be decoded');
+    // Some native event sequences expose paused=false after the error was already reported.
+    video.paused = false;
+    video.fire('play');
+    deck.play();
+    deck.jumpTo(5);
+    await tick();
+    expect(video.paused).toBe(true);
+    expect(deck.playing).toBe(false);
+    expect(deck.position).toBe(12);
+    expect(play).toHaveBeenCalledOnce();
+    expect(events).toEqual(['playing', 'paused']);
+
+    await loadVideo(31, 'new-video.mp4');
+    expect(deck.error).toBeNull();
+    video.fire('error'); // A stale event without a current native failure must not poison the new source.
+    deck.play();
+    expect(deck.playing).toBe(true);
+    expect(play).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not set playing when the decoder fails synchronously inside native play', async () => {
+    await loadVideo(31);
+    vi.spyOn(video, 'play').mockImplementation(() => {
+      video.paused = false;
+      video.error = { code: 3 };
+      video.fire('error');
+      return Promise.resolve();
+    });
+    deck.play();
+    await tick();
+    expect(video.paused).toBe(true);
+    expect(deck.playing).toBe(false);
+    expect(events).toEqual([]);
+    expect(deck.error).toContain('could not be decoded');
   });
 
   it('ignores a queued play event that a pause() overtook', async () => {
