@@ -14,9 +14,9 @@
 .dancer {
   /* space left in the card for the video: the viewport inside the safe area */
   --avail-h: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-  /* tablet / desktop portrait: what the pads can spare (they keep ~140 px rows on an iPad), up to 45 % of the
+  /* tablet / desktop portrait: what the pads can spare (they keep at least 96 px rows on an iPad), up to 45 % of the
      screen, never smaller than the waveform it replaces */
-  --video-h: clamp(var(--wave-h), calc(var(--avail-h) * 0.85 - 750px), 45dvh);
+  --video-h: clamp(var(--wave-h), calc(var(--avail-h) * 0.85 - 680px), 45dvh);
 }
 .dancer-media {
   grid-area: wave;
@@ -92,6 +92,10 @@
     /* measured: the rest of the column needs ~480 px + 15 % of the height above 763 px, and the pads keep ≥ ~76 px */
     --video-h: clamp(var(--wave-h), calc(var(--avail-h) * 0.85 - 545px), 36dvh);
   }
+  /* cue editing needs room for the rename / clear controls below each pad */
+  .dancer.has-video.editing .tempo {
+    display: none;
+  }
 }
 @media (max-width: 599px) and (max-height: 700px) {
   .dancer {
@@ -115,10 +119,10 @@
   display: contents;
 }
 /* ...except in phone landscape with a video: tempo moves above the pads in the right column, so the left column's
-   flexible row (the video) gets the tempo block's height too; the pads give up a little height (≥ 56 px) */
+   flexible row (the video) gets the tempo block's height too; the cue pads keep their 72 px minimum */
 @media (orientation: landscape) and (max-height: 499px) {
   .dancer.has-video {
-    --pad-min: 56px;
+    --pad-min: 72px;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     grid-template-areas:
       'head cues'
@@ -130,7 +134,7 @@
     grid-area: cues;
     display: flex;
     flex-direction: column;
-    gap: var(--gap);
+    gap: 6px;
     min-width: 0;
     min-height: 0;
   }
@@ -139,6 +143,7 @@
   }
   .dancer.has-video .dancer-side .cues {
     flex: 1 1 auto;
+    gap: 6px;
   }
   /* editing cues needs the taller edit pads (✕ / ✎ along their bottom): the tempo block steps aside meanwhile */
   .dancer.has-video.editing .dancer-side .tempo {
@@ -184,7 +189,7 @@
 }
 
 /* ---------- Stage view: full-screen performance screen ---------- */
-/* above the app; below the "Tap to resume audio" overlay (z-index 100), which must stay reachable */
+/* above the app; the audio-recovery overlay must also live inside the fullscreen root when Stage owns it */
 .stage {
   --accent: var(--a);
   --stage-pad-h: 72px;
@@ -330,8 +335,8 @@
   font-size: 18px;
   line-height: 1;
 }
-/* portrait: room for the ✕ above the video instead of on it; the video full width on top (shrinking when the screen
-   is short), Play / Restart and taller pads (up to 112 px) at the bottom within thumb reach */
+/* portrait: room for the ✕ above the video instead of on it; centre the video in the space above Play / Restart
+   and taller pads (up to 112 px), which stay at the bottom within thumb reach */
 @media (orientation: portrait) {
   .stage {
     padding-top: calc(env(safe-area-inset-top, 0px) + 64px);
@@ -341,9 +346,10 @@
     flex-direction: column;
   }
   .stage-has-video .stage-screen {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
+    justify-content: center;
   }
   .stage-has-video .stage-video {
     height: auto;
@@ -354,7 +360,7 @@
     flex: none;
     margin-top: auto;
   }
-  .stage-has-video .stage-pads {
+  .stage-pads {
     grid-auto-rows: minmax(var(--stage-pad-h), 112px);
   }
 }
@@ -387,6 +393,9 @@
   .stage-has-video .stage-video {
     border-radius: 0;
   }
+  .stage-has-video .video-paused {
+    top: 30%;
+  }
   .stage-has-video .stage-bar {
     position: absolute;
     left: calc(env(safe-area-inset-left, 0px) + 12px);
@@ -399,8 +408,32 @@
     backdrop-filter: blur(10px);
   }
 }
-/* phone landscape: the big type scales with the short side */
+/* phone landscape: stack transport controls so eight full-size pads fit a typical phone's usable width */
 @media (orientation: landscape) and (max-height: 499px) {
+  .stage-bar {
+    grid-template-columns: 94px minmax(0, 1fr);
+    gap: 8px;
+  }
+  .stage-transport {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .stage-play,
+  .stage-restart {
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px;
+  }
+  .stage-play {
+    font-size: 20px;
+  }
+  .stage-restart {
+    font-size: 14px;
+  }
+  .stage-pads {
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+    gap: 4px;
+  }
   .stage-section {
     font-size: clamp(32px, 13vh, 72px);
   }

@@ -115,7 +115,18 @@ export function DancerMode({ engine, active }: Props) {
 
   // one of each per mount; nothing is built until first use. The keep-alive re-takes WebKit's "started last"
   // when the context starts after it, and re-registers the lock-screen handlers each time it really starts.
-  const [keepAlive] = useState(() => createKeepAlive({ context: engine.ctx, onStarted: refreshHandlers }));
+  const [keepAlive] = useState(() => {
+    const keep = createKeepAlive({
+      context: engine.ctx,
+      onStarted: () => {
+        // Native media keys can restart a loaded element after our Media Session handlers are cleared.
+        const p = playerRef.current;
+        if (activeRef.current && p?.kind === 'audio' && p.playing) refreshHandlers();
+        else keep.stop();
+      },
+    });
+    return keep;
+  });
   const [screenOn, setScreenOn] = useState(false);
   // "Screen on" follows the lock the browser actually holds: a refused request, a failed re-acquire on return, or
   // a lock the system drops (battery saver / Low Power Mode) switches the toggle back off
@@ -222,6 +233,10 @@ export function DancerMode({ engine, active }: Props) {
       positionRef.current = s;
     };
     player.onPlayingChange = (isPlaying) => {
+      if (isPlaying && !activeRef.current) {
+        player.pause();
+        return;
+      }
       setPlaying(isPlaying);
       if (!isPlaying && player.kind === 'audio') keepAlive.stop();
       // WebKit ignores handlers registered before the page had a playing media element: register them again
@@ -604,15 +619,16 @@ export function DancerMode({ engine, active }: Props) {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof Element && e.target.closest('.resume-audio')) return;
       if (!activeRef.current || isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       const h = keys.current;
       if (e.key.length === 1 && e.key >= '1' && e.key <= '8') {
         if (!e.repeat) h.pressPad(Number(e.key) - 1, h.stageOpen);
       } else if (e.key === ' ') {
         if (!e.repeat) h.togglePlay();
-      } else if (e.key === 'ArrowLeft') {
+      } else if (e.key === 'ArrowLeft' && !h.stageOpen) {
         h.changeTempo(h.tempo - 1);
-      } else if (e.key === 'ArrowRight') {
+      } else if (e.key === 'ArrowRight' && !h.stageOpen) {
         h.changeTempo(h.tempo + 1);
       } else if (e.key === 'Home') {
         if (!e.repeat) h.restart();
@@ -623,6 +639,7 @@ export function DancerMode({ engine, active }: Props) {
     };
     // a focused button would also "click" on Space keyup; swallow it so play/pause fires once
     const onKeyUp = (e: KeyboardEvent) => {
+      if (e.target instanceof Element && e.target.closest('.resume-audio')) return;
       if (activeRef.current && e.key === ' ' && !isTyping(e)) e.preventDefault();
     };
     window.addEventListener('keydown', onKeyDown);
@@ -641,6 +658,7 @@ export function DancerMode({ engine, active }: Props) {
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
+    if (stageOpen || !active) return;
     const file = e.dataTransfer.files[0];
     if (file && !loading) void loadFile(file);
   };
@@ -651,6 +669,7 @@ export function DancerMode({ engine, active }: Props) {
   /** The `<video>` to show: only for a loaded video that has a picture (a sound-only file keeps the waveform). */
   const videoElement = song?.kind === 'video' && song.aspect !== null && player instanceof VideoDeck ? player.element : null;
   const waveformProps = {
+    active: active && !stageOpen,
     peaks: track?.peaks ?? null,
     duration: track?.duration ?? 0,
     bpm: track?.bpm ?? null,
@@ -667,6 +686,7 @@ export function DancerMode({ engine, active }: Props) {
       className={`dancer ${dragOver ? 'drag' : ''} ${videoElement ? 'has-video' : ''} ${editing ? 'editing' : ''}`}
       onDragOver={(e) => {
         e.preventDefault();
+        if (stageOpen || !active) return;
         if (!loading) setDragOver(true);
       }}
       onDragLeave={() => setDragOver(false)}

@@ -8,6 +8,7 @@ function text(bytes: Uint8Array, offset: number, length: number): string {
 /** A stand-in <audio>: records seeks, and play()/pause() flip `paused` like the real one. */
 function fakeAudio(playResult: () => Promise<void> = () => Promise.resolve()) {
   const seeks: number[] = [];
+  const playingListeners = new Set<() => void>();
   let time = 0;
   const el = {
     loop: false,
@@ -25,6 +26,8 @@ function fakeAudio(playResult: () => Promise<void> = () => Promise.resolve()) {
       time = t;
     },
     setAttribute: vi.fn(),
+    addEventListener: (_type: 'playing', listener: () => void) => void playingListeners.add(listener),
+    removeEventListener: (_type: 'playing', listener: () => void) => void playingListeners.delete(listener),
     removeAttribute: vi.fn(),
     load: vi.fn(),
     remove: vi.fn(),
@@ -33,7 +36,9 @@ function fakeAudio(playResult: () => Promise<void> = () => Promise.resolve()) {
     }),
     play: vi.fn(() => {
       el.paused = false;
-      return playResult();
+      return playResult().then(() => {
+        if (!el.paused) for (const listener of playingListeners) listener();
+      });
     }),
   };
   return { el, seeks };
@@ -272,6 +277,30 @@ describe('createKeepAlive', () => {
     b.claim();
     expect(chrome.el.play).toHaveBeenCalledOnce();
     b.dispose();
+  });
+
+  it('reports native playback starts so an inactive mode can immediately stop them', async () => {
+    const { el } = fakeAudio();
+    stubDom(el);
+    let active = true;
+    const onStarted = vi.fn(() => {
+      if (!active) keepAlive.stop();
+    });
+    const keepAlive = createKeepAlive({ onStarted });
+    keepAlive.setTrack(100);
+    await keepAlive.start();
+    expect(onStarted).toHaveBeenCalledOnce();
+    keepAlive.stop();
+    active = false;
+
+    // The browser can invoke play() directly when no page Media Session handler is registered.
+    await el.play();
+    expect(onStarted).toHaveBeenCalledTimes(2);
+    expect(el.paused).toBe(true);
+
+    keepAlive.dispose();
+    await el.play();
+    expect(onStarted).toHaveBeenCalledTimes(2);
   });
 
   it('claims when the AudioContext starts running after it, and stops listening on dispose', async () => {

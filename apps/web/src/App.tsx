@@ -1,5 +1,6 @@
 import { Engine } from '@mixdeck/engine';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { DeckView } from './components/DeckView';
 import { Mixer } from './components/Mixer';
 import { isDancerPlaying, restartDancerKeepAlive } from './dancer/dancerAudio';
@@ -220,17 +221,38 @@ export function App() {
       </main>
       <main className="dj-main" hidden={mode !== 'dj'}>
         <p className="rotate-hint">Rotate your phone for the full mixer</p>
-        <DeckView label="A" accent="var(--a)" engine={engine} deck={engine.decks[0]} state={a} setState={setA} other={b} />
+        <DeckView label="A" accent="var(--a)" engine={engine} deck={engine.decks[0]} state={a} setState={setA} other={b} active={mode === 'dj'} />
         <Mixer engine={engine} a={a} b={b} />
-        <DeckView label="B" accent="var(--b)" engine={engine} deck={engine.decks[1]} state={b} setState={setB} other={a} />
+        <DeckView label="B" accent="var(--b)" engine={engine} deck={engine.decks[1]} state={b} setState={setB} other={a} active={mode === 'dj'} />
       </main>
-      {needsGesture && (
-        <button className="resume-audio" onClick={resumeAudio}>
-          <strong>Tap to resume audio</strong>
-          <span>Playback was interrupted</span>
-        </button>
-      )}
+      {needsGesture && <ResumeAudioButton onResume={resumeAudio} />}
     </div>
+  );
+}
+
+/** A fullscreen element owns the browser's top layer: recovery must be inside it to remain reachable. */
+function ResumeAudioButton({ onResume }: { onResume: () => void }) {
+  const fullscreenRoot = () => {
+    const d = document as Document & { webkitFullscreenElement?: Element | null };
+    return d.fullscreenElement ?? d.webkitFullscreenElement ?? d.body;
+  };
+  const [container, setContainer] = useState(fullscreenRoot);
+  useEffect(() => {
+    const onChange = () => setContainer(fullscreenRoot());
+    document.addEventListener('fullscreenchange', onChange);
+    document.addEventListener('webkitfullscreenchange', onChange);
+    onChange();
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      document.removeEventListener('webkitfullscreenchange', onChange);
+    };
+  }, []);
+  return createPortal(
+    <button className="resume-audio" onClick={onResume} autoFocus>
+      <strong>Tap to resume audio</strong>
+      <span>Playback was interrupted</span>
+    </button>,
+    container,
   );
 }
 

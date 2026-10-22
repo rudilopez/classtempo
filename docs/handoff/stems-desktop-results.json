@@ -1,0 +1,119 @@
+{
+  "deviceScope": "Desktop Chromium on the development Mac; not iPhone acceptance",
+  "runs": [
+    {
+      "test": "wasm-fallback-30s",
+      "input": "Synthetic 30-second stereo test signal; not a music quality assessment",
+      "report": {
+        "modelRevision": "d54ed9eb60e258ea82131c6ee14578628816456a",
+        "modelSha256": "d05c269d0178d2a72ad484b10b11dd370193fc923201c3b27a99f848745db70a",
+        "modelBytes": 165612636,
+        "modelFromCache": false,
+        "modelCached": true,
+        "runtimeVersion": "1.30.0",
+        "clipSeconds": 30,
+        "chunks": 5,
+        "provider": "wasm",
+        "gpuSubmissionsObserved": 0,
+        "fallbackReason": "WebGPU session failed: Can't create a session. ERROR_CODE: 6, ERROR_MESSAGE: std::bad_alloc",
+        "downloadMs": 4459.429999947548,
+        "initializationMs": 9432.105000019073,
+        "separationMs": 54181.424999952316,
+        "workerTotalMs": 68075.16999995708,
+        "stemRms": [
+          0.00017007789504580386,
+          0.0009250290859698697,
+          0.11192896929629897,
+          0.0001280285871698422
+        ],
+        "previewSamples": 220500,
+        "peakWorkerJsHeapBytes": null,
+        "ownedPcmBytes": 45158400,
+        "createdAt": "2026-10-22T19:01:23.270Z",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36",
+        "requestedSeconds": 30,
+        "decodeMs": 39.13499999046326,
+        "pageElapsedMs": 68161.68499994278,
+        "totalPeakMemory": "unavailable",
+        "memoryNote": "Browsers do not expose reliable combined page, worker, WASM and GPU peak memory. Worker JS heap is optional and incomplete; owned PCM is a size estimate, not a measured peak.",
+        "benchmarkScope": "Runs all four stems with 25% overlap and bounded overlap-add. Retains five-second previews only; excludes full-song stem storage and playback."
+      }
+    },
+    {
+      "test": "webgpu-30s",
+      "input": "Synthetic 30-second stereo test signal; not a music quality assessment",
+      "report": {
+        "modelRevision": "d54ed9eb60e258ea82131c6ee14578628816456a",
+        "modelSha256": "d05c269d0178d2a72ad484b10b11dd370193fc923201c3b27a99f848745db70a",
+        "modelBytes": 165612636,
+        "modelFromCache": false,
+        "modelCached": true,
+        "runtimeVersion": "1.30.0",
+        "clipSeconds": 30,
+        "chunks": 5,
+        "provider": "webgpu",
+        "gpuSubmissionsObserved": 595,
+        "fallbackReason": null,
+        "downloadMs": 4517.34500002861,
+        "initializationMs": 7985.659999966621,
+        "separationMs": 7093.695000052452,
+        "workerTotalMs": 19597.725000023842,
+        "stemRms": [
+          0.0001686162901035747,
+          0.000937247656535153,
+          0.11192379584517577,
+          0.00012821836117119862
+        ],
+        "previewSamples": 220500,
+        "peakWorkerJsHeapBytes": null,
+        "ownedPcmBytes": 45158400,
+        "createdAt": "2026-10-22T19:02:20.131Z",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36",
+        "requestedSeconds": 30,
+        "decodeMs": 40.480000019073486,
+        "pageElapsedMs": 19674.03499996662,
+        "totalPeakMemory": "unavailable",
+        "memoryNote": "Browsers do not expose reliable combined page, worker, WASM and GPU peak memory. Worker JS heap is optional and incomplete; owned PCM is a size estimate, not a measured peak.",
+        "benchmarkScope": "Runs all four stems with 25% overlap and bounded overlap-add. Retains five-second previews only; excludes full-song stem storage and playback."
+      }
+    },
+    {
+      "test": "webgpu-240s-production",
+      "input": "Synthetic 240-second stereo test signal; not a music quality assessment",
+      "report": {
+        "modelRevision": "d54ed9eb60e258ea82131c6ee14578628816456a",
+        "modelSha256": "d05c269d0178d2a72ad484b10b11dd370193fc923201c3b27a99f848745db70a",
+        "modelBytes": 165612636,
+        "modelFromCache": true,
+        "modelCached": true,
+        "runtimeVersion": "1.30.0",
+        "clipSeconds": 240,
+        "chunks": 41,
+        "provider": "webgpu",
+        "gpuSubmissionsObserved": 4879,
+        "fallbackReason": null,
+        "downloadMs": 747.3200000524521,
+        "initializationMs": 8550.40499997139,
+        "separationMs": 43811.19500005245,
+        "workerTotalMs": 53110.639999985695,
+        "stemRms": [
+          0.00011301513766643923,
+          8.730777203501423e-05,
+          0.10141449132264943,
+          0.0001100160075167516
+        ],
+        "previewSamples": 220500,
+        "peakWorkerJsHeapBytes": null,
+        "ownedPcmBytes": 119246400,
+        "createdAt": "2026-10-22T19:05:30.771Z",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36",
+        "requestedSeconds": 240,
+        "decodeMs": 81.11000001430511,
+        "pageElapsedMs": 53203.91000008583,
+        "totalPeakMemory": "unavailable",
+        "memoryNote": "Browsers do not expose reliable combined page, worker, WASM and GPU peak memory. Worker JS heap is optional and incomplete; owned PCM is a size estimate, not a measured peak.",
+        "benchmarkScope": "Runs all four stems with 25% overlap and bounded overlap-add. Retains five-second previews only; excludes full-song stem storage and playback."
+      }
+    }
+  ]
+}

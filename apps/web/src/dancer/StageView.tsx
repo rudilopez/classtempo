@@ -65,8 +65,8 @@ function exitFullscreen(): void {
 /**
  * Stage view: a full-viewport performance screen with only the video (or, without one, the current cue section
  * and elapsed time in large type), Play / Pause, Restart, and the set cue pads as launch-only buttons. No tempo,
- * no editing, no loading. Rendered into <body> above the app (below the "Tap to resume audio" overlay, which must
- * stay reachable); full screen where the browser has the element API, left again when Stage closes. Escape, or
+ * no editing, no loading. Rendered into <body> above the app; audio recovery portals into this root while it owns
+ * full screen, so its resume button stays reachable. Full screen is left again when Stage closes. Escape, or
  * leaving full screen (Esc, Android back), closes it.
  */
 export function StageView({ video, aspect, title, playing, position, cues, section, onTogglePlay, onRestart, onLaunch, onClose }: Props) {
@@ -80,6 +80,34 @@ export function StageView({ video, aspect, title, playing, position, cues, secti
   useLayoutEffect(() => {
     const el = root.current;
     if (!el) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const app = document.querySelector<HTMLElement>('.app');
+    const previouslyInert = app?.inert ?? false;
+    if (app) app.inert = true;
+    // The recovery button is portaled alongside Stage when fullscreen is unavailable. It must remain usable.
+    const focusable = () => {
+      const recovery = document.querySelector<HTMLButtonElement>('.resume-audio');
+      if (recovery) return [recovery];
+      return [...el.querySelectorAll<HTMLElement>('button:not(:disabled), [href], input:not(:disabled), [tabindex]:not([tabindex="-1"])')]
+        .filter((item) => item.getClientRects().length > 0 && !item.closest('[hidden], [inert]'));
+    };
+    const onTab = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      event.preventDefault();
+      const items = focusable();
+      const current = items.indexOf(document.activeElement as HTMLElement);
+      const next = event.shiftKey ? (current <= 0 ? items.length - 1 : current - 1) : (current + 1) % items.length;
+      (items[next] ?? el).focus({ preventScroll: true });
+    };
+    const onFocus = (event: FocusEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node) || el.contains(target)) return;
+      const items = focusable();
+      if (items.some((item) => item.contains(target))) return;
+      (items[0] ?? el).focus({ preventScroll: true });
+    };
+    document.addEventListener('keydown', onTab, true);
+    document.addEventListener('focusin', onFocus);
     let entered = false;
     const onChange = () => {
       if (currentFullscreen() === el) entered = true;
@@ -95,7 +123,11 @@ export function StageView({ video, aspect, title, playing, position, cues, secti
     return () => {
       document.removeEventListener('fullscreenchange', onChange);
       document.removeEventListener('webkitfullscreenchange', onChange);
+      document.removeEventListener('keydown', onTab, true);
+      document.removeEventListener('focusin', onFocus);
+      if (app) app.inert = previouslyInert;
       if (currentFullscreen() === el) exitFullscreen();
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
   }, []);
 

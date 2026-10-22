@@ -1,9 +1,26 @@
 # Handoff — open work, in priority order
 
-State when handed off (2026-10-22): branch `dancer-v2`, working tree passes `npm run typecheck`, `npm test`
+Original handoff baseline (2026-10-22): branch `dancer-v2`, working tree passes `npm run typecheck`, `npm test`
 (123 tests) and `npm run build`. Production (`main`, GitHub Pages) still runs the previous release; nothing below
 is deployed yet. The owner tests on an iPhone (Home Screen app) — anything touching the lock screen, audio
 session or video must be confirmed there by the owner.
+
+## Codex follow-through (2026-10-22)
+
+The release candidate resolves all 11 original review findings, plus DJ master gain leaking into Dancer audio
+and keyboard focus escaping Stage. Phone layouts also preserve 72×72 cue pads with safe areas. Browser checks
+cover audio/video cues and restoration, 75% video rate with pitch preservation, uninterrupted video through
+Stage open/close, DJ Demo/SYNC/LOOP/crossfader, fullscreen interruption recovery, inactive native media guards,
+hidden-canvas inactivity and offline playback. The lock-screen scrubber still needs confirmation on a real iPhone.
+
+The hidden research benchmark is at `#stems-benchmark`; see [STEMS_BENCHMARK.md](STEMS_BENCHMARK.md) for exact model
+provenance, a real desktop execution result, device steps and licensing restrictions. The original ~80 MB/MIT
+weight assumption was not confirmed: this four-stem export is 166 MB, and upstream restricts pretrained weights
+to research despite the exporter's MIT label. Full section 2b requires both device acceptance and suitable weight
+permission. A server fallback remains unapproved.
+
+The original instructions/reports below are preserved as handoff history; completed findings are tracked in
+[handoff/dancer-v2-reports.md](handoff/dancer-v2-reports.md).
 
 ## 1. Finish and ship "Dancer v2" (mostly built — verify, fix, deploy)
 

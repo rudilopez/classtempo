@@ -2,6 +2,33 @@
 
 Generated from the workflow journal. `fix:r0` was interrupted: the findings below may be partly applied — re-check each one against the code.
 
+## Codex resolution — 2026-10-22
+
+All eleven numbered findings below were present in the handoff commit and are now resolved:
+
+| Findings | Resolution | Validation |
+|---|---|---|
+| 1 | Recovery button portals inside native fullscreen; remains reachable in fallback Stage | Real Chromium fullscreen and denied-fullscreen interruption simulations |
+| 2 | Inactive player and native keep-alive starts immediately pause | Browser direct native play attempts; keep-alive regression test |
+| 3–4 | Stage blocks tempo arrows and dropped files | Keyboard and valid WAV drop checks |
+| 5 | Hidden/covered waveform loops and hidden DJ display timers stop | Canvas draw counters across mode/Stage switches |
+| 6, 9, 10 | Video editing fits phones; titles wrap on tablets; portrait tablet video grows | Phone/tablet layout and safe-area matrix |
+| 7–8, 11 | Landscape eight-pad bar retains 72px targets; portrait video centers; audio Stage gets taller pads | Stage layout and screenshot review |
+
+Additional review fixed the retained DJ MASTER muting Dancer audio (independent fixed Dancer gain) and Stage
+keyboard focus escaping into background controls (focus containment and inert background, including recovery).
+A graph regression verifies Dancer output while DJ master is muted. Browser tests verified focus restoration.
+
+All-workspace typecheck, 131 tests and the production build pass.
+
+96 base layout cases and 48 safe-area cases passed (mouse and touch; audio/video; normal/edit/Stage).
+The final production-flow check also passed all seven required sizes, cue restoration, live video Stage
+roundtrip, video tempo/pitch settings and DJ transport/mixer controls, with no page errors. Production service
+worker testing confirmed offline Demo playback and no model/runtime download from the normal app.
+
+**Still device-only:** lock-screen scrubbing, paused scrubber limitations, lock-screen Pause → Play, cue metadata,
+headphone controls and native iPhone video interruptions. No desktop simulation establishes these outcomes.
+
 ## lockscreen report
 
 **Lock-screen scrubbing on iOS: root cause, fix, and wiring for DancerMode**

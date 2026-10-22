@@ -91,7 +91,7 @@ export interface KeepAliveOptions {
    * after the keep-alive started), the keep-alive `claim()`s automatically so lock-screen scrubbing stays on.
    */
   context?: AudioContextLike | null;
-  /** Called each time the element has really started playing (after `start()` or `claim()`), e.g. refreshHandlers. */
+  /** Called whenever the element starts playing, including native media controls, e.g. refreshHandlers. */
   onStarted?: () => void;
 }
 
@@ -199,6 +199,15 @@ export function createKeepAlive(options: KeepAliveOptions = {}): KeepAlive {
   let rate = 1;
   let watching = false;
 
+  const onPlaying = () => {
+    if (!audio || audio.paused) return;
+    try {
+      onStarted?.();
+    } catch (err) {
+      console.warn('[mixdeck] keep-alive onStarted failed', err);
+    }
+  };
+
   const applyRate = (el: HTMLAudioElement) => {
     try {
       if (el.defaultPlaybackRate !== rate) el.defaultPlaybackRate = rate;
@@ -256,6 +265,7 @@ export function createKeepAlive(options: KeepAliveOptions = {}): KeepAlive {
   const release = () => {
     unwatch();
     if (audio) {
+      audio.removeEventListener('playing', onPlaying);
       audio.pause();
       audio.removeAttribute('src');
       audio.load();
@@ -281,6 +291,7 @@ export function createKeepAlive(options: KeepAliveOptions = {}): KeepAlive {
       el.setAttribute('webkit-playsinline', '');
       el.setAttribute('aria-hidden', 'true');
       el.hidden = true;
+      el.addEventListener('playing', onPlaying);
       useVarispeed(el);
       load(el);
       applyRate(el);
@@ -305,11 +316,6 @@ export function createKeepAlive(options: KeepAliveOptions = {}): KeepAlive {
       return false;
     }
     if (audio !== el || el.paused) return false;
-    try {
-      onStarted?.();
-    } catch (err) {
-      console.warn('[mixdeck] keep-alive onStarted failed', err);
-    }
     return true;
   };
 
