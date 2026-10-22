@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACCEPT_MEDIA, ANALYZE_MAX_BYTES, ANALYZE_MAX_SECONDS, canAnalyzeVideo, countCues, isVideoFile } from './media';
+import { ACCEPT_MEDIA, countCues, isVideoFile } from './media';
 
 describe('isVideoFile', () => {
   it('follows a video MIME type', () => {
@@ -22,25 +22,6 @@ describe('isVideoFile', () => {
   it('accepts every extension it recognises in the picker', () => {
     for (const ext of ['.mp4', '.mov', '.m4v', '.webm', '.mp3', '.m4a', '.wav']) expect(ACCEPT_MEDIA.split(',')).toContain(ext);
     expect(ACCEPT_MEDIA.split(',')).toEqual(expect.arrayContaining(['audio/*', 'video/*']));
-  });
-});
-
-describe('canAnalyzeVideo', () => {
-  it('allows small, short videos', () => {
-    expect(canAnalyzeVideo(40 * 1024 * 1024, 60)).toBe(true);
-    expect(canAnalyzeVideo(ANALYZE_MAX_BYTES, ANALYZE_MAX_SECONDS)).toBe(true);
-  });
-
-  it('skips large or long ones', () => {
-    expect(canAnalyzeVideo(ANALYZE_MAX_BYTES + 1, 60)).toBe(false);
-    expect(canAnalyzeVideo(10 * 1024 * 1024, ANALYZE_MAX_SECONDS + 1)).toBe(false);
-  });
-
-  it('skips unknown sizes and lengths', () => {
-    expect(canAnalyzeVideo(0, 60)).toBe(false);
-    expect(canAnalyzeVideo(Number.NaN, 60)).toBe(false);
-    expect(canAnalyzeVideo(1000, Infinity)).toBe(false);
-    expect(canAnalyzeVideo(1000, 0)).toBe(false);
   });
 });
 

@@ -46,9 +46,9 @@ export function mediaErrorMessage(code: number | undefined, name: string): strin
     case 2: // MEDIA_ERR_NETWORK
       return `“${name}” could not be read.`;
     case 3: // MEDIA_ERR_DECODE
-      return `“${name}” could not be decoded — the file may be damaged.`;
+      return `“${name}” could not be decoded. Try a 1080p MP4 with H.264 video and AAC audio.`;
     case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
-      return `This browser can't play “${name}”. Try an MP4 (H.264) video.`;
+      return `This browser can't play “${name}”. Export an MP4 with H.264 video and AAC audio.`;
     default:
       return `“${name}” could not be opened.`;
   }
@@ -74,8 +74,8 @@ function applyRate(el: PitchPreservingMedia, rate: number): void {
  * Key-locked video player for Dancer mode. The `<video>` element is both the picture and the sound: it plays
  * straight from the file (object URL), so a phone video of hundreds of MB is never decoded into memory, and
  * tempo uses the browser's own pitch-preserving time-stretch (`preservesPitch`). The element is not muted and
- * not connected to the engine's AudioContext. Mount `element` wherever the picture should show; it plays the
- * same detached or hidden.
+ * not connected to the engine's AudioContext. Mount `element` before loading; mobile browsers may defer frame
+ * decoding while it is detached or hidden. Metadata readiness does not guarantee a decoded video frame.
  *
  * The element's own events keep `playing` true to it, so pauses the OS makes (iOS pauses video when the screen
  * locks or native full screen closes, an interruption, a refused play) reach `onPlayingChange`. All public
@@ -97,6 +97,8 @@ export class VideoDeck implements DancerPlayer {
   private _tempo = 1;
   private url: string | null = null;
   private loadSeq = 0;
+  /** Invalidates rejected play promises when a pause, unload or newer play overtakes them. */
+  private playSeq = 0;
   /** Settles the in-flight load quietly when a newer load / unload supersedes it. */
   private cancelLoad: (() => void) | null = null;
   private frameHandle: number | null = null;
@@ -147,14 +149,17 @@ export class VideoDeck implements DancerPlayer {
     this.cancelLoad?.();
     const seq = ++this.loadSeq;
     const v = this.element;
+    this.playSeq++;
     this._track = null;
     if (!v.paused) v.pause();
     this.setPlaying(false);
     this.revokeUrl();
     const url = URL.createObjectURL(file);
     this.url = url;
+    v.setAttribute('aria-label', name);
 
     return new Promise<void>((resolve, reject) => {
+      let settled = false;
       /** Probing for the real duration of a file whose header has none (MediaRecorder WebM reports Infinity). */
       let probing = false;
       const done = (): void => {
@@ -163,15 +168,21 @@ export class VideoDeck implements DancerPlayer {
         if (this.cancelLoad === cancel) this.cancelLoad = null;
       };
       const cancel = (): void => {
+        if (settled) return;
+        settled = true;
         done();
         resolve();
       };
       const fail = (message: string): void => {
+        if (settled) return;
+        settled = true;
         done();
         if (seq === this.loadSeq) this.clearSource();
         reject(new Error(message));
       };
       const finish = (duration: number): void => {
+        if (settled || seq !== this.loadSeq) return;
+        settled = true;
         done();
         if (probing) v.currentTime = 0;
         applyRate(v, this._tempo);
@@ -209,6 +220,7 @@ export class VideoDeck implements DancerPlayer {
   unload(): void {
     this.cancelLoad?.();
     this.loadSeq++;
+    this.playSeq++;
     this._track = null;
     const v = this.element;
     if (!v.paused) v.pause();
@@ -248,22 +260,28 @@ export class VideoDeck implements DancerPlayer {
   play(): void {
     if (!this._track || this._playing) return;
     const v = this.element;
+    const seq = ++this.playSeq;
     applyRate(v, this._tempo);
     let started: Promise<void> | undefined;
     try {
+      if (v.ended || v.currentTime >= this._track.duration) v.currentTime = 0;
       started = v.play();
     } catch {
-      // Engines from before play() returned a promise may throw synchronously instead.
+      // Some engines throw synchronously. Never leave a silent player reporting "Pause" indefinitely.
+      this.setPlaying(false);
+      return;
     }
     this.setPlaying(true);
     this.report(true);
     started?.catch(() => {
+      if (seq !== this.playSeq) return;
       // NotAllowedError (no gesture / locked), AbortError (a pause or load overtook it), NotSupportedError.
       if (v.paused || v.error) this.setPlaying(false);
     });
   }
 
   pause(): void {
+    this.playSeq++;
     const v = this.element;
     if (!this._playing && v.paused) return;
     v.pause();

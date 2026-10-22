@@ -33,11 +33,18 @@ Dancer also loads browser-supported videos (including MP4) through a native vide
 at 50–150% tempo without decoding the whole video into memory. **Stage** expands video, or the current cue name
 and time for audio, with Play/Pause, Restart and launch-only cue pads. The same video element returns to the
 waveform area when Stage closes. Cue storage remains per file name and duration; **Cues restored** confirms a
-saved set was found. **Screen on** prevents dimming while enabled and supported.
+saved set was found. **Screen on** prevents dimming and auto-lock while MixDeck is visible and the browser
+holds the wake lock; tap it again to allow sleep. Its confirmation explains the behavior.
+
+The compact header keeps Demo, Load and Screen on beside MixDeck and the mode pills. Now Playing uses the supplied
+white logo for its O; the song name sits inside the media panel. A mint Play button, separate tempo panel and
+colored cue outlines distinguish the controls. Tempo percentage sits on the slider between minus and plus;
+Stage cue pads use compact 72 px rows. Videos use a seekable timeline without an extra waveform/BPM decode,
+leaving the native decoder available for the picture. Loading and decode errors appear in the video frame.
 
 **iPhone verification still required:** the lock-screen scrubber fix needs confirmation on a real iPhone.
 Start playback before locking, then test dragging the progress bar while playing, Pause → Play, the current/next
-cue line, and headphone next/previous. Paused scrubbing remains a known WebKit limitation. Also check video,
+cue line, and headphone next/previous. Paused scrubbing remains a known WebKit limitation. Retest the reported 31-second 4K H.264 video (77.1 MB),
 Stage open/close, and switching the mode pills in the installed Home Screen app. Quit and reopen after an online
 launch to pick up an update; a running session is never forcibly reloaded.
 

@@ -79,6 +79,10 @@ Acceptance
 - [x] Native video with pitch-preserving tempo, cue strip and Stage view using the same media element.
 - [x] Labelled Screen on toggle, restored-cue message, current/next cue line on the lock screen.
 - [x] Song-length keep-alive and seekable-session ordering fix; inactive playback guards and fullscreen recovery.
+- [x] Compact single-row header, title in media panel, inline tempo percentage, distinct panels and compact Stage pads.
+- [x] Supplied logo replaces the O in Now Playing; header Screen on explains wake-lock behavior.
+- [x] Remove duplicate video audio decode; mount during load and display frame readiness/errors.
+- [ ] Owner retests the reported 31-second 4K portrait H.264 file (77.1 MB) on iPhone.
 - [ ] Owner confirms lock-screen scrubbing on a real iPhone, Pause → Play, cue metadata, video/Stage and pills.
 
 ## Dancer stems — feasibility gate (new scope; no Stems FX)
