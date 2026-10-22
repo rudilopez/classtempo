@@ -22,6 +22,20 @@ permission. A server fallback remains unapproved.
 The original instructions/reports below are preserved as handoff history; completed findings are tracked in
 [handoff/dancer-v2-reports.md](handoff/dancer-v2-reports.md).
 
+## Compact design and 4K video follow-up (2026-10-22)
+
+The next release adds a single-row Dancer header (brand, mode pills, Demo, Load, Screen on), a media-card song title
+with the supplied logo as the O in Now Playing, clearer panel/control contrast, an inline tempo percentage and
+72 px Stage cue rows. Screen on explains that it prevents dimming/auto-lock while MixDeck is visible.
+
+The owner reported a blank/frozen 31-second, 2160×3840 H.264/24 fps video, 77.1 MB. The app previously started a
+second whole-file audio decode for video BPM/waveform analysis and mounted the picture only after metadata.
+Video now mounts during loading, retains the element when dimensions arrive late, and never starts audio analysis.
+The frame reports loading or decode errors rather than silently staying blank. Desktop Chromium and WebKit
+checks pass for a matching 31-second, 2160×3840 H.264/24 fps, 78.2 MB synthetic clip, with AAC audio and without
+audio; no audio decode calls were observed. Same-element Stage transitions and 75% key-locked tempo pass.
+This does not establish that the owner's exact video works on the physical iPhone; that retest remains open.
+
 ## 1. Finish and ship "Dancer v2" (mostly built — verify, fix, deploy)
 
 Owner's requests (verbatim): "on lock screen I can not move the sound bar. Can que show on lock? … what does the

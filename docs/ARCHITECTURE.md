@@ -45,7 +45,11 @@ decisions are judged on an iPhone and an iPad first, desktop browsers second.
 
 `DancerPlayer` is the shared transport contract for `StretchDeck` and `VideoDeck`. `VideoDeck` owns a native
 video element and Blob URL, uses `preservesPitch`, and reports native play/pause/end/position events. Videos
-stay outside the Web Audio graph. `VideoView` reparents that same element between the waveform card and Stage,
+stay outside the Web Audio graph. The video element mounts while metadata loads, and remains mounted when
+its dimensions arrive late. No `decodeAudioData` or whole-file audio analysis runs for videos: they use a
+seekable timeline and percent tempo. `VideoView` distinguishes metadata from first-frame readiness and displays
+loading, buffering or decoder errors. Failed and stale play promises cannot leave the transport stuck on Pause;
+Play at the end restarts. `VideoView` reparents that same element between the waveform card and Stage,
 so closing Stage preserves position, tempo and media identity. Stage requests element fullscreen where available
 and falls back to a viewport overlay; it offers only play/pause, restart and existing cue launches. Arrow-key
 tempo changes and file drops are disabled there. Focus stays within Stage and its background app is inert. Cues retain the stable localStorage key
@@ -149,7 +153,7 @@ and iPad. Breakpoints, as in `apps/web/src/styles.css`:
 
 | Viewport | Media query | Dancer mode | DJ mode |
 |---|---|---|---|
-| Phone portrait / narrow window | `(max-width: 599px)` | One column fitted to the screen: song + Demo / Load / Screen on, clock + BPM, waveform, transport, tempo, 4×2 pads anchored at the bottom | Stacked (deck A, mixer, deck B), the page scrolls; "Rotate your phone for the full mixer" in portrait |
+| Phone portrait / narrow window | `(max-width: 599px)` | One column fitted to the screen: clock + BPM, song title inside the media panel, transport, tempo, compact 4×2 pads; media takes spare height | Stacked (deck A, mixer, deck B), the page scrolls; "Rotate your phone for the full mixer" in portrait |
 | Phone landscape | `(orientation: landscape) and (max-height: 499px)` | Two columns, compact: song, clock, waveform, transport and tempo on the left, pads filling the right | Deck │ mixer │ deck with no page scroll (from 600 px wide), compact mixer |
 | Tablet / desktop portrait | everything else | One column in a card (≤ 1100 px wide) with a larger clock, waveform and pads | Deck │ mixer │ deck |
 | Tablet / desktop landscape | `(orientation: landscape) and (min-width: 560px)` | Two columns with a wider pad column; from 500 px tall the card stops at 760 px high, centred | Deck │ mixer │ deck |
@@ -163,7 +167,12 @@ and iPad. Breakpoints, as in `apps/web/src/styles.css`:
   phone landscape) the decks narrow and the mixer goes compact, with the master fader as a row under the EQ.
   One-deck focus on phone portrait, touch gestures and 4 decks on iPad landscape come in Phase 1.
 - **Shell:** header mode pills form an accessible radio group; Dancer is always the launch default. The header
-  drops the sample-rate / latency readout at ≤ 600 px. Inactive modes retain loaded tracks and settings.
+  shares one row with Dancer Demo / Load / Screen on actions, portalled from Dancer to preserve handler ownership.
+  The sample-rate / latency readout remains in DJ at wider sizes. Inactive modes retain loaded tracks and settings.
+- **Visual hierarchy:** ink background, elevated media/tempo surfaces, mint Play, cyan waveform and colored cue
+  outlines. Now Playing replaces its O with the supplied white logo while retaining a complete accessible label.
+  The tempo percentage is centered on the slider line; Stage cue rows are 72 px in portrait. The Screen on
+  confirmation explains dimming/auto-lock prevention while visible.
 - **Touch:** Dancer mode buttons, the pad ✕ / ✎ tools and the mode pills are ≥ 44 px everywhere, and every
   button is on touch screens (`pointer: coarse`); hover styles apply only under `hover: hover`; keyboard
   shortcut hints are hidden on touch-only devices (`hover: none` and `pointer: coarse`).

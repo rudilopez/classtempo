@@ -60,6 +60,10 @@ describe('mediaErrorMessage', () => {
 /** Just enough of HTMLVideoElement for VideoDeck; events are dispatched as queued tasks, like a browser. */
 class FakeVideo extends EventTarget {
   paused = true;
+  ended = false;
+  readyState = 0;
+  videoWidth = 0;
+  videoHeight = 0;
   currentTime = 0;
   duration = NaN;
   playbackRate = 1;
@@ -84,6 +88,9 @@ class FakeVideo extends EventTarget {
   }
   hasAttribute(name: string): boolean {
     return this.attrs.has(name);
+  }
+  setAttribute(name: string, value: string): void {
+    this.attrs.set(name, value);
   }
   removeAttribute(name: string): void {
     this.attrs.delete(name);
@@ -174,6 +181,23 @@ describe('VideoDeck', () => {
     expect(positions).toEqual([0]);
   });
 
+  it('makes a 31-second video playable at metadata even when iOS defers its first frame', async () => {
+    const play = vi.spyOn(video, 'play');
+    const file = new Blob(['video']);
+    const read = vi.spyOn(file, 'arrayBuffer');
+    const loaded = deck.load(file, 'portrait-4k.mp4');
+    video.duration = 31;
+    video.readyState = 1;
+    video.fire('loadedmetadata');
+    await loaded;
+    expect(deck.track?.duration).toBe(31);
+    expect(video.videoWidth).toBe(0);
+    expect(play).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+    deck.play(); // the user gesture, without waiting indefinitely for loadeddata
+    expect(play).toHaveBeenCalledOnce();
+  });
+
   it('rejects a file the browser cannot play with a readable message and drops it', async () => {
     const revoke = vi.spyOn(URL, 'revokeObjectURL');
     const loaded = deck.load(new Blob(['x']), 'clip.mkv');
@@ -240,6 +264,52 @@ describe('VideoDeck', () => {
     await tick();
     expect(deck.playing).toBe(false);
     expect(events).toEqual(['playing', 'paused']);
+  });
+
+  it('does not get stuck showing Pause when native play throws synchronously', async () => {
+    await loadVideo();
+    vi.spyOn(video, 'play').mockImplementation(() => {
+      throw new DOMException('decoder unavailable', 'NotSupportedError');
+    });
+    deck.play();
+    expect(deck.playing).toBe(false);
+    expect(events).toEqual([]);
+  });
+
+  it('replays from zero after reaching the end', async () => {
+    await loadVideo(31);
+    video.currentTime = 31;
+    video.ended = true;
+    const play = vi.spyOn(video, 'play');
+    deck.play();
+    expect(video.currentTime).toBe(0);
+    expect(play).toHaveBeenCalledOnce();
+    expect(deck.playing).toBe(true);
+  });
+
+  it('ignores an old rejected play promise after another file has replaced it', async () => {
+    await loadVideo(31, 'first.mp4');
+    let rejectPlay: ((reason: Error) => void) | undefined;
+    const pending = new Promise<void>((_resolve, reject) => { rejectPlay = reject; });
+    vi.spyOn(video, 'play').mockReturnValueOnce(pending);
+    deck.play();
+    await loadVideo(31, 'second.mp4');
+    deck.play();
+    video.paused = true; // newer playback is still awaiting the browser; an old rejection must not change it
+    rejectPlay?.(new DOMException('replaced', 'AbortError'));
+    await Promise.resolve();
+    expect(deck.track?.name).toBe('second.mp4');
+    expect(deck.playing).toBe(true);
+  });
+
+  it('reports a decoder error that happens after metadata has loaded', async () => {
+    await loadVideo(31);
+    deck.play();
+    video.error = { code: 3 };
+    video.fire('error');
+    expect(deck.playing).toBe(false);
+    expect(events).toEqual(['playing', 'paused']);
+    expect(mediaErrorMessage(video.error.code, 'clip.mp4')).toContain('1080p MP4 with H.264');
   });
 
   it('ignores a queued play event that a pause() overtook', async () => {

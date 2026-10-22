@@ -1,7 +1,9 @@
 import { downmix } from '@mixdeck/analysis';
 import { VideoDeck, type DancerPlayer, type Engine, type StretchDeck } from '@mixdeck/engine';
+import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { analysis } from '../analysisClient';
+import nowPlayingLogo from '../assets/itda-logo-white.png';
 import { Waveform, type WaveformMarker } from '../components/Waveform';
 import { makeDemoTrack } from '../demo';
 import { cueSection, lockScreenLine } from '../platform/cueLabel';
@@ -22,7 +24,7 @@ import { formatTime, type TrackState } from '../types';
 import { CuePads, padColor } from './CuePads';
 import { emptyCues, loadCues, saveCues, type CueSlots } from './cueStore';
 import { dancerAudio } from './dancerAudio';
-import { ACCEPT_MEDIA, canAnalyzeVideo, countCues, isVideoFile } from './media';
+import { ACCEPT_MEDIA, countCues, isVideoFile } from './media';
 import { StageView } from './StageView';
 import { clampTempo, TempoControl } from './TempoControl';
 import { VideoView } from './VideoView';
@@ -35,6 +37,7 @@ interface Props {
    * switch; while inactive it is paused, off the lock screen and ignores the keyboard.
    */
   active: boolean;
+  actionsContainer: HTMLDivElement | null;
 }
 
 /** The loaded song and its cues travel together so a cue save can never target the wrong track. */
@@ -80,7 +83,7 @@ function errorText(e: unknown, fallback: string): string {
  * Minimal single-song player: launchable cue pads and key-locked tempo, no EQ, no mixer. Audio files play on the
  * engine's StretchDeck, video files on a VideoDeck (shown in place of the waveform, and full screen in Stage view).
  */
-export function DancerMode({ engine, active }: Props) {
+export function DancerMode({ engine, active, actionsContainer }: Props) {
   const [stretch, setStretch] = useState<StretchDeck | null>(null);
   const [deckError, setDeckError] = useState<string | null>(null);
   /** The player the transport drives: the StretchDeck, or the VideoDeck while a video is loaded. */
@@ -89,7 +92,14 @@ export function DancerMode({ engine, active }: Props) {
   /** Created on the first video load, disposed on unmount. */
   const videoRef = useRef<VideoDeck | null>(null);
   const [song, setSong] = useState<Song | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoadingState] = useState(false);
+  const loadingRef = useRef(false);
+  const setLoading = (value: boolean) => {
+    loadingRef.current = value;
+    setLoadingState(value);
+  };
+  const [pendingVideo, setPendingVideo] = useState<HTMLVideoElement | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   /** percent */
   const [tempo, setTempo] = useState(100);
@@ -309,6 +319,7 @@ export function DancerMode({ engine, active }: Props) {
     if (!deck) return;
     const id = ++nextLoadId.current;
     setLoading(true);
+    setLoadError(null);
     const channels: Float32Array[] = [];
     for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c));
     const mono = downmix(channels);
@@ -361,8 +372,8 @@ export function DancerMode({ engine, active }: Props) {
 
   /**
    * Opens a video on the VideoDeck: played by the `<video>` element straight from the file (never decoded whole,
-   * so a phone video of hundreds of MB is fine). Small, short videos also get BPM and peaks from their sound,
-   * decoded in the background; playback never waits for it.
+   * avoiding a second full-file decode competing with the native video decoder on phones). Video uses a seekable
+   * timeline and percent tempo; waveform/BPM analysis is reserved for audio files.
    */
   const loadVideo = async (file: File) => {
     const id = ++nextLoadId.current;
@@ -371,11 +382,17 @@ export function DancerMode({ engine, active }: Props) {
     const previous = playerRef.current;
     previous?.pause();
     const video = (videoRef.current ??= new VideoDeck());
+    setLoadError(null);
+    // Mount before metadata resolves: WebKit may defer picture loading for a detached media element.
+    setPendingVideo(video.element);
     try {
       await video.load(file, file.name);
     } catch (e) {
       console.error(e);
-      showToast(errorText(e, `“${file.name}” could not be opened.`));
+      const message = errorText(e, `“${file.name}” could not be opened.`);
+      setLoadError(message);
+      showToast(message);
+      setPendingVideo(null);
       if (previous === video) {
         // the failed load replaced the previous video; a previous audio song is still loaded (paused)
         positionRef.current = 0;
@@ -386,6 +403,7 @@ export function DancerMode({ engine, active }: Props) {
       setLoading(false);
       return;
     }
+    setPendingVideo(null);
     const track = video.track;
     if (!track || id !== nextLoadId.current) {
       setLoading(false);
@@ -397,40 +415,22 @@ export function DancerMode({ engine, active }: Props) {
     keepAlive.setTrack(null); // never started for a video: the video element is the page's media element
     resetTransport();
     const { videoWidth, videoHeight } = video.element;
-    const analyze = canAnalyzeVideo(file.size, track.duration);
     const cues = loadCues(track.name, track.duration);
     setSong({
       id,
       kind: 'video',
-      track: { name: track.name, duration: track.duration, bpm: null, firstBeat: 0, peaks: null, analyzing: analyze },
+      track: { name: track.name, duration: track.duration, bpm: null, firstBeat: 0, peaks: null, analyzing: false },
       cues,
       aspect: videoWidth > 0 && videoHeight > 0 ? videoWidth / videoHeight : null,
     });
     setLoading(false);
     announceCues(cues);
     syncMedia();
-    if (!analyze) return;
-    try {
-      const buffer = await engine.decode(file);
-      if (id !== nextLoadId.current) return;
-      const channels: Float32Array[] = [];
-      for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c));
-      const r = await analysis.analyze(downmix(channels), buffer.sampleRate);
-      setSong((s) =>
-        s && s.id === id
-          ? { ...s, track: { ...s.track, bpm: r.confidence > 1.5 ? r.bpm : null, firstBeat: r.firstBeat, peaks: r.peaks, analyzing: false } }
-          : s,
-      );
-    } catch (e) {
-      // e.g. a codec decodeAudioData does not read: the video still plays, just without BPM and peaks
-      console.warn('[mixdeck] video sound not analysed', e);
-      setSong((s) => (s && s.id === id ? { ...s, track: { ...s.track, analyzing: false } } : s));
-    }
   };
 
   /** Loads one file: videos on the VideoDeck, audio decoded for the StretchDeck. Ignored while another load runs. */
   const loadFile = async (file: File) => {
-    if (loading) return;
+    if (loadingRef.current) return;
     if (isVideoFile(file)) {
       await loadVideo(file);
       return;
@@ -440,20 +440,23 @@ export function DancerMode({ engine, active }: Props) {
       return;
     }
     setLoading(true);
+    setLoadError(null);
     let buffer: AudioBuffer;
     try {
       buffer = await engine.decode(file);
     } catch (e) {
       console.error(e);
       setLoading(false);
-      showToast(`“${file.name}” could not be decoded. Try MP3, M4A or WAV.`);
+      const message = `“${file.name}” could not be decoded. Try MP3, M4A or WAV.`;
+      setLoadError(message);
+      showToast(message);
       return;
     }
     await loadBuffer(buffer, file.name);
   };
 
   const loadDemo = () => {
-    if (!loading) void loadBuffer(makeDemoTrack(engine.ctx, 120), 'Demo 120 BPM');
+    if (!loadingRef.current) void loadBuffer(makeDemoTrack(engine.ctx, 120), 'Demo 120 BPM');
   };
 
   const seek = (seconds: number) => {
@@ -474,7 +477,7 @@ export function DancerMode({ engine, active }: Props) {
    */
   const startPlayback = (run: (p: DancerPlayer) => void) => {
     const p = playerRef.current;
-    if (!p?.track || !activeRef.current) return;
+    if (!p?.track || !activeRef.current || loadingRef.current) return;
     if (setPlaybackState('playing')) keepAlive.claim();
     run(p);
     if (p.kind === 'audio') {
@@ -562,15 +565,19 @@ export function DancerMode({ engine, active }: Props) {
     setSong((s) => s && { ...s, cues: s.cues.map((c, j) => (j === i && c ? { ...c, name } : c)) });
   };
 
-  /** "Screen on": shown on at once; the wake lock's onChange switches it back off if the lock is refused. */
+  /** The toggle reflects the actual held lock; feedback explains both success and refusal. */
   const toggleScreenOn = () => {
     if (screenOn) {
       setScreenOn(false);
       void wakeLock.disable();
+      showToast('Screen can dim and auto-lock again.');
       return;
     }
-    setScreenOn(true);
-    void wakeLock.enable();
+    void wakeLock.enable().then((held) => {
+      showToast(held
+        ? 'Screen on keeps the display awake while MixDeck is visible. Tap again to allow dimming and auto-lock.'
+        : 'Screen on could not be enabled. Battery saver or your browser may prevent it.');
+    });
   };
 
   const closeStage = () => {
@@ -665,9 +672,24 @@ export function DancerMode({ engine, active }: Props) {
 
   const track = song?.track ?? null;
   const bpm = track?.bpm ? track.bpm * (tempo / 100) : null;
-  const ready = player !== null && song !== null;
-  /** The `<video>` to show: only for a loaded video that has a picture (a sound-only file keeps the waveform). */
-  const videoElement = song?.kind === 'video' && song.aspect !== null && player instanceof VideoDeck ? player.element : null;
+  const ready = player !== null && song !== null && !loading;
+  // Keep the element mounted even when WebKit reports dimensions after loadedmetadata.
+  const videoElement = pendingVideo ?? (song?.kind === 'video' && player instanceof VideoDeck ? player.element : null);
+  useEffect(() => {
+    if (!videoElement) return;
+    const updateAspect = () => {
+      const { videoWidth: width, videoHeight: height } = videoElement;
+      if (width <= 0 || height <= 0) return;
+      setSong((s) => s?.kind === 'video' && s.aspect !== width / height ? { ...s, aspect: width / height } : s);
+    };
+    videoElement.addEventListener('resize', updateAspect);
+    videoElement.addEventListener('loadeddata', updateAspect);
+    updateAspect();
+    return () => {
+      videoElement.removeEventListener('resize', updateAspect);
+      videoElement.removeEventListener('loadeddata', updateAspect);
+    };
+  }, [videoElement, song?.id]);
   const waveformProps = {
     active: active && !stageOpen,
     peaks: track?.peaks ?? null,
@@ -692,18 +714,7 @@ export function DancerMode({ engine, active }: Props) {
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
     >
-      <div className="dancer-head">
-        <div className="deck-title" title={track?.name}>
-          {loading
-            ? 'Loading…'
-            : track
-              ? track.name
-              : deckError
-                ? `Player failed to start: ${deckError}`
-                : !stretch
-                  ? 'Preparing key-locked player…'
-                  : 'No song loaded'}
-        </div>
+      {actionsContainer && createPortal(<div className="dancer-actions" onKeyDown={(e) => e.stopPropagation()} onKeyUp={(e) => e.stopPropagation()}>
         <button onClick={loadDemo} disabled={!stretch || loading} title="Synthesised test track">
           Demo
         </button>
@@ -715,6 +726,8 @@ export function DancerMode({ engine, active }: Props) {
             className={`screen-on ${screenOn ? 'on' : ''}`}
             onClick={toggleScreenOn}
             aria-pressed={screenOn}
+            aria-label="Screen on"
+            aria-describedby="screen-on-help"
             title={screenOn ? 'Screen stays on — tap to let it sleep again' : 'Keep the screen on (no dimming or auto-lock)'}
           >
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -735,7 +748,8 @@ export function DancerMode({ engine, active }: Props) {
             e.target.value = '';
           }}
         />
-      </div>
+        <span id="screen-on-help" className="sr-only">Prevents dimming and auto-lock while MixDeck is visible. Tap again to turn it off.</span>
+      </div>, actionsContainer)}
 
       <div className="dancer-clock">
         <span className="elapsed">{formatTime(displayPos)}</span>
@@ -752,7 +766,7 @@ export function DancerMode({ engine, active }: Props) {
               <span className="unit">BPM</span>
             </>
           ) : song?.kind === 'video' ? (
-            // a video too large to analyse: tempo instead of a BPM it does not have
+            // Videos skip audio analysis to keep the native decoder free: show tempo instead of an unknown BPM.
             <>
               <span className="big">{tempo}%</span>
               <span className="unit">tempo</span>
@@ -766,15 +780,25 @@ export function DancerMode({ engine, active }: Props) {
         </span>
       </div>
 
-      {videoElement && song ? (
-        <div className="dancer-media" style={{ ['--video-ar' as string]: String(song.aspect) }}>
-          {/* Stage view borrows the element while open; this frame stays as a black placeholder behind it */}
-          <VideoView element={stageOpen ? null : videoElement} playing={playing} onTap={togglePlay} className="dancer-video" />
-          <Waveform {...waveformProps} className="strip" />
+      <div className="dancer-media-panel">
+        <div className="dancer-track-info">
+          <span className="dancer-track-kicker" role="img" aria-label="Now Playing">
+            <span aria-hidden="true">N</span><img className="now-playing-logo" src={nowPlayingLogo} alt="" aria-hidden="true" /><span aria-hidden="true">W PLAYING</span>
+          </span>
+          <div className="dancer-track-title" title={track?.name}>
+            {loading ? 'Opening video or song…' : loadError ? loadError : track?.name ?? (deckError ? `Player failed to start: ${deckError}` : 'Load a song or video to begin')}
+          </div>
         </div>
-      ) : (
-        <Waveform {...waveformProps} />
-      )}
+        {videoElement ? (
+          <div className="dancer-media" style={{ ['--video-ar' as string]: String(song?.aspect ?? 16 / 9) }}>
+            {/* Stage borrows this same media element, preserving playback and the iOS gesture. */}
+            <VideoView element={stageOpen ? null : videoElement} playing={playing} onTap={ready ? togglePlay : undefined} className="dancer-video" />
+            <Waveform {...waveformProps} className="strip" />
+          </div>
+        ) : (
+          <Waveform {...waveformProps} />
+        )}
+      </div>
 
       <div className="dancer-transport">
         <button className={`play ${playing ? 'on' : ''}`} onClick={togglePlay} disabled={!ready} title="Space">

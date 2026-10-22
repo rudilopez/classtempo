@@ -35,6 +35,7 @@ export function App() {
   const [a, setA] = useState<DeckUiState>(initialDeckState);
   const [b, setB] = useState<DeckUiState>(initialDeckState);
   const [needsGesture, setNeedsGesture] = useState(false);
+  const [dancerActions, setDancerActions] = useState<HTMLDivElement | null>(null);
   // one engine for the life of the page: a ref survives StrictMode's double effect run and Fast Refresh
   const creating = useRef<Promise<Engine> | null>(null);
   const pills = useRef<Partial<Record<Mode, HTMLButtonElement | null>>>({});
@@ -190,7 +191,7 @@ export function App() {
     <div className="app">
       <header>
         <div className="head-left">
-          <span className="logo">MixDeck</span>
+          <span className="logo">Mix<span>Deck</span></span>
           <div className="mode-switch" role="radiogroup" aria-label="Mode">
             {MODES.map((m) => {
               const on = m.id === mode;
@@ -214,10 +215,11 @@ export function App() {
             })}
           </div>
         </div>
-        <AudioMeta engine={engine} />
+        <div className="header-actions" ref={setDancerActions} hidden={mode !== 'dancer'} />
+        {mode === 'dj' && <AudioMeta engine={engine} />}
       </header>
       <main className="dancer-main" hidden={mode !== 'dancer'}>
-        <DancerMode engine={engine} active={mode === 'dancer'} />
+        <DancerMode engine={engine} active={mode === 'dancer'} actionsContainer={dancerActions} />
       </main>
       <main className="dj-main" hidden={mode !== 'dj'}>
         <p className="rotate-hint">Rotate your phone for the full mixer</p>

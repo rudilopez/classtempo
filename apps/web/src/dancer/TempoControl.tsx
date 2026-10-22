@@ -19,27 +19,29 @@ export function TempoControl({ value, onChange, disabled = false }: Props) {
   const set = (p: number) => onChange(clampTempo(p));
   return (
     <div className="tempo">
-      <div className="tempo-head">
-        <label htmlFor="dancer-tempo">Tempo · key locked</label>
-        <span className="tempo-readout">{value}%</span>
-      </div>
       <div className="tempo-slider">
-        <button className="tempo-nudge" onClick={() => set(value - 1)} disabled={disabled || value <= TEMPO_MIN} title="Slower (←)">
+        <label className="tempo-label" htmlFor="dancer-tempo">Tempo</label>
+        <button className="tempo-nudge" onClick={() => set(value - 1)} disabled={disabled || value <= TEMPO_MIN} title="Slower (←)" aria-label="Decrease tempo by 1 percent">
           −1 %
         </button>
-        <input
-          id="dancer-tempo"
-          type="range"
-          min={TEMPO_MIN}
-          max={TEMPO_MAX}
-          step={1}
-          value={value}
-          disabled={disabled}
-          onChange={(e) => set(Number(e.target.value))}
-          onDoubleClick={() => set(100)}
-          title="Double-click to reset to 100 %"
-        />
-        <button className="tempo-nudge" onClick={() => set(value + 1)} disabled={disabled || value >= TEMPO_MAX} title="Faster (→)">
+        <div className="tempo-track">
+          <input
+            id="dancer-tempo"
+            type="range"
+            min={TEMPO_MIN}
+            max={TEMPO_MAX}
+            step={1}
+            value={value}
+            disabled={disabled}
+            onChange={(e) => set(Number(e.target.value))}
+            onDoubleClick={() => set(100)}
+            aria-label="Tempo, key locked"
+            aria-valuetext={`${value} percent, key locked`}
+            title="Double-click to reset to 100 %"
+          />
+          <span className="tempo-readout" aria-hidden="true">{value}%</span>
+        </div>
+        <button className="tempo-nudge" onClick={() => set(value + 1)} disabled={disabled || value >= TEMPO_MAX} title="Faster (→)" aria-label="Increase tempo by 1 percent">
           +1 %
         </button>
       </div>
