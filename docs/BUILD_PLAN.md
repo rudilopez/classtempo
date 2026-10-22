@@ -28,15 +28,15 @@ Dancer mode: cues set/launched and tempo 50–150 % key-locked without dropouts.
 ## Phase 0.5 — Phone & iPad foundation (weeks 1–2)
 
 Status: built and unit-tested in code (`apps/web/src/platform/`, see ARCHITECTURE.md → *iOS / mobile audio* and
-*Layouts*). HTTPS hosting and the real-device checklist are still open, so the acceptance below has not been run
-on devices yet.
+*Layouts*) and hosted at https://rudilopez.github.io/mixdeck/. The real-device checklist is still open, so the
+acceptance below has not been run on devices yet.
 
 Tasks
 - [x] Installable PWA: web app manifest (standalone display, theme colours, relative `start_url`/`scope`), icons
   (192/512 px, maskable, 180 px `apple-touch-icon`), iOS meta (Home Screen title, status-bar style), offline
   service worker that precaches the app shell, worklets and WASM; request `navigator.storage.persist()`
-- [ ] HTTPS hosting on a static host — host not yet chosen: GitHub Pages (sub-path such as `/mixdeck/`) or Vercel
-  (root). The build stays host-agnostic (relative base `./`; the service worker also copes with clean-URL hosts
+- [x] HTTPS hosting on a static host — GitHub Pages at https://rudilopez.github.io/mixdeck/, deployed by
+  `.github/workflows/deploy.yml` (typecheck → tests → build → deploy) on every push to `main`. The build stays host-agnostic (relative base `./`; the service worker also copes with clean-URL hosts
   that redirect `index.html` to `./`); preview deploys per branch (built into Vercel; on GitHub Pages use a
   separate preview host or a PR build artifact)
 - [x] Audio session and background playback: `navigator.audioSession.type = 'playback'` (plays with the

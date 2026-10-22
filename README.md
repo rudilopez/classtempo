@@ -9,8 +9,11 @@ separation and streaming-service integration, which are deliberately out of scop
 gives us an edge: one link instead of an App Store install, a rehearsal-oriented Dancer mode djay does not have,
 shareable sets and mappings, real-time collaboration, and an open plugin surface.
 
+**Live:** https://rudilopez.github.io/mixdeck/ — open it in Safari on iPhone/iPad (Share → Add to Home Screen)
+or Chrome on Android (Install app). Every push to `main` redeploys via GitHub Actions.
+
 **Status:** Phase 0 vertical slice done; Phase 0.5 (phone & iPad foundation: installable PWA, lock-screen and
-headphone controls, touch layouts) is built in code, with HTTPS hosting and real-device testing still to do. The
+headphone controls, touch layouts) is built and hosted on GitHub Pages, with real-device testing still to do. The
 start screen offers two modes:
 
 - **DJ mode** — two decks, 3-band EQ, crossfader, master, pitch ±8 % (changes key until DJ key lock lands in
@@ -111,5 +114,6 @@ app, and it works offline.
 - **Hosting:** installing and offline mode need the app to be served over **HTTPS** (on localhost,
   `npm run build && npm run preview` serves the production build with the service worker; `npm run dev` does not
   register it). The build is host-agnostic (relative paths), so it works at a domain root or under a sub-path
-  such as `/mixdeck/`; see [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) Phase 0.5.
+  such as `/mixdeck/`. Production is GitHub Pages: `.github/workflows/deploy.yml` typechecks, tests, builds and
+  deploys `apps/web/dist` on every push to `main`; see [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) Phase 0.5.
 - **Icons:** regenerate the app icons with `npm run icons` (writes `apps/web/public/icons/`).
