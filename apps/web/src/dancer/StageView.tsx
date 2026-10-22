@@ -3,7 +3,10 @@ import { createPortal } from 'react-dom';
 import { formatTime } from '../types';
 import { padColor } from './CuePads';
 import type { CueSlots } from './cueStore';
+import { clampTempo, TEMPO_MAX, TEMPO_MIN } from './TempoControl';
+import { VideoTools } from './VideoTools';
 import { VideoView } from './VideoView';
+import './stageClassroom.css';
 
 interface Props {
   /** The VideoDeck's element when a video with a picture is loaded; it is moved in here while Stage is open. */
@@ -23,6 +26,16 @@ interface Props {
   /** Launches pad `index` (only set pads are shown). */
   onLaunch: (index: number) => void;
   onClose: () => void;
+  tempo?: number;
+  onTempoChange?: (percent: number) => void;
+  mirrored?: boolean;
+  zoom?: number;
+  onMirroredChange?: (mirrored: boolean) => void;
+  onZoomChange?: (zoom: number) => void;
+  onRestartSection?: () => void;
+  pendingLabel?: string | null;
+  talking?: boolean;
+  onToggleTalk?: () => void;
 }
 
 /** Element and document full-screen API, unprefixed or with the older WebKit prefix (iPadOS before 16.4). */
@@ -63,13 +76,16 @@ function exitFullscreen(): void {
 }
 
 /**
- * Stage view: a full-viewport performance screen with only the video (or, without one, the current cue section
- * and elapsed time in large type), Play / Pause, Restart, and the set cue pads as launch-only buttons. No tempo,
- * no editing, no loading. Rendered into <body> above the app; audio recovery portals into this root while it owns
+ * Stage view: a full-viewport teaching screen with the video or current section, essential playback and tempo
+ * controls, and the set cue pads as launch-only buttons. Rendered into <body> above the app; recovery portals into this root while it owns
  * full screen, so its resume button stays reachable. Full screen is left again when Stage closes. Escape, or
  * leaving full screen (Esc, Android back), closes it.
  */
-export function StageView({ video, aspect, title, playing, position, cues, section, onTogglePlay, onRestart, onLaunch, onClose }: Props) {
+export function StageView({
+  video, aspect, title, playing, position, cues, section, onTogglePlay, onRestart, onLaunch, onClose,
+  tempo = 100, onTempoChange, mirrored = false, zoom = 1, onMirroredChange, onZoomChange,
+  onRestartSection, pendingLabel, talking = false, onToggleTalk,
+}: Props) {
   const root = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   useEffect(() => {
@@ -146,7 +162,7 @@ export function StageView({ video, aspect, title, playing, position, cues, secti
   return createPortal(
     <div
       ref={root}
-      className={`stage ${video ? 'stage-has-video' : 'stage-no-video'}`}
+      className={`stage stage-classroom ${video ? 'stage-has-video' : 'stage-no-video'}`}
       style={aspect ? { ['--video-ar' as string]: String(aspect) } : undefined}
       role="dialog"
       aria-modal="true"
@@ -155,7 +171,7 @@ export function StageView({ video, aspect, title, playing, position, cues, secti
     >
       <div className="stage-screen">
         {video ? (
-          <VideoView element={video} playing={playing} onTap={onTogglePlay} className="stage-video" />
+          <VideoView element={video} playing={playing} onTap={onTogglePlay} mirrored={mirrored} zoom={zoom} className="stage-video" />
         ) : (
           <div className="stage-now" aria-live="polite">
             <span className="stage-title">{title}</span>
@@ -163,15 +179,42 @@ export function StageView({ video, aspect, title, playing, position, cues, secti
             <span className="stage-time">{formatTime(position)}</span>
           </div>
         )}
+        {pendingLabel && <div className="stage-pending" role="status">{pendingLabel}</div>}
       </div>
       <div className="stage-bar">
-        <div className="stage-transport">
-          <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} title="Space">
-            {playing ? '❚❚  Pause' : '▶  Play'}
-          </button>
-          <button className="stage-restart" onClick={onRestart} title="Home">
-            ⟲ Restart
-          </button>
+        <div className="stage-controls">
+          <div className={`stage-transport ${onToggleTalk ? 'stage-with-talk' : ''}`}>
+            <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} title="Space">
+              {pendingLabel ? '✕ Cancel' : playing ? '❚❚ Pause' : '▶ Play'}
+            </button>
+            <button
+              className="stage-restart"
+              onClick={onRestartSection ?? onRestart}
+              title="Home"
+              aria-label={onRestartSection ? 'Restart section' : 'Restart song'}
+            >
+              ⟲ {onRestartSection ? 'Section' : 'Restart'}
+            </button>
+            {onToggleTalk && (
+              <button className={`stage-talk ${talking ? 'on' : ''}`} onClick={onToggleTalk} aria-pressed={talking} title="Lower music while you speak">
+                Talk
+              </button>
+            )}
+          </div>
+          {(onTempoChange || (video && onMirroredChange && onZoomChange)) && (
+            <div className="stage-options">
+              {onTempoChange && (
+                <div className="stage-tempo" role="group" aria-label="Tempo">
+                  <button onClick={() => onTempoChange(clampTempo(tempo - 1))} disabled={tempo <= TEMPO_MIN} aria-label="Decrease tempo by 1 percent">−</button>
+                  <button className="stage-tempo-value" onClick={() => onTempoChange(100)} aria-label={`Tempo ${tempo} percent. Reset to 100 percent`} title="Reset to original tempo">{tempo}%</button>
+                  <button onClick={() => onTempoChange(clampTempo(tempo + 1))} disabled={tempo >= TEMPO_MAX} aria-label="Increase tempo by 1 percent">+</button>
+                </div>
+              )}
+              {video && onMirroredChange && onZoomChange && (
+                <VideoTools mirrored={mirrored} zoom={zoom} onMirroredChange={onMirroredChange} onZoomChange={onZoomChange} />
+              )}
+            </div>
+          )}
         </div>
         {pads.length > 0 ? (
           <div className="stage-pads">

@@ -1,0 +1,71 @@
+/* Classroom controls share the former tempo footprint; detail stays in focused panels. */
+.dancer .class-tempo-panel {
+  grid-area: tempo;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--control-line);
+  border-radius: 12px;
+  background: var(--tempo-surface);
+}
+.class-tempo-panel .tempo {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.class-tempo-panel .tempo-buttons { display: none; }
+.dancer .class-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(44px, .7fr);
+  gap: 6px;
+  margin-top: 2px;
+}
+.class-tools button {
+  min-height: 44px;
+  min-width: 0;
+  padding: 6px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+.source-switch .mode-pill[aria-pressed='true'] { background-color: var(--a); color: #082b28; }
+.source-switch .mode-pill[aria-pressed='false'] { color: var(--dim); }
+.dancer .dancer-media { position: relative; }
+.dancer-media > .video-tools {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 2;
+}
+.dancer .practice-countdown {
+  position: absolute;
+  z-index: 5;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 220px;
+  padding: 18px 24px;
+  text-align: center;
+  border: 1px solid var(--a);
+  background: #102d2eee;
+  color: #a4ffe7;
+  border-radius: 16px;
+  font-size: 24px;
+  font-weight: 750;
+  pointer-events: none;
+}
+.dancer .cues-undo { min-height: 44px; min-width: 44px; padding: 4px 8px; font-size: 12px; }
+.dancer.editing .cues-hint { display: none; }
+.dancer .pad.empty:disabled { opacity: .65; border-style: dashed; }
+@media (max-width: 599px) {
+  .dancer.editing .class-tempo-panel { display: none; }
+  .dancer .class-tempo-panel .tempo { display: block; }
+  .dancer .dancer-track-title { -webkit-line-clamp: 1; }
+}
+@media (orientation: landscape) and (max-height: 499px) {
+  .dancer.has-video .class-tempo-panel { flex: none; }
+  .dancer .class-tempo-panel { padding: 3px 6px; }
+  .class-tempo-panel .tempo-slider { padding: 0; }
+}

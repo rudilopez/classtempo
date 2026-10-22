@@ -346,7 +346,9 @@ export class VideoDeck implements DancerPlayer {
   }
 
   private handleEnded(): void {
-    if (!this._track) return;
+    // Native events are queued. A final pause/position report can already have launched the next
+    // section pass before this old ended event arrives; it must not stop that new playback.
+    if (!this._track || !this.element.ended || !this.element.paused) return;
     this.setPlaying(false);
     this.report(true);
     this.onEnded?.();

@@ -17,23 +17,23 @@ const RAMP = 0.01;
  */
 export class Engine {
   readonly ctx: AudioContext;
-  readonly decks: readonly [Deck, Deck];
+  private readonly djDecks: readonly [Deck, Deck] | null;
   readonly master: GainNode;
   private readonly dancerGain: GainNode;
   private readonly xf: readonly [GainNode, GainNode];
   private _crossfader = 0;
   private stretchDeck: Promise<StretchDeck> | null = null;
 
-  private constructor(ctx: AudioContext) {
+  private constructor(ctx: AudioContext, dj: boolean) {
     this.ctx = ctx;
     this.master = new GainNode(ctx, { gain: 0.9 });
     this.master.connect(ctx.destination);
     this.dancerGain = new GainNode(ctx, { gain: 0.9 });
     this.dancerGain.connect(ctx.destination);
     this.xf = [new GainNode(ctx), new GainNode(ctx)];
-    this.decks = [new Deck(ctx), new Deck(ctx)];
-    this.decks[0].output.connect(this.xf[0]).connect(this.master);
-    this.decks[1].output.connect(this.xf[1]).connect(this.master);
+    this.djDecks = dj ? [new Deck(ctx), new Deck(ctx)] : null;
+    this.djDecks?.[0].output.connect(this.xf[0]).connect(this.master);
+    this.djDecks?.[1].output.connect(this.xf[1]).connect(this.master);
     this.setCrossfader(0);
   }
 
@@ -42,10 +42,12 @@ export class Engine {
    * the context stays 'suspended' until `unlock()` / `resume()` is called from one (awaiting `resume()` here would
    * hang on iOS / iPadOS until the first tap).
    */
-  static async create(): Promise<Engine> {
+  static async create({ dj = true }: { dj?: boolean } = {}): Promise<Engine> {
     // Before the context exists, so its very first output is already treated as media playback.
     setPlaybackAudioSession();
     const ctx = new AudioContext({ latencyHint: 'interactive' });
+    // The classroom player needs no DJ processors running in the background.
+    if (!dj) return new Engine(ctx, false);
     const url = URL.createObjectURL(new Blob([DECK_PROCESSOR_SOURCE], { type: 'application/javascript' }));
     try {
       await ctx.audioWorklet.addModule(url);
@@ -55,7 +57,19 @@ export class Engine {
     } finally {
       URL.revokeObjectURL(url);
     }
-    return new Engine(ctx);
+    return new Engine(ctx, true);
+  }
+
+  /** Legacy mixer access; the classroom engine deliberately creates no DJ decks. */
+  get decks(): readonly [Deck, Deck] {
+    if (!this.djDecks) throw new Error('DJ decks are not enabled in the classroom player.');
+    return this.djDecks;
+  }
+
+  /** Relative classroom output level, used to lower the song while the instructor talks. */
+  setDancerGain(level: number): void {
+    if (!Number.isFinite(level)) return;
+    this.dancerGain.gain.setTargetAtTime(0.9 * Math.max(0, Math.min(1, level)), this.ctx.currentTime, RAMP);
   }
 
   /** -1 = deck A only, +1 = deck B only. Equal-power curve. */

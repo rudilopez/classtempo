@@ -1,248 +1,108 @@
-# Build plan
+# ClassTempo delivery plan
 
-MixDeck is a phone- and tablet-first web app, installed to the Home Screen (PWA): iPhone and iPad (Safari)
-and Android phones/tablets (Chrome) are the primary targets, desktop browsers are secondary. From Phase 0.5 on,
-every phase is accepted on a real iPhone and iPad first (the Phase 0 slice was accepted on a laptop).
+The current product is a single-track dance teaching app. The former multi-deck/djay-parity roadmap is retired;
+legacy work remains in Git history and the historical handoff. The working name is ClassTempo. Repository/package
+identifiers and the `/mixdeck/` deployment URL remain stable.
 
-Estimates assume 2 engineers (one audio/DSP-leaning, one product/UI-leaning) plus part-time design, ≈ 34 weeks
-total. Solo: roughly double. Phases are sequential by default; Phase 0.5 comes first because nothing else
-matters if the app cannot be installed on an iPhone and keep playing with the screen locked. Phases 3 and 6 can
-run in parallel with 2–5 once Phase 1 is stable.
+## Current classroom release
 
-## Phase 0 — Vertical slice (done in this scaffold)
+Implemented in the release candidate; production status must be established from the deployment workflow and
+live site, separately from this checklist:
 
-- [x] Monorepo (npm workspaces): `apps/web`, `packages/engine`, `packages/analysis`, `packages/midi`, `packages/library`
-- [x] AudioWorklet deck processor: transferred PCM, variable-rate playback, seek, loop, position reporting
-- [x] Mixer graph: 3-band EQ, channel faders, equal-power crossfader, master
-- [x] Tempo analysis in a Worker (onset envelope → comb scoring with tempo prior), beat phase, overview waveform
-- [x] UI: two decks, drag-and-drop load, play/pause, cue, pitch ±8 %, 4-beat loop, tempo sync, waveform with beat markers
-- [x] Unit test: synthetic click track → BPM within ±0.5
-- [x] Dancer-default shell with mode pills; both modes remain loaded and pause when left
-- [x] Dancer mode: one key-locked player (Signalsmith Stretch WASM AudioWorklet, tempo 50–150 %), 8 launchable cue
-  pads (tap empty = set, tap set = jump & play, edit mode to re-set a pad, ✕ clear, ✎ rename), cues saved per track in
-  localStorage, keyboard shortcuts, minimal UI with no EQ
+- One audio/video player with Song/Video import selection. No DJ mode, mixer surface or synthetic Demo.
+- Classroom engine creation without DJ decks or their worklet processors.
+- Compact phone header, media-panel title, inline speed percentage, supplied Now Playing logo and distinct controls.
+- Key-preserving audio speed at 50–150%; native-video speed/pitch preservation where supported.
+- Native video loading without a duplicate audio decode, explicit readiness/errors and same-element Stage transitions.
+- Keep awake, Stage playback controls, video mirror/zoom and Talk (audio attenuates; native video pauses).
+- IndexedDB media library with recents, multiple imports, local-copy removal and honest save failures.
+- Named ordered class sets, repeated titles, manual advancement and independent practice settings per exercise.
+- Named A–B practice sections, play once/stop, finite or unlimited repeats, gaps and seconds-based start delay.
+- Cue edit lock and Undo; stable saved-cue keys preserve existing users' work.
+- JSON export/restore for class sets, cue data and practice settings, excluding media files.
+- Existing lock-screen/headphone controls and interruption recovery retained.
 
-**Acceptance:** two local tracks beat-matched with sync and mixed with EQ + crossfader, no audible dropouts on a laptop;
-Dancer mode: cues set/launched and tempo 50–150 % key-locked without dropouts.
+The first native-video Play is immediate to establish sound permission; start delay applies on later starts.
+A musical count-in is not part of this delivery. New features must not imply that timer-based repetition or
+lock-screen behavior has been accepted on a physical iPhone until it actually has.
 
-## Phase 0.5 — Phone & iPad foundation (weeks 1–2)
+## Release verification
 
-Status: built and unit-tested in code (`apps/web/src/platform/`, see ARCHITECTURE.md → *iOS / mobile audio* and
-*Layouts*) and hosted at https://rudilopez.github.io/mixdeck/. The real-device checklist is still open, so the
-acceptance below has not been run on devices yet.
+Required automated checks are `npm run typecheck`, `npm test` and `npm run build`. Then verify the workflows below
+in Chromium and WebKit as appropriate, recording the build tested:
 
-Tasks
-- [x] Installable PWA: web app manifest (standalone display, theme colours, relative `start_url`/`scope`), icons
-  (192/512 px, maskable, 180 px `apple-touch-icon`), iOS meta (Home Screen title, status-bar style), offline
-  service worker that precaches the app shell, worklets and WASM; request `navigator.storage.persist()`
-- [x] HTTPS hosting on a static host — GitHub Pages at https://rudilopez.github.io/mixdeck/, deployed by
-  `.github/workflows/deploy.yml` (typecheck → tests → build → deploy) on every push to `main`. The build stays host-agnostic (relative base `./`; the service worker also copes with clean-URL hosts
-  that redirect `index.html` to `./`); preview deploys per branch (built into Vercel; on GitHub Pages use a
-  separate preview host or a PR build artifact)
-- [x] Audio session and background playback: `navigator.audioSession.type = 'playback'` (plays with the
-  Ring/Silent switch on; skipped where the API is missing); song-length silent `<audio>` keep-alive started in the
-  same tap as playback (Dancer mode); automatic resume on `visibilitychange` and when the context reports
-  `'interrupted'`/`'suspended'`, with a full-screen "Tap to resume audio" overlay when the browser insists on a tap
-- [ ] Tell the user in the UI to start playback before locking the screen (only the README says so today)
-- [x] Lock-screen and headphone controls via the Media Session API (Dancer mode): title, play/pause, seek,
-  previous/next = previous/next cue (previous restarts the current section, or goes to the cue before it within
-  its first 2 s), no ±10 s skip buttons, scrubber kept in step with `setPositionState` at the current tempo —
-  for the iOS / iPadOS lock screen and Control Center, the Android media notification and lock screen, Bluetooth
-  headphone buttons and car stereos
-- [ ] DJ mode keep-alive and lock-screen controls (play/pause → master deck)
-- [x] Touch-first responsive layouts for iPhone portrait/landscape and iPad portrait/landscape (chosen by
-  viewport, so Android phones/tablets and iPad Split View / Slide Over get them too): safe-area insets,
-  `100dvh`, ≥ 44 px touch targets, no double-tap zoom, no pull-to-refresh; optional "Screen on" toggle in
-  Dancer mode (Screen Wake Lock API, feature-detected)
-- [x] File import from the Files app (or any system file picker): MP3, M4A/AAC, WAV, AIFF; FLAC and OGG where the
-  browser decodes them
-- [ ] Say in the import UI that Apple Music library songs cannot be imported (DRM; the browser cannot read the
-  Music library)
-- [ ] Real-device test matrix: iPhone + iPad on the current iOS/iPadOS, one Android phone (Chrome); a written
-  checklist run before every release and on every iOS major/beta
+1. Import an audio file, adjust tempo, edit/undo cues, reload and restore settings.
+2. Save and reopen media from IndexedDB. Confirm an unavailable/quota-failed store produces an explicit message
+   and never claims that the file is saved offline.
+3. Create/reorder a class set. Add the same song twice with different practice settings, load each manually and
+   verify it remains paused until Play. No class song should start automatically.
+4. Set A/B, play once, repeat a finite number of passes and use a gap/start delay. Cancel each waiting state via
+   Pause, seek, cue launch or new load; stale timers must not start another track.
+5. Export metadata, restore into fresh storage and reconnect missing original files. Existing data survives merge;
+   imported practice settings are normalized before playback. No backup claims to contain audio/video.
+6. Load video, including a 31-second 2160×3840 H.264/24 fps fixture. Verify picture/readiness, speed, mirror/zoom,
+   Talk and same-element Stage transitions. Loading a video must not call the audio analysis/decode path.
+7. Exercise keyboard focus, Escape, dialogs, safe areas and touch targets. Main phone portrait must not require
+   page scrolling; editors/library scroll internally. Check 360×780, 390×844, 430×932, 844×390, 768×1024,
+   1180×820 and 1366×1024, including relevant video/edit/Stage states.
+8. Build/serve production, visit online to populate the app cache, then open a saved local file offline. Repeat
+   with missing media to verify the app requests reimport instead of promising availability.
 
-Acceptance
-- Installs from Safari (Share → Add to Home Screen) and, after one online launch from the Home Screen icon,
-  launches offline (airplane mode)
-- In Dancer mode, plays a 5-min song with the screen locked for 5 minutes on iPhone and iPad (iOS/iPadOS 17.5+)
-  and an Android phone (Chrome) without stopping
-- Lock-screen and headphone next/previous launch the next/previous cue (iPhone/iPad lock screen and Control
-  Center, Android media notification, Bluetooth headphone buttons)
-- No layout breakage at 375×667, 390×844, 430×932 (iPhone) and 744×1133, 768×1024, 820×1180, 834×1210,
-  1024×1366 (iPad), in both portrait and landscape, and in an iPad Split View / Slide Over window (≈ 320–507 px wide)
-- In Home Screen mode nothing sits under the status bar, notch / Dynamic Island or home indicator (iPhone and
-  iPad, portrait and landscape)
+After successful branch checks, merge to `main`, verify GitHub Actions deployment, then inspect the live release.
+A passing local build, pushed branch or PR is not evidence that the phone received the new app.
 
-## Dancer v2 — release and device acceptance
+## Physical-device acceptance still required
 
-- [x] Dancer default and persistent Dancer / DJ mode pills.
-- [x] Native video with pitch-preserving tempo, cue strip and Stage view using the same media element.
-- [x] Labelled Screen on toggle, restored-cue message, current/next cue line on the lock screen.
-- [x] Song-length keep-alive and seekable-session ordering fix; inactive playback guards and fullscreen recovery.
-- [x] Compact single-row header, title in media panel, inline tempo percentage, distinct panels and compact Stage pads.
-- [x] Supplied logo replaces the O in Now Playing; header Screen on explains wake-lock behavior.
-- [x] Remove duplicate video audio decode; mount during load and display frame readiness/errors.
-- [ ] Owner retests the reported 31-second 4K portrait H.264 file (77.1 MB) on iPhone.
-- [ ] Owner confirms lock-screen scrubbing on a real iPhone, Pause → Play, cue metadata, video/Stage and pills.
+The owner must confirm the following in the installed Home Screen app on the actual iPhone, then cover iPad and
+Android before claiming those devices accepted:
 
-## Dancer stems — feasibility gate (new scope; no Stems FX)
+- The reported 31-second 4K portrait H.264 video (77.1 MB), including playback through its end and Stage transitions.
+- Lock-screen seeking during playback, Pause → Play, title/cue metadata and headphone Previous/Next.
+- Audio and native-video start delays, section endpoints, repeated playback and gaps while visible and locked.
+- Call/voice-assistant interruptions, returning from the background and Tap to resume audio when required.
+- Bluetooth class-speaker playback and recovery if the route changes.
+- Keep awake granted/refused/released states, safe areas and offline access after a prior online launch.
+- Reopen a prepared class and recover its selected exercise settings without unexpected playback.
 
-First ship a hidden 30-second / 4-minute HTDemucs benchmark with on-demand model download, Worker inference,
-WebGPU where supported and WASM fallback. Record actual provider, elapsed separation time, download size and
-memory availability honestly; Safari may not expose peak process memory. Model and exact weight licensing must
-be documented. The initial four-stem export is 166 MB. Upstream weights are research-restricted despite the exporter MIT tag;
-clear production weight permission is a separate gate. See [STEMS_BENCHMARK.md](STEMS_BENCHMARK.md).
+A desktop browser pass is useful regression evidence but cannot replace these checks. Keep the original video
+and existing cue data available when testing. Paused lock-screen scrubbing remains a known WebKit limitation.
 
-**Gate:** the owner's iPhone separates a four-minute song in approximately two minutes or less without crashing.
-Decide with the owner after the measurements. A server fallback uploads songs and costs money and is **not
-approved**. Until that decision, no full stems playback integration.
+## Next gate: instructor music access
 
-After acceptance (estimated 3–4 weeks): on-demand/offline model cache; chunked overlap-add with cancellation;
-per-song OPFS cache and LRU management; four sample-locked stereo stems through one multichannel Signalsmith
-node; Vocal, Instru (other), Bass, Drums, Kick, HiHat pads and Acapella / Instrumental / All shortcuts. Kick/HiHat
-are filtered drum bands, not independently separated instruments. Audio files first; video and DJ stems later.
-No Stems FX. Test reconstruction/crossovers, routing, cache eviction, timing across 50–150% tempo and offline use.
+The intended users primarily obtain music from Apple Music or Spotify. The current file player therefore does
+not yet satisfy that source workflow. Apple Music is a feasibility project, not an enabled feature. The owner
+currently has no Apple Developer account/credentials; authenticated testing remains blocked until those are
+available. Follow [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
-## Phase 1 — Core DJ engine (weeks 3–8)
+Once credentials and a suitable test account are available, prove playback, pitch-preserving speed, seeking,
+sections, lock-screen behavior and phone output on the actual target platform. Decide from that evidence whether
+the PWA is sufficient or a native implementation is needed. Do not equate MusicKit playback support with access
+to raw audio or parity with local-file processing. Spotify is not a promised integration. Platform terms and
+permitted classroom music use are independent of whether a technical integration plays a song.
 
-Tasks
-- Key lock: already shipped in Dancer mode via Signalsmith Stretch. Phase 1 brings key lock to DJ mode decks:
-  Stretch in the deck path, toggle per deck, pitch range 6/8/16/50 %
-- Phase sync (not just tempo), master deck selection, quantize (cue/loop/jump land on beats)
-- Hot cues ×8 (set/jump/delete, colors, names), memory cues, loop in/out, auto loops 1/32–32 beats, loop roll, slip mode
-- Beatgrid editor: tap/shift/stretch, downbeat marker, variable grid (`beats[]`) for drifting tempo
-- Waveforms: overview + zoomed scrolling (Canvas 2D first, WebGL when 4 decks), color by frequency band
-- FX rack: filter (LPF/HPF single knob), echo (beat-synced), reverb, flanger, phaser, gate, bitcrusher, roll; per-deck + master; beat-synced parameters
-- Metering: channel/master VU, clip indication; master limiter
-- Recording: worklet tap → WAV in Worker → MP3 (lamejs) option → download / share sheet
-- Touch-first gestures: jog/nudge by dragging the waveform, pinch to zoom the waveform; keyboard shortcuts for desktop
-- DJ layouts for portrait and landscape: phone landscape = full two-deck view, phone portrait = stacked decks with
-  one-deck focus; iPad = two decks in any orientation
-- 4-deck mode on iPad (landscape) and desktop; phones stay at 2 decks
-- Engine test harness with `OfflineAudioContext`
+## Later classroom improvements
 
-Acceptance
-- Key-locked ±8 % with no artifacts on a vocal track at normal listening level
-- Loop boundaries sample-exact (test), sync phase error < 5 ms after 1 bar
-- 60 fps UI with 2 zoomed waveforms on an iPhone 13-class phone, an A14-or-newer iPad and a 2020 MacBook Air; worklet CPU < 30 %
+Prioritize these from observed teaching friction rather than restoring the old DJ backlog:
 
-## Phase 2 — Library (weeks 9–12)
+- Musical count-in with manually aligned first beat and clear tempo interpretation.
+- Finer section/cue nudging, editing feedback and optional per-exercise notes.
+- A simple remote/watch path for repeating the current section; keep song advancement explicit.
+- Video frame stepping if mirror/zoom and repeat do not meet choreography review needs.
+- Storage usage/management and stronger media identity/relinking if library size or restore behavior requires it.
 
-Tasks
-- Import: file picker (Files app on iOS), drag-drop, File System Access folder handles where available (re-permission flow), cloud drive connectors (Google Drive, Dropbox, OneDrive) via OAuth
-- Metadata via `music-metadata` (tags, artwork), duplicate detection by hash
-- Analysis queue with concurrency limits, priority for "next track", versioned results, re-analyze; pauses while the app is backgrounded on phones
-- Key detection (Essentia.js), Camelot notation, key-compatible filtering, energy/loudness; semitone key-shift
-  suggestions (applied via Stretch on DJ decks)
-- Crates, smart crates (query DSL), search (title/artist/bpm/key ranges), sort, history, "prepare" list
-- Track prep view: set cues/loops without loading to a live deck
-- Move Dancer cues from localStorage to IndexedDB (one-time migration, keyed by file hash); export/import cues as a file
-- OPFS audio cache with LRU and size cap; offline library browsing
+Do not promise cloud accounts, synchronization, external music integrations or automatic speaker routing as
+already implemented. Preserve the local workflow while those decisions remain open.
 
-Acceptance
-- 10k-track library: search < 50 ms, scroll at 60 fps on an iPhone 13-class phone and an A14-or-newer iPad (virtualized list), import 1k tracks < 2 min excluding analysis
+## Deferred stems research
 
-## Phase 3 — Hardware & pro I/O (weeks 13–16) — lower priority (except iPhone/iPad headphone cueing)
+The hidden HTDemucs benchmark remains available but is lower priority than classroom playback and music access.
+It downloads a 166 MB candidate model on demand and records provider/timing information. The exact pretrained
+weights are research-restricted despite the exporter's MIT label. See [STEMS_BENCHMARK.md](STEMS_BENCHMARK.md).
 
-Why lower priority: the primary devices are iPhone and iPad, and Safari on iPhone/iPad has no Web MIDI (and no
-WebHID), so controller support in the browser is Android/desktop-only — a secondary audience for a phone-first
-product. Only the MIDI side of Phase 5 pad modes and the Phase 7 mapping registry depend on it; if Phase 3
-slips, those ship touch-only or later. Exception: split-output headphone cueing on iPhone/iPad is
-primary-device work and is not deprioritised.
+Full stems require both suitable production weight permission and an owner-approved phone result: a four-minute
+song separated in roughly two minutes or less without crashing. Actual provider use and memory visibility must
+be reported honestly. A server fallback would upload songs and incur cost; it remains unapproved.
 
-Tasks
-- Web MIDI (Android Chrome, desktop Chromium; feature-detected and hidden on iOS): discovery, hot-plug, input/output (LED feedback), SysEx where needed
-- Mapping JSON schema (control → action, modes, shift layers, soft-takeover, jog modes), MIDI Learn UI
-- Preset mappings: Pioneer DDJ-FLX4, DDJ-200, DDJ-400/FLX6, Numark Mixtrack Pro FX, Reloop Buddy/Mixtour, Hercules Inpulse 200/300 (community-expandable registry)
-- Jog wheel: scratch (platter-rate playback in worklet), pitch bend, search; latency tuning pass
-- Headphone cueing on iPhone/iPad: investigate multi-channel USB-C/Lightning audio interfaces (does
-  `ctx.destination.maxChannelCount` report > 2, can channels 3–4 carry the cue bus); otherwise split-output mode
-  (mono master → L, mono cue → R, speakers + headphones via a Y-splitter cable)
-- Cue output elsewhere: second `AudioContext` with `setSinkId` (Chromium); split-output mode everywhere; output device picker; multi-channel interface routing (channels 1–2 master, 3–4 cue)
-- WebHID path for controllers that are HID-only (Chromium)
-
-Acceptance
-- iPhone/iPad: headphone cueing works in split-output mode with a Y-splitter; multi-channel interface results documented per device
-- Android Chrome or desktop Chromium: FLX4 plug-and-play, all controls mapped, LEDs reflect state, scratch feels usable (< 20 ms round trip measured)
-- Headphone cueing works on Chrome (device) and Safari (split)
-
-## Phase 4 — Automix & transition intelligence (weeks 17–20)
-
-Tasks
-- Transition preset engine ("Crossfader Fusion" parity): crossfader position drives automation curves on filter, EQ, FX; presets (Cut, Dissolve, Echo Out, Riser, Filter Sweep); user-editable curves
-- Automix: queue, next-track choice (bpm/key/energy), beat-aligned transition scheduling, length rules, pause/skip, Automix view with artwork
-- Set planner (Claude API, server-side proxy): energy-curve planning over a crate, harmonic path, "mix out of this" suggestions with reasons; opt-in, never required
-
-Acceptance
-- Automix runs 1 hour over a varied crate with no clashes louder than –6 dB on the EQ'd spectrum (test harness), transitions land on bars; the hour runs on an iPhone 13-class phone and an A14-or-newer iPad with the screen locked (Phase 0.5 audio session), with no dropouts
-
-## Phase 5 — Sampler, looper, pads (weeks 21–24)
-
-Tasks
-- Sampler engine (worklet): one-shot/hold/loop modes, quantized triggers, per-pad volume/pitch, 8×2 banks
-- 48-slot grid looper: beat-matched, time-stretched loops, scenes
-- Content packs: manifest + CDN delivery, licensing flags, in-app browser, user imports
-- Pad modes: hot cues, loops, sampler, FX, beat jump; touch (+ MIDI once Phase 3 lands)
-
-Acceptance
-- Sampler/looper triggers land on the quantize grid within 1 ms (OfflineAudioContext test); 8 looper slots + 2 decks at 60 fps UI, worklet CPU < 40 % on an A14-or-newer iPad (2 decks + 4 slots on an iPhone 13-class phone)
-
-## Phase 6 — Video & visuals (weeks 25–28)
-
-Tasks
-- Video decks: WebCodecs decode, frame-accurate sync to audio deck, crossfade/transition shaders
-- Audio-reactive visualizer (WebGL/WebGPU), visual loops, title/image overlays
-- External display: Presentation API / popup window with a visuals-only route on Chromium; on iPhone/iPad (no
-  Presentation API) a full-screen visuals view shown via AirPlay/USB-C mirroring or a Stage Manager external display
-- Live Photo/image slideshow decks
-
-Acceptance
-- Video deck stays within ±1 frame of its audio deck over a 10-minute track; external display route renders at 60 fps, including an iPad mirrored over AirPlay or USB-C
-
-## Phase 7 — Product, platform & business (weeks 29–34)
-
-Tasks
-- Accounts (passkeys + OAuth), opt-in library/cue sync (CRDT-ish merge for cues/crates), mapping registry
-  (publish/import; needs Phase 3)
-- Plugin API: sandboxed FX / visualizer / analysis modules (iframes/Workers), published via the same registry as
-  mappings; set and mapping share links
-- Subscriptions (Stripe): free core (Phases 0–3 incl. Dancer mode, plus Automix from Phase 4); Pro = set planner, cloud sync, content packs, video, collaboration
-- Collaboration: WebRTC session (shared state + optional audio relay), teacher/student mode
-- Starter Mode / onboarding, accessibility (keyboard-only DJing, screen reader labels), localization
-- Telemetry (opt-in), crash reporting, perf dashboards
-- Native wrapper decision: only if App Store presence (or native MIDI on iOS) turns out to be needed
-
-Acceptance
-- Cold start < 2 s to first interaction on an iPhone 13-class phone; cue/crate edits made on two devices merge without data loss; Stripe checkout unlocks Pro features in the same session
-
-## Cross-cutting
-
-- CI: typecheck, unit, Playwright smoke (Chromium + WebKit, phone and tablet viewports), perf budget on every PR; preview deploys (per host, see Phase 0.5)
-- Device/browser matrix maintained in README; every feature has a documented fallback; the Phase 0.5 real-device checklist runs before every release
-- Security: COOP/COEP, CSP, sandboxed plugin iframes/Workers, no third-party scripts in the audio path
-- Licensing audit: Signalsmith (MIT), Essentia (AGPL — isolate behind a Worker and ship source, or license commercially), content packs (per-pack)
-
-## Risks & mitigations
-
-| Risk | Impact | Mitigation |
-|---|---|---|
-| iOS suspends Web Audio when locked/backgrounded | Music stops mid-rehearsal or mid-set | `navigator.audioSession.type = 'playback'` + silent looping keep-alive `<audio>` + Media Session; resume on `visibilitychange`/`'interrupted'`, "Tap to resume audio" when the browser wants a tap; real-device testing on each iOS release (and beta) |
-| Safari evicts site storage after 7 days without use in a Safari tab, and any site (Home Screen apps included) under storage pressure | Saved Dancer cues and library metadata disappear | `navigator.storage.persist()`; export/import cues as a file; install to the Home Screen |
-| Phone memory limits with long songs | Page reloads or crashes | One decoded 5-min song ≈ 115 MB at 48 kHz stereo float; strict "loaded + next" policy; decode-on-demand from the Phase 2 OPFS cache if memory limits are still hit |
-| No Web MIDI / `setSinkId` on iPhone & iPad | No controllers or separate cue device on the primary devices | Product does not depend on them: touch-first UI, split-output cueing, Phase 3 controller work deprioritised; native wrapper only as a last resort |
-| Time-stretch quality/CPU | Core mixing sounds bad or drops out | Signalsmith tuned per use (tempo vs scratch); quality tiers; WASM SIMD + threads |
-| Scope creep (djay has 15 years of features) | Never ships | Phase gates with acceptance criteria; free tier = Phases 0–3 + Automix, Pro = everything that costs us server time or content licensing |
-
-## Milestone summary
-
-| Milestone | Target | Definition |
-|---|---|---|
-| M0 Slice | now | Two decks mix with sync; Dancer mode (this repo) |
-| M0.5 Pocket | week 2 | Installable on iPhone/iPad, Dancer mode usable with screen locked |
-| M1 Alpha | week 8 | Key lock in DJ mode, cues/loops, FX, recording, touch gestures — usable for a bedroom set on an iPad |
-| M2 Library beta | week 12 | Real library, prep workflow, offline library |
-| M3 Hardware | week 16 | Headphone cueing on iPhone/iPad (split output); FLX4-class controllers on Android/desktop (lower priority) |
-| M4 Automix | week 20 | Hands-off mixing + set planner |
-| M5 Public beta | week 24 | Sampler/looper, content packs |
-| M6 Visuals | week 28 | Video decks, visualizer, external display |
-| M7 1.0 | week 34 | Collaboration, accounts + opt-in sync, plugin API, Pro subscription live |
+If those gates pass, revisit Vocal, Instru (other), Bass and Drums plus filtered Kick/HiHat bands and Acapella /
+Instrumental / All shortcuts. Audio files first, no Stems FX. No automatic model download or full stems promise
+belongs in the classroom release before those gates are satisfied.

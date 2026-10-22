@@ -2,7 +2,7 @@
   "name": "mixdeck",
   "private": true,
   "version": "0.0.1",
-  "description": "Phone- and tablet-first web DJ app (installable PWA) with DJ and Dancer modes, built on Web Audio + AudioWorklet",
+  "description": "ClassTempo: phone-first dance teaching player with local songs, videos, class sets, sections, and key-locked tempo",
   "workspaces": [
     "apps/*",
     "packages/*"
