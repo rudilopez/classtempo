@@ -1,7 +1,6 @@
 /*
- * App shell: the launch splash, the header's Dancer | DJ mode pills, and the two modes, which both stay mounted (the
- * inactive one hidden) so songs stay loaded across switches. Base header rules (header, .logo, .head-left, .meta)
- * live in styles.css.
+ * One-player app shell. The player portals its Song / Video filters, Library and Keep awake action into
+ * this compact header. Base header rules live in styles.css.
  */
 
 /* launch splash: only while the audio engine is created (no tap needed, so it is brief) */
@@ -18,6 +17,9 @@
   font-size: 32px;
   font-weight: 800;
   letter-spacing: -0.02em;
+}
+.splash-logo > span {
+  color: var(--a);
 }
 .splash p {
   margin: 0;
@@ -69,7 +71,8 @@
     background-color 0.15s ease,
     color 0.15s ease;
 }
-.mode-switch .mode-pill[aria-checked='true'] {
+.mode-switch .mode-pill[aria-checked='true'],
+.mode-switch .mode-pill[aria-pressed='true'] {
   background-color: var(--accent);
   color: #000;
 }
@@ -105,7 +108,7 @@
   }
 }
 
-/* One useful row on phones: identity, mode, file actions and wake lock. */
+/* One useful row on phones: identity, content filters, library and wake lock. */
 .app > header {
   flex: none;
   min-height: 52px;
@@ -129,6 +132,10 @@
   color: var(--a);
 }
 .header-actions {
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: 0;
   margin-left: auto;
 }
 .header-actions[hidden] {
@@ -136,6 +143,7 @@
 }
 .dancer-actions {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 6px;
 }
@@ -159,6 +167,14 @@
   color: #091b18;
   border-color: var(--a);
 }
+.dancer-actions .mode-switch {
+  padding: 0;
+  background: #09111a;
+  box-shadow: inset 0 0 0 1px #345067;
+}
+.dancer-actions .mode-pill {
+  background: transparent;
+}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -180,6 +196,7 @@
   }
   .app > header .logo {
     font-size: 14px;
+    letter-spacing: -0.05em;
   }
   .app > header .mode-pill {
     min-width: 44px;
@@ -196,7 +213,7 @@
     font-size: 11px;
   }
   .dancer-actions .screen-on {
-    min-width: 52px;
+    min-width: 44px;
     padding: 3px 4px;
     flex-direction: column;
     gap: 1px;

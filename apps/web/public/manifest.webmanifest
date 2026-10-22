@@ -1,7 +1,7 @@
 {
-  "name": "MixDeck",
-  "short_name": "MixDeck",
-  "description": "DJ two decks or practise dance moves with cue pads and key-locked tempo. Works offline; your songs never leave the device.",
+  "name": "ClassTempo",
+  "short_name": "ClassTempo",
+  "description": "Music and video practice for dance classes. Save your class sets, slow down a song and repeat the section you are teaching.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -1,5 +1,40 @@
 # Handoff — open work, in priority order
 
+## Current direction — ClassTempo (2026-10-22)
+
+The owner approved the classroom-focused redesign and publication. The working name is **ClassTempo**.
+The single player replaces the DJ/Dancer switch with Song/Video load choices; no DJ processors are created.
+The header also includes Library and Keep awake. Demo has been removed.
+
+The classroom release adds local IndexedDB media storage and recents, ordered class sets with independent
+exercise settings, named A/B sections, finite/continuous repetition, pauses between attempts, an adjustable
+seconds countdown, per-track tempo, video mirror/zoom, Talk, and explicit cue editing with undo. Settings
+backup includes class sets, cues and practice preferences; audio/video files must be retained separately.
+Stage keeps the same video element and offers playback, restart section, tempo, Talk and set cues.
+
+Streaming is **not enabled**. The owner confirmed Apple Developer/MusicKit is not set up. See
+[APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md) for prerequisites and the actual-iPhone experiment.
+Musical beat-count count-in, watch integration and video frame stepping are later features; this release uses
+a visible seconds countdown. Stems remain a separate research benchmark with the existing device/license gates.
+
+Real-iPhone acceptance remains open: the original 31-second 4K video, lock-screen scrubber, delayed/repeated
+audio through screen lock, video delay after its first audible play, speaker interruptions, and offline saved
+media. A first video play starts immediately to establish audible playback permission; later starts use its
+saved delay. Do not infer these physical-device results from desktop WebKit/Chromium checks.
+
+Release checks: typecheck, all 171 tests and production build pass. Chromium covers the seven required sizes,
+cue undo, delay cancellation, exact section endpoints, class persistence, independent exercise tempos, backup
+restore/relink and offline saved-audio playback. Desktop WebKit passes the integrated classroom flow and both
+31-second 4K fixtures; the audio/video fixture completes all 744 frames at 75% tempo. Video never enters the
+audio decode/analysis path. Three-pass audio and video repeats at file boundaries also pass.
+
+Use a persistent profile for desktop WebKit storage QA: the bundled browser's ephemeral profile rejects even
+raw Blob/File IndexedDB writes outside the app. Persistent profiles pass. Real storage errors now explicitly
+abort transactions and have bounded deadlines, so a failed save cannot leave Library stuck on Working.
+These checks validate the release candidate; verify the GitHub Pages workflow and live bundle separately.
+
+Earlier handoffs and completed work below are preserved as history and are superseded by this direction.
+
 Original handoff baseline (2026-10-22): branch `dancer-v2`, working tree passes `npm run typecheck`, `npm test`
 (123 tests) and `npm run build`. Production (`main`, GitHub Pages) still runs the previous release; nothing below
 is deployed yet. The owner tests on an iPhone (Home Screen app) — anything touching the lock screen, audio

@@ -1,143 +1,115 @@
-# MixDeck — a phone- and tablet-first DJ app for the web
+# ClassTempo — music and video for dance classes
 
-Working title. A **phone- and tablet-first web app, installed to the Home Screen (PWA)**: iPhone, iPad and
-Android phones/tablets are the primary targets; desktop browsers are supported but not optimised. It is a
-static, fully client-side site — songs and cues never leave the device (any future cloud sync is opt-in).
+ClassTempo is the working name for a **phone-first dance teaching player**. Load one song or video, find the
+right phrase, adjust its speed, and repeat an exercise. It runs as an installable web app on iPhone, iPad and
+Android, with desktop browsers supported for preparation. The GitHub repository and hosting path retain the
+original `mixdeck` name.
 
-Goal: match djay (iOS / djay Pro 5) feature-for-feature where the web platform allows it. Streaming-service
-integration stays out of scope; Dancer stems are gated on phone performance and weight permission. The web
-gives us an edge: one link instead of an App Store install, a rehearsal-oriented Dancer mode djay does not have,
-shareable sets and mappings, real-time collaboration, and an open plugin surface.
+**App:** https://rudilopez.github.io/mixdeck/
 
-**Live:** https://rudilopez.github.io/mixdeck/ — open it in Safari on iPhone/iPad (Share → Add to Home Screen)
-or Chrome on Android (Install app). Every push to `main` redeploys via GitHub Actions.
+## Classroom workflow
 
-**Status:** Phase 0 vertical slice done; Phase 0.5 (phone & iPad foundation: installable PWA, lock-screen and
-headphone controls, touch layouts) is built and hosted on GitHub Pages, with real-device testing still to do.
-The app opens directly in **Dancer**. The **Dancer / DJ** pills switch modes, pause the mode being left, and
-keep its songs and settings loaded:
+1. Tap **Song / Video** to open the matching file picker and choose an ordinary audio or video file. The pills
+   do not create separate players; cancelling the picker keeps the current track. Nothing starts until Play.
+2. Open **Library** to reopen saved files, find recent titles, or prepare an ordered, named class set. Class
+   entries advance manually. The same song can appear more than once, with different practice settings.
+3. Adjust speed between **50% and 150%**, preserving pitch where the playback engine/browser supports it.
+   The percentage sits between the minus and plus controls; **100%** restores original speed.
+4. Open **Practice** to name sections with start/end times. Play a section once and stop, or repeat it for a
+   chosen number of passes or until stopped. Set a pause between repetitions and a start delay in seconds.
+5. Use **Edit cues** to add, move, rename or clear the eight cue pads. Outside Edit, saved pads launch playback
+   and empty pads cannot be changed accidentally. Undo restores recent cue edits during the current load.
+6. **Stage** keeps playback and selected cues within reach. Video supports mirror and zoom in both views.
 
-- **DJ mode** — two decks, 3-band EQ, crossfader, master, pitch ±8 % (changes key until DJ key lock lands in
-  Phase 1), 4-beat loop, cue, tempo sync, BPM + beatgrid analysis, overview waveform — all on Web Audio +
-  AudioWorklet.
-- **Dancer mode** — one song and 8 launchable cue pads: tap an empty pad to set a cue at the playhead, tap a set
-  pad to jump there and play, *Edit cues* to move a pad to the playhead, clear it (✕) or rename it (✎). Tempo
-  50–150 % with key lock (Signalsmith Stretch), cues saved per track on the device, minimal UI with no EQ.
-  Lock-screen and headphone controls (iPhone/iPad lock screen and Control Center, Android media notification,
-  Bluetooth headphone buttons, car stereos): play/pause, seek, and previous/next = previous/next cue; playback is
-  meant to continue with the screen locked if it was started first. Optional labelled *Screen on* (where the browser
-  supports Screen Wake Lock) keeps the screen from dimming and locking mid-routine. Built for rehearsal:
-  choreography sections on pads, and slowing a song down to learn it without changing its key.
+When adding the currently loaded file to a class, its speed, sections, repeat/delay and video settings are
+captured for that exercise. Use **Use current settings** in the class list to update a particular exercise.
+Entries without a captured snapshot use that file's saved practice settings. Cues remain shared per file.
 
-Dancer also loads browser-supported videos (including MP4) through a native video element, preserving pitch
-at 50–150% tempo without decoding the whole video into memory. **Stage** expands video, or the current cue name
-and time for audio, with Play/Pause, Restart and launch-only cue pads. The same video element returns to the
-waveform area when Stage closes. Cue storage remains per file name and duration; **Cues restored** confirms a
-saved set was found. **Screen on** prevents dimming and auto-lock while MixDeck is visible and the browser
-holds the wake lock; tap it again to allow sleep. Its confirmation explains the behavior.
+**Talk** lowers audio to 20% of its normal app level and restores it when tapped again. For native video it
+pauses instead, then resumes if the video had been playing. **Keep awake** prevents automatic display sleep
+while the app is visible and the browser grants the wake lock; its active state reflects the lock actually held.
 
-The compact header keeps Load and Screen on beside MixDeck and the mode pills. Now Playing uses the supplied
-white logo for its O; the song name sits inside the media panel. A mint Play button, separate tempo panel and
-colored cue outlines distinguish the controls. Tempo percentage sits on the slider between minus and plus;
-Stage cue pads use compact 72 px rows. Videos use a seekable timeline without an extra waveform/BPM decode,
-leaving the native decoder available for the picture. Loading and decode errors appear in the video frame.
+The first video Play starts immediately to establish browser permission for sound. Start delays apply to later
+video starts. The delay is measured in seconds; a beat-aligned musical count-in is not implemented.
 
-**iPhone verification still required:** the lock-screen scrubber fix needs confirmation on a real iPhone.
-Start playback before locking, then test dragging the progress bar while playing, Pause → Play, the current/next
-cue line, and headphone next/previous. Paused scrubbing remains a known WebKit limitation. Retest the reported 31-second 4K H.264 video (77.1 MB),
-Stage open/close, and switching the mode pills in the installed Home Screen app. Quit and reopen after an online
-launch to pick up an update; a running session is never forcibly reloaded.
+## Music sources and privacy
 
-The experimental [stems benchmark](https://rudilopez.github.io/mixdeck/#stems-benchmark) is separate from normal
-playback. It downloads a 166 MB model only when requested, processes songs locally, and saves a benchmark report.
-Run 30 seconds first, then four minutes on the iPhone. Full stems pads depend on that result and production
-weight permission; upstream limits these weights to research. No server upload or Stems FX is enabled. See [the test guide](docs/STEMS_BENCHMARK.md).
+The current player uses **local audio and video files**, including files selected from a cloud drive through the
+system file picker. MP3, M4A/AAC, WAV, AIFF and browser-supported video formats are accepted; FLAC, OGG and other
+formats depend on the browser's decoder. A file may need to finish downloading from its provider first.
 
-## Quick start
+**Apple Music and Spotify are not integrated.** Subscription downloads are not ordinary media files that this
+player can import. Apple Music feasibility is a separate step, currently awaiting the developer credentials
+needed to test authenticated MusicKit playback. See [the feasibility plan](docs/APPLE_MUSIC_FEASIBILITY.md).
+No streaming playback, streaming tempo control, or classroom-use permission is implied by this release.
+
+Media and settings stay on this device; there is no account, upload service or cloud sync. The supplied white
+logo forms the O in Now Playing. The former DJ interface and synthetic Demo have been removed from the product.
+
+## Saved files, backups and offline use
+
+Successful imports save a local media copy in IndexedDB. Library failures are reported: the player may still
+open a file directly, but a failed save does not make it available offline. Removing a saved copy leaves the
+original file and class entries intact; reimport the original to reconnect the entry.
+
+Library → **Backup & device storage** exports class sets, per-exercise settings, cues and per-track practice
+settings as JSON. **The backup does not contain songs or videos.** Keep the originals separately. Restore adds
+missing items without overwriting existing settings, then import missing media and reload the current track.
+
+After a successful online launch of the installed app, the app shell is cached. Saved media can then play
+without a connection while those files and caches remain on the device. Browsers can evict storage, and clearing
+site data deletes local files/settings. The app requests persistent storage where supported, but this is not a
+guarantee. Safari and the Home Screen installation may have separate storage; prepare and use the same installation.
+
+## Install and use on a phone
+
+- **iPhone/iPad:** open the link in Safari → Share → Add to Home Screen. Launch the installed app once online.
+- **Android:** open the link in Chrome and choose Install app or Add to Home screen when offered.
+- Start playback before locking the screen. Lock-screen/headphone controls provide Play/Pause, seek and cue
+  navigation where supported. Previous restarts an active practice section; Next navigates cues, not class songs.
+- Calls, voice assistants and other apps may interrupt playback. If the browser requires another gesture,
+  **Tap to resume audio** appears. Bluetooth speaker latency is outside the app's timing control.
+- Updates download while online and take effect on a subsequent launch; the app never reloads an ongoing class
+  automatically. Close and reopen the app after an online launch if an older interface remains visible.
+
+**Physical iPhone checks remain required:** lock-screen scrubbing, interruption recovery, practice delays and
+repeats in the background, the reported 31-second 4K H.264 video, and Stage transitions. Desktop browser tests do
+not establish real-phone acceptance. Paused lock-screen scrubbing remains a known WebKit limitation.
+
+## Development
 
 ```bash
 npm install
 npm run dev
+npm run typecheck
+npm test
+npm run build
 ```
 
-Open http://localhost:5173 in Dancer mode; use the pills for DJ mode. Drop or load audio files (MP3, M4A/AAC,
-WAV, AIFF; FLAC and OGG where the browser decodes them, which not every iPhone/iPad version does).
+Vite serves development on `http://localhost:5173`. `npm run preview` serves the production build, including its
+service worker, on the same port. Production output is `apps/web/dist`; a push to `main` runs GitHub Actions
+checks and deploys to Pages. Work on a branch and verify the deployed workflow separately from local checks.
 
-Other scripts: `npm run typecheck`, `npm test`, `npm run build` (a static site in `apps/web/dist`, no server
-code; deployable to any static HTTPS host), `npm run preview` (serves that build on http://localhost:5173 with the
-service worker, so install and offline can be tried locally).
+AudioWorklet and installation require HTTPS, except on localhost. Signalsmith Stretch is excluded from Vite
+pre-bundling and uses an ES2022 build target so its stringified worklet source remains valid. Do not lower that
+target without testing the actual worklet startup.
 
-Dev note: Signalsmith Stretch (Dancer mode's key-locked stretcher) builds its AudioWorklet module by stringifying
-its own source, so that code must reach the browser untranspiled. `apps/web/vite.config.ts` therefore excludes
-`signalsmith-stretch` from dev-server pre-bundling and builds for ES2022 — do not lower either below ES2022, or
-its class fields turn into an `__publicField` helper that does not exist inside the worklet and the key-locked
-player never becomes ready.
+| Location | Purpose |
+|---|---|
+| `apps/web/src/dancer` | Single audio/video player, cues and Stage |
+| `apps/web/src/practice` | Saved practice settings, section controller and editor |
+| `apps/web/src/library` | IndexedDB files, recents, class sets and backup UI |
+| `apps/web/src/platform` | Audio recovery, wake lock, keep-alive and Media Session |
+| `packages/engine` | Shared context, Signalsmith audio player and native video player |
+| `packages/analysis` | Audio BPM, beat grid and waveform analysis |
 
-Phones need HTTPS (AudioWorklet, service workers and Home Screen install only work in a secure context), so test
-on an iPhone/iPad or Android device with a deployed build rather than the LAN dev server.
+The production app creates `Engine.create({ dj: false })`; it does not initialize DJ decks or their worklet
+processors. Some legacy mixer components and package scaffolds remain in the repository but are not product UI.
 
-## Repo layout
+The hidden [stems benchmark](https://rudilopez.github.io/mixdeck/#stems-benchmark) remains research only and is
+deferred behind classroom playback. Its 166 MB weights require an explicit download. Full stems depend on
+physical-device performance and production weight permission; no server fallback is enabled.
 
-```
-apps/web            Vite + React UI: mode pills, DJ mode, Dancer audio/video and Stage view
-packages/engine     Audio engine: AudioWorklet deck processor, decks, mixer graph, key-locked StretchDeck
-packages/analysis   Pure DSP: BPM/beatgrid detection, waveform overview (runs in a Worker)
-packages/midi       Web MIDI wrapper + controller mapping schema (stub; Android/desktop only)
-packages/library    IndexedDB/OPFS track store + metadata (stub)
-docs/               Vision, feature parity, architecture, build plan
-scripts/            Dev scripts (gen-icons.mjs: app icons for the manifest and Home Screen)
-```
-
-## Docs
-
-- [docs/VISION_AND_PARITY.md](docs/VISION_AND_PARITY.md) — what MixDeck is (DJ + Dancer modes), target devices, what djay does, where we go beyond it, what is deliberately out of scope, and the hard platform limits
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — stack, audio graph, threading model, iOS / mobile audio, layouts, data model
-- [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) — phased plan (Phase 0.5 = phone & iPad foundation) with tasks, acceptance criteria, estimates and risks
-
-## Target devices
-
-| Device | How it runs | Priority |
-|---|---|---|
-| iPhone | Safari (iOS 17.5 or later), installed to the Home Screen | Primary |
-| iPad | Safari (iPadOS 17.5 or later), installed to the Home Screen | Primary |
-| Android phones & tablets | Chrome, installed as an app | Primary |
-| Desktop (Chrome / Edge, Safari, Firefox) | Browser tab or installed app | Secondary — supported, not optimised |
-
-What iOS / iPadOS Safari lacks (and so every browser on iPhone and iPad, since they all use WebKit):
-
-- **No Web MIDI** — MIDI controllers cannot be used on iPhone or iPad in the browser (Web MIDI exists on
-  Android Chrome and desktop Chromium; controller support is planned for Phase 3).
-- **No `setSinkId`** — no separate headphone-cue device; headphone cueing will use split output (master left,
-  cue right), Phase 3.
-- **Audio must be started by a tap** — nothing plays until you tap Play or launch a cue. After a call or Siri
-  interrupts it, audio resumes on its own where the browser allows; otherwise tap **Tap to resume audio**. Start
-  playback before locking the screen.
-
-Every feature is feature-detected with a documented fallback; see
-[docs/VISION_AND_PARITY.md](docs/VISION_AND_PARITY.md#target-devices) for the full list.
-
-## Install on iPhone / iPad
-
-MixDeck is an installable web app (PWA): once installed it opens full screen from the Home Screen like a native
-app, and it works offline.
-
-- **iPhone / iPad (Safari):** open the MixDeck URL in Safari → tap **Share** (on iOS / iPadOS 26 and later, if
-  there is no Share button, tap **⋯** first, then **Share**) → **Add to Home Screen** → keep **Open as Web App**
-  on (iOS / iPadOS 26 and later) → **Add**. Launch it from the new icon (not from a Safari tab) to get the
-  full-screen app.
-- **Android phone / tablet (Chrome):** open the URL → menu **⋮** → **Install app** (or accept the install prompt).
-- **Offline:** launch the installed app once while online. On iPhone/iPad the Home Screen app has its own
-  storage (service worker, cache and saved cues), separate from Safari, so a visit in a Safari tab doesn't count:
-  that first launch from the icon is what caches it. After that everything the app needs is on the device, so it
-  opens and plays with no connection (e.g. airplane mode). When you are online a new version downloads in the
-  background (also when you switch back to the app) and is used the next time you open the app; a running
-  session is never reloaded. Cues saved in a Safari tab do not carry over to the Home Screen app, so use the
-  installed app.
-- **Privacy:** songs you import and the cues you save stay on the device. Nothing is uploaded today; there is no
-  server besides the static host that serves the app files. Future cloud sync and the set planner are opt-in.
-- **Hosting:** installing and offline mode need the app to be served over **HTTPS** (on localhost,
-  `npm run build && npm run preview` serves the production build with the service worker; `npm run dev` does not
-  register it). The build is host-agnostic (relative paths), so it works at a domain root or under a sub-path
-  such as `/mixdeck/`. Production is GitHub Pages: `.github/workflows/deploy.yml` typechecks, tests, builds and
-  deploys `apps/web/dist` on every push to `main`; see [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) Phase 0.5.
-- **Icons:** regenerate the app icons with `npm run icons` (writes `apps/web/public/icons/`).
+Further detail: [architecture](docs/ARCHITECTURE.md), [delivery plan](docs/BUILD_PLAN.md),
+[product scope](docs/VISION_AND_PARITY.md), [historical handoff](docs/HANDOFF.md),
+[stems research](docs/STEMS_BENCHMARK.md).

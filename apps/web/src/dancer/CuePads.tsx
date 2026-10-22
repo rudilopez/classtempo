@@ -11,6 +11,7 @@ export function padColor(index: number): string {
 interface Props {
   cues: readonly (Cue | null)[];
   editing: boolean;
+  locked?: boolean;
   disabled: boolean;
   /** Launches a set pad, or sets an empty one; while editing, (re)sets any pad. */
   onPress: (index: number) => void;
@@ -19,7 +20,7 @@ interface Props {
 }
 
 /** 4×2 grid of big, touch-friendly cue pads. */
-export function CuePads({ cues, editing, disabled, onPress, onClear, onRename }: Props) {
+export function CuePads({ cues, editing, locked = false, disabled, onPress, onClear, onRename }: Props) {
   return (
     <div className="pads">
       {Array.from({ length: CUE_SLOTS }, (_, i) => {
@@ -28,18 +29,18 @@ export function CuePads({ cues, editing, disabled, onPress, onClear, onRename }:
           ? editing
             ? `Move to the current position (key ${i + 1})`
             : `Launch (key ${i + 1})`
-          : `Set a cue at the current position (key ${i + 1})`;
+          : locked ? 'Edit cues to add a cue here' : `Set a cue at the current position (key ${i + 1})`;
         return (
           <div key={i} className="pad-slot">
             <button
               className={`pad ${cue ? 'set' : 'empty'} ${editing ? 'editing' : ''}`}
               style={{ ['--pad' as string]: padColor(i) }}
-              disabled={disabled}
+              disabled={disabled || (locked && !cue)}
               onClick={() => onPress(i)}
               title={title}
             >
               <span className="pad-key">{i + 1}</span>
-              <span className="pad-name">{cue ? cue.name : 'Set cue'}</span>
+              <span className="pad-name">{cue ? cue.name : locked ? 'Empty' : 'Set cue'}</span>
               <span className="pad-time">{cue ? formatTime(cue.time) : '—'}</span>
             </button>
             {/* Rename is its own control (documented as such): a double-click on the pad would first move the cue, and is unreliable on touch. */}

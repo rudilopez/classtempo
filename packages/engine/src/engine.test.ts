@@ -43,7 +43,7 @@ vi.mock('./stretch-deck', () => ({
 class FakeContext {
   readonly destination = new FakeNode();
   readonly currentTime = 0;
-  readonly audioWorklet = { addModule: async () => {} };
+  readonly audioWorklet = { addModule: vi.fn(async () => {}) };
 }
 
 describe('mode output isolation', () => {
@@ -53,6 +53,19 @@ describe('mode output isolation', () => {
   });
 
   afterEach(() => vi.unstubAllGlobals());
+
+  it('creates a classroom player without loading DJ processors and restores its talk level', async () => {
+    const engine = await Engine.create({ dj: false });
+    expect(engine.ctx.audioWorklet.addModule).not.toHaveBeenCalled();
+    expect(() => engine.decks).toThrow('DJ decks are not enabled');
+    const output = (await engine.getStretchDeck()).node as unknown as FakeNode;
+    const destination = engine.ctx.destination as unknown as FakeNode;
+    expect(output.signalAt(destination)).toBeCloseTo(0.9);
+    engine.setDancerGain(0.2);
+    expect(output.signalAt(destination)).toBeCloseTo(0.18);
+    engine.setDancerGain(1);
+    expect(output.signalAt(destination)).toBeCloseTo(0.9);
+  });
 
   it('keeps Dancer audible when the saved DJ master is muted and preserves that DJ mute', async () => {
     const engine = await Engine.create();

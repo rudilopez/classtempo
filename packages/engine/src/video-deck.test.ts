@@ -339,10 +339,37 @@ describe('VideoDeck', () => {
     await tick();
     video.currentTime = 60;
     video.paused = true;
+    video.ended = true;
     video.fire('pause');
     video.fire('ended');
     expect(events).toEqual(['playing', 'paused', 'ended']);
     expect(deck.position).toBe(60);
+  });
+
+  it('ignores an ended event queued before a section repeat restarted playback', async () => {
+    await loadVideo(31);
+    deck.jumpTo(30);
+    await tick();
+    let passes = 1;
+    deck.onPosition = (position) => {
+      if (position !== 31 || passes >= 3) return;
+      passes++;
+      // A native seek away from the end clears ended, before the queued ended event is delivered.
+      video.ended = false;
+      deck.jumpTo(30);
+    };
+    for (let pass = 1; pass <= 3; pass++) {
+      video.currentTime = 31;
+      video.paused = true;
+      video.ended = true;
+      video.fire('pause'); // final position report restarts passes two and three synchronously
+      video.fire('ended');
+      await tick();
+      expect(deck.playing).toBe(pass < 3);
+      expect(deck.position).toBe(pass < 3 ? 30 : 31);
+    }
+    expect(passes).toBe(3);
+    expect(events.filter((event) => event === 'ended')).toHaveLength(1);
   });
 
   it('unload pauses, clears the source and revokes its URL', async () => {

@@ -13,6 +13,9 @@ interface Props {
   onTap?: () => void;
   className?: string;
   style?: CSSProperties;
+  /** Presentation only: the same native video remains attached and playing. */
+  mirrored?: boolean;
+  zoom?: number;
 }
 
 interface VideoState {
@@ -32,7 +35,7 @@ function readState(element: HTMLVideoElement | null, buffering = false): VideoSt
 }
 
 /** Native video plus its actual readiness: metadata alone is not a decoded frame, especially on iOS. */
-export function VideoView({ element, playing, onTap, className, style }: Props) {
+export function VideoView({ element, playing, onTap, className, style, mirrored = false, zoom = 1 }: Props) {
   const slot = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<VideoState>(() => readState(element));
 
@@ -67,7 +70,11 @@ export function VideoView({ element, playing, onTap, className, style }: Props) 
       title={onTap ? (playing ? 'Tap to pause' : 'Tap to play') : undefined}
     >
       {/* the slot has no React children, so React never touches the element moved into it */}
-      <div ref={slot} className="video-slot" />
+      <div
+        ref={slot}
+        className="video-slot"
+        style={{ transform: `scale(${Math.max(1, Math.min(2, zoom))}) scaleX(${mirrored ? -1 : 1})` }}
+      />
       {element && status && (
         <span className="video-status" role={state.error ? 'alert' : 'status'}>
           {status}

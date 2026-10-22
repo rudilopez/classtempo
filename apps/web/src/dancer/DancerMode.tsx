@@ -5,6 +5,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { analysis } from '../analysisClient';
 import nowPlayingLogo from '../assets/itda-logo-white.png';
 import { Waveform, type WaveformMarker } from '../components/Waveform';
+import { LibraryModal } from '../library/LibraryModal';
+import { markOpened, saveMedia } from '../library/store';
+import { createPracticeController, type PracticeController, type PracticeState } from '../practice/controller';
+import { PracticePanel } from '../practice/PracticePanel';
+import { defaultPracticeSettings, loadPracticeSettings, normalizePracticeSettings, savePracticeSettings, selectedPracticeSection, type PracticeSettings } from '../practice/settings';
 import { cueSection, lockScreenLine } from '../platform/cueLabel';
 import { nextCueTime, previousCueTime } from '../platform/cueNavigation';
 import { createKeepAlive } from '../platform/keepAlive';
@@ -23,11 +28,13 @@ import { formatTime, type TrackState } from '../types';
 import { CuePads, padColor } from './CuePads';
 import { emptyCues, loadCues, saveCues, type CueSlots } from './cueStore';
 import { dancerAudio } from './dancerAudio';
-import { ACCEPT_MEDIA, countCues, isVideoFile } from './media';
+import { countCues, isVideoFile } from './media';
 import { StageView } from './StageView';
 import { clampTempo, TempoControl } from './TempoControl';
 import { VideoView } from './VideoView';
+import { VideoTools } from './VideoTools';
 import './dancer.css';
+import './classroom.css';
 
 interface Props {
   engine: Engine;
@@ -103,6 +110,21 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   /** percent */
   const [tempo, setTempo] = useState(100);
   const [editing, setEditing] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryKind, setLibraryKind] = useState<'audio' | 'video'>('audio');
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const [practiceOpen, setPracticeOpen] = useState(false);
+  const [practice, setPractice] = useState<PracticeSettings>(defaultPracticeSettings);
+  const [practiceState, setPracticeState] = useState<PracticeState>({ phase: 'idle', pass: 0, remainingSeconds: 0 });
+  const [talking, setTalking] = useState(false);
+  const [undoCues, setUndoCues] = useState<CueSlots[]>([]);
+  const practiceRef = useRef(practice);
+  const practiceController = useRef<PracticeController | null>(null);
+  const commands = useRef({ play: () => {}, pause: () => {}, seek: (_seconds: number) => {} });
+  const videoStarted = useRef(false);
+  const talkResume = useRef(false);
+  const loadRequest = useRef(0);
+  const modalOpen = useRef(false);
   const [dragOver, setDragOver] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
@@ -120,6 +142,8 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   useLayoutEffect(() => {
     activeRef.current = active;
     songRef.current = song;
+    practiceRef.current = practice;
+    modalOpen.current = libraryOpen || practiceOpen;
   });
 
   // one of each per mount; nothing is built until first use. The keep-alive re-takes WebKit's "started last"
@@ -130,7 +154,8 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       onStarted: () => {
         // Native media keys can restart a loaded element after our Media Session handlers are cleared.
         const p = playerRef.current;
-        if (activeRef.current && p?.kind === 'audio' && p.playing) refreshHandlers();
+        const phase = practiceController.current?.getState().phase;
+        if (activeRef.current && p?.kind === 'audio' && (p.playing || phase === 'delay' || phase === 'gap' || phase === 'preparing')) refreshHandlers();
         else keep.stop();
       },
     });
@@ -160,6 +185,20 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     const t = setTimeout(() => setToast(null), TOAST_MS);
     return () => clearTimeout(t);
   }, [toast]);
+
+  useEffect(() => {
+    const controller = createPracticeController({
+      transport: {
+        play: () => commands.current.play(),
+        pause: () => commands.current.pause(),
+        seek: (seconds) => commands.current.seek(seconds),
+      },
+      onState: setPracticeState,
+      onError: () => showToast('Playback could not resume. Tap Play to try again.'),
+    });
+    practiceController.current = controller;
+    return () => { controller.dispose(); practiceController.current = null; };
+  }, []);
 
   // the engine's shared key-locked deck (its processor cannot be destroyed, so it is never recreated);
   // released on unmount, which also covers StrictMode's double mount
@@ -238,8 +277,12 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   // the button true to the player, including pauses the OS makes (iOS pauses a video when the screen locks).
   useEffect(() => {
     if (!player) return;
+    const video = player instanceof VideoDeck ? player.element : null;
+    const rememberVideo = () => { videoStarted.current = true; };
+    video?.addEventListener('playing', rememberVideo);
     player.onPosition = (s) => {
       positionRef.current = s;
+      practiceController.current?.tick(s);
     };
     player.onPlayingChange = (isPlaying) => {
       if (isPlaying && !activeRef.current) {
@@ -247,13 +290,26 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
         return;
       }
       setPlaying(isPlaying);
-      if (!isPlaying && player.kind === 'audio') keepAlive.stop();
+      const phase = practiceController.current?.getState().phase;
+      if (!isPlaying && phase === 'playing' && player.position < (player.track?.duration ?? 0) - 0.03) {
+        practiceController.current?.cancel(); // OS interruption or a refused delayed native play
+      }
+      const atEnd = player.position >= (player.track?.duration ?? Infinity) - 0.03;
+      if (!isPlaying && player.kind === 'audio' && phase !== 'gap' && phase !== 'delay' && !(atEnd && phase === 'playing')) keepAlive.stop();
       // WebKit ignores handlers registered before the page had a playing media element: register them again
       if (isPlaying && player.kind === 'video') refreshHandlers();
       syncMedia();
     };
-    player.onEnded = syncMedia;
+    player.onEnded = () => {
+      if (player.playing) return; // onPosition may already have restarted a repeat at the file boundary.
+      practiceController.current?.tick(player.track?.duration ?? 0);
+      const phase = practiceController.current?.getState().phase;
+      if (!player.playing && phase === 'playing') practiceController.current?.cancel();
+      if (!player.playing && phase !== 'gap') keepAlive.stop();
+      syncMedia();
+    };
     return () => {
+      video?.removeEventListener('playing', rememberVideo);
       player.onPosition = null;
       player.onPlayingChange = null;
       player.onEnded = null;
@@ -283,7 +339,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   // cues persist per track; a cue edit can change the lock-screen line
   useEffect(() => {
     if (!song) return;
-    saveCues(song.track.name, song.track.duration, song.cues);
+    if (!saveCues(song.track.name, song.track.duration, song.cues)) showToast('Cues could not be saved on this device.');
     syncSection();
   }, [song, syncSection]);
 
@@ -299,12 +355,22 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   }, [active, keepAlive, wakeLock]);
 
   /** A freshly loaded song starts paused at 0:00, 100 %, out of edit mode. */
-  const resetTransport = () => {
+  const resetTransport = (name: string, duration: number) => {
+    practiceController.current?.cancel();
+    const saved = loadPracticeSettings(name, duration);
+    practiceRef.current = saved;
+    setPractice(saved);
+    playerRef.current?.setTempo(saved.tempo);
     positionRef.current = 0;
     setDisplayPos(0);
     setPlaying(false);
-    setTempo(100);
+    setTempo(Math.round(saved.tempo * 100));
     setEditing(false);
+    setUndoCues([]);
+    setTalking(false);
+    talkResume.current = false;
+    engine.setDancerGain(1);
+    videoStarted.current = false;
   };
 
   /** Shows that cues are kept per song: they come back whenever the same file is loaded again. */
@@ -330,7 +396,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       await deck.load(buffer, name);
       if (!deck.track || id !== nextLoadId.current) return;
       deck.setTempo(1);
-      resetTransport();
+      resetTransport(name, buffer.duration);
       const cues = loadCues(name, buffer.duration);
       setSong({
         id,
@@ -351,12 +417,12 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       setSong(null);
       keepAlive.setTrack(null);
       showToast(`“${name}” could not be loaded.`);
-      return;
+      return false;
     } finally {
       setLoading(false);
     }
     // analysis runs on after loading has finished; a failure just leaves the track un-analysed
-    try {
+    void (async () => { try {
       const r = await analysis.analyze(mono, buffer.sampleRate);
       setSong((s) =>
         s && s.id === id
@@ -366,7 +432,8 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     } catch (e) {
       console.error(e);
       setSong((s) => (s && s.id === id ? { ...s, track: { ...s.track, analyzing: false } } : s));
-    }
+    } })();
+    return true;
   };
 
   /**
@@ -400,19 +467,19 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
         setSong(null);
       }
       setLoading(false);
-      return;
+      return false;
     }
     setPendingVideo(null);
     const track = video.track;
     if (!track || id !== nextLoadId.current) {
       setLoading(false);
-      return;
+      return false;
     }
     if (previous && previous !== video) previous.unload(); // the audio song: silence it and free its buffers
     video.setTempo(1);
     selectPlayer(video);
     keepAlive.setTrack(null); // never started for a video: the video element is the page's media element
-    resetTransport();
+    resetTransport(track.name, track.duration);
     const { videoWidth, videoHeight } = video.element;
     const cues = loadCues(track.name, track.duration);
     setSong({
@@ -425,41 +492,73 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     setLoading(false);
     announceCues(cues);
     syncMedia();
+    return true;
   };
 
   /** Loads one file: videos on the VideoDeck, audio decoded for the StretchDeck. Ignored while another load runs. */
-  const loadFile = async (file: File) => {
-    if (loadingRef.current) return;
+  const loadFile = async (file: File, libraryId?: string): Promise<boolean> => {
+    if (loadingRef.current) return false;
+    const request = ++loadRequest.current;
+    practiceController.current?.cancel();
+    pauseNow();
+    setTalking(false);
+    talkResume.current = false;
+    engine.setDancerGain(1);
+    let loaded = false;
     if (isVideoFile(file)) {
-      await loadVideo(file);
-      return;
-    }
-    if (!stretch) {
+      loaded = await loadVideo(file);
+    } else if (!stretch) {
       showToast(deckError ? 'The key-locked player failed to start.' : 'The player is still starting — try again in a moment.');
-      return;
+      return false;
+    } else {
+      setLoading(true);
+      setLoadError(null);
+      let buffer: AudioBuffer;
+      try {
+        buffer = await engine.decode(file);
+      } catch (e) {
+        console.error(e);
+        setLoading(false);
+        const message = `“${file.name}” could not be decoded. Try MP3, M4A or WAV.`;
+        setLoadError(message);
+        showToast(message);
+        return false;
+      }
+      loaded = (await loadBuffer(buffer, file.name)) === true;
     }
-    setLoading(true);
-    setLoadError(null);
-    let buffer: AudioBuffer;
-    try {
-      buffer = await engine.decode(file);
-    } catch (e) {
-      console.error(e);
-      setLoading(false);
-      const message = `“${file.name}” could not be decoded. Try MP3, M4A or WAV.`;
-      setLoadError(message);
-      showToast(message);
-      return;
-    }
-    await loadBuffer(buffer, file.name);
+    if (!loaded || request !== loadRequest.current) return false;
+    setCurrentFile(file);
+    setLibraryKind(isVideoFile(file) ? 'video' : 'audio');
+    // Keep video loading native; saving the Blob never decodes a second copy for analysis.
+    void (async () => {
+      try {
+        const id = libraryId ?? (await saveMedia(file)).id;
+        await markOpened(id);
+      } catch {
+        if (request === loadRequest.current) showToast('Playing from this file. It could not be saved for offline use.');
+      }
+    })();
+    return true;
   };
 
   const seek = (seconds: number) => {
+    practiceController.current?.cancel();
+    talkResume.current = false;
     const p = playerRef.current;
     if (!p?.track) return;
+    const wasPlaying = p.playing;
+    // A delay or repeat gap has a running keep-alive but an already-paused player.
+    // Its seek emits no pause event, so cancel the silent media session explicitly.
+    if (!wasPlaying) keepAlive.stop();
     p.seek(seconds);
     positionRef.current = p.position;
     setDisplayPos(p.position);
+    const settings = practiceRef.current;
+    const section = selectedPracticeSection(settings);
+    if (settings.mode !== 'off' && section) {
+      if (seconds < section.start || seconds >= section.end) updatePractice({ ...settings, mode: 'off' }, false);
+      else if (wasPlaying) practiceController.current?.start({ settings: { ...settings, delaySeconds: 0 }, duration: p.track.duration, position: p.position });
+    }
     syncMedia();
   };
 
@@ -487,33 +586,70 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     syncMedia(); // back to 'paused' if it did not start
   };
 
-  const play = () => startPlayback((p) => p.play());
+  const playNow = () => startPlayback((p) => p.play());
 
-  const pause = () => {
+  const pauseNow = () => {
     const p = playerRef.current;
     if (!p?.track) return;
     p.pause();
-    keepAlive.stop();
+    if (practiceController.current?.getState().phase !== 'gap') keepAlive.stop();
     setPlaying(false);
     syncMedia();
   };
 
-  const togglePlay = () => (playerRef.current?.playing ? pause() : play());
+  useLayoutEffect(() => {
+    commands.current = {
+      play: playNow,
+      pause: pauseNow,
+      seek: (seconds) => { playerRef.current?.seek(seconds); positionRef.current = seconds; syncMedia(); },
+    };
+  });
 
-  const restart = () => seek(0);
+  const play = () => {
+    const p = playerRef.current;
+    if (!p?.track || loadingRef.current || p.playing) return;
+    if (['delay', 'gap', 'preparing'].includes(practiceController.current?.getState().phase ?? '')) return;
+    if (p.kind === 'video' && talking) { setTalking(false); talkResume.current = false; }
+    let settings = practiceRef.current;
+    if (p.kind === 'video' && !videoStarted.current && settings.delaySeconds > 0) {
+      settings = { ...settings, delaySeconds: 0 };
+      showToast('Video starts immediately once to enable sound. Your delay applies from the next play.');
+    }
+    practiceController.current?.start({ settings, duration: p.track.duration, position: p.position, prepare: () => {
+      engine.unlock();
+      if (p.kind === 'audio') { setPlaybackState('playing'); void keepAlive.start(); }
+    } });
+  };
+
+  const pause = () => { talkResume.current = false; practiceController.current?.cancel(); pauseNow(); };
+  const waiting = ['preparing', 'delay', 'gap'].includes(practiceState.phase);
+  const togglePlay = () => (playerRef.current?.playing || waiting ? pause() : play());
+
+  const restart = () => seek(selectedPracticeSection(practiceRef.current)?.start ?? 0);
 
   /** Jump to `seconds` and play: cue launch, and lock-screen / headphone previous and next. */
-  const launch = (seconds: number) =>
+  const launch = (seconds: number) => {
+    practiceController.current?.cancel();
+    talkResume.current = false;
+    if (practiceRef.current.mode !== 'off') updatePractice({ ...practiceRef.current, mode: 'off' }, false);
+    if (playerRef.current?.kind === 'video' && talking) { setTalking(false); talkResume.current = false; }
     startPlayback((p) => {
       p.jumpTo(seconds);
       positionRef.current = p.position;
     });
+  };
 
   const cueTimes = (): (number | null)[] => song?.cues.map((c) => c?.time ?? null) ?? [];
 
   const previousCue = () => {
     const p = playerRef.current;
-    if (p) launch(previousCueTime(cueTimes(), p.position));
+    const selected = selectedPracticeSection(practiceRef.current);
+    if (selected && p?.track && practiceRef.current.mode !== 'off') {
+      if (p.kind === 'video') { setTalking(false); talkResume.current = false; }
+      practiceController.current?.start({ settings: { ...practiceRef.current, delaySeconds: 0 }, duration: p.track.duration, position: selected.start,
+        prepare: () => { engine.unlock(); if (p.kind === 'audio') void keepAlive.start(); } });
+    }
+    else if (p) launch(previousCueTime(cueTimes(), p.position));
   };
 
   const nextCue = () => {
@@ -529,7 +665,44 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     const v = clampTempo(percent);
     p.setTempo(v / 100);
     setTempo(v);
+    updatePractice({ ...practiceRef.current, tempo: v / 100 }, false);
     syncMedia();
+  };
+
+  const updatePractice = (value: PracticeSettings, cancel = true) => {
+    const s = songRef.current;
+    if (!s) return;
+    if (cancel) { practiceController.current?.cancel(); pauseNow(); }
+    const next = normalizePracticeSettings(value, s.track.duration);
+    practiceRef.current = next;
+    setPractice(next);
+    playerRef.current?.setTempo(next.tempo);
+    setTempo(Math.round(next.tempo * 100));
+    if (!savePracticeSettings(s.track.name, s.track.duration, next)) showToast('Practice settings could not be saved on this device.');
+  };
+
+  const toggleTalk = () => {
+    const p = playerRef.current;
+    if (!p?.track) return;
+    if (!talking) {
+      talkResume.current = p.playing;
+      if (p.kind === 'video') { practiceController.current?.cancel(); pauseNow(); }
+      else engine.setDancerGain(0.2);
+      setTalking(true);
+      showToast(p.kind === 'video' ? 'Video paused while you talk. Tap Finish talking to resume.' : 'Music lowered to 20%. Tap Finish talking to restore it.');
+    } else {
+      engine.setDancerGain(1);
+      setTalking(false);
+      if (p.kind === 'video' && talkResume.current) play();
+      talkResume.current = false;
+      showToast(p.kind === 'video' ? 'Talk off.' : 'Music restored to normal volume.');
+    }
+  };
+
+  const editCues = (change: (cues: CueSlots) => CueSlots) => {
+    if (!song) return;
+    setUndoCues((history) => [...history.slice(-9), song.cues.map((cue) => cue && { ...cue })]);
+    setSong((s) => s && { ...s, cues: change(s.cues) });
   };
 
   /**
@@ -540,16 +713,16 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     const p = playerRef.current;
     if (!p?.track || !song) return;
     const cue = song.cues[i] ?? null;
-    if (!launchOnly && (editing || !cue)) {
+    if (!launchOnly && editing) {
       const time = p.position; // live, not the last ~50 ms report
-      setSong((s) => s && { ...s, cues: s.cues.map((c, j) => (j === i ? { time, name: c?.name ?? `Cue ${i + 1}` } : c)) });
+      editCues((cues) => cues.map((c, j) => (j === i ? { time, name: c?.name ?? `Cue ${i + 1}` } : c)));
       void requestPersistentStorage(); // once per page load: keep saved cues from being evicted
       return;
     }
     if (cue) launch(cue.time);
   };
 
-  const clearPad = (i: number) => setSong((s) => s && { ...s, cues: s.cues.map((c, j) => (j === i ? null : c)) });
+  const clearPad = (i: number) => editCues((cues) => cues.map((c, j) => (j === i ? null : c)));
 
   const renamePad = (i: number) => {
     const cue = song?.cues[i];
@@ -557,7 +730,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     const input = window.prompt(`Name for pad ${i + 1}`, cue.name);
     if (input === null) return;
     const name = input.trim() || cue.name;
-    setSong((s) => s && { ...s, cues: s.cues.map((c, j) => (j === i && c ? { ...c, name } : c)) });
+    editCues((cues) => cues.map((c, j) => (j === i && c ? { ...c, name } : c)));
   };
 
   /** The toggle reflects the actual held lock; feedback explains both success and refusal. */
@@ -570,8 +743,8 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     }
     void wakeLock.enable().then((held) => {
       showToast(held
-        ? 'Screen on keeps the display awake while MixDeck is visible. Tap again to allow dimming and auto-lock.'
-        : 'Screen on could not be enabled. Battery saver or your browser may prevent it.');
+        ? 'Keep awake prevents dimming and auto-lock while ClassTempo is visible. Tap again to allow sleep.'
+        : 'Keep awake could not be enabled. Battery saver or your browser may prevent it.');
     });
   };
 
@@ -622,7 +795,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof Element && e.target.closest('.resume-audio')) return;
-      if (!activeRef.current || isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!activeRef.current || modalOpen.current || isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       const h = keys.current;
       if (e.key.length === 1 && e.key >= '1' && e.key <= '8') {
         if (!e.repeat) h.pressPad(Number(e.key) - 1, h.stageOpen);
@@ -642,7 +815,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     // a focused button would also "click" on Space keyup; swallow it so play/pause fires once
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.target instanceof Element && e.target.closest('.resume-audio')) return;
-      if (activeRef.current && e.key === ' ' && !isTyping(e)) e.preventDefault();
+      if (activeRef.current && !modalOpen.current && e.key === ' ' && !isTyping(e)) e.preventDefault();
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
@@ -668,6 +841,10 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   const track = song?.track ?? null;
   const bpm = track?.bpm ? track.bpm * (tempo / 100) : null;
   const ready = player !== null && song !== null && !loading;
+  const selectedSection = selectedPracticeSection(practice);
+  const pendingLabel = waiting
+    ? `${practiceState.phase === 'gap' ? 'Next repetition' : 'Get ready'} · ${Math.ceil(practiceState.remainingSeconds)}s`
+    : null;
   // Keep the element mounted even when WebKit reports dimensions after loadedmetadata.
   const videoElement = pendingVideo ?? (song?.kind === 'video' && player instanceof VideoDeck ? player.element : null);
   useEffect(() => {
@@ -691,7 +868,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     duration: track?.duration ?? 0,
     bpm: track?.bpm ?? null,
     firstBeat: track?.firstBeat ?? 0,
-    loop: null,
+    loop: practice.mode !== 'off' && selectedSection ? { start: selectedSection.start, end: selectedSection.end } : null,
     positionRef,
     onSeek: seek,
     markers,
@@ -710,15 +887,30 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       onDrop={onDrop}
     >
       {actionsContainer && createPortal(<div className="dancer-actions" onKeyDown={(e) => e.stopPropagation()} onKeyUp={(e) => e.stopPropagation()}>
-        <button onClick={() => fileInput.current?.click()} disabled={loading} title="Open a song or a video">
-          Load
+        <div className="mode-switch source-switch" role="group" aria-label="Choose what to load">
+          {(['audio', 'video'] as const).map((kind) => (
+            <button key={kind} className="mode-pill" aria-pressed={libraryKind === kind} disabled={loading}
+              onClick={() => {
+                setLibraryKind(kind);
+                if (fileInput.current) {
+                  fileInput.current.accept = kind === 'video' ? 'video/*,.mp4,.mov,.m4v,.webm' : 'audio/*,.mp3,.m4a,.aac,.wav,.aif,.aiff,.flac,.ogg';
+                  fileInput.current.click();
+                }
+              }}
+              title={`Load a ${kind === 'audio' ? 'song' : 'video'}`}>
+              {kind === 'audio' ? 'Song' : 'Video'}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setLibraryOpen(true)} disabled={loading} title="Saved songs, videos and class sets">
+          Library
         </button>
         {wakeLock.supported && (
           <button
             className={`screen-on ${screenOn ? 'on' : ''}`}
             onClick={toggleScreenOn}
             aria-pressed={screenOn}
-            aria-label="Screen on"
+            aria-label="Keep awake"
             aria-describedby="screen-on-help"
             title={screenOn ? 'Screen stays on — tap to let it sleep again' : 'Keep the screen on (no dimming or auto-lock)'}
           >
@@ -726,13 +918,13 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
               <circle cx="12" cy="12" r="4" />
               <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
             </svg>
-            <span className="screen-on-label">Screen on</span>
+            <span className="screen-on-label">Keep awake</span>
           </button>
         )}
         <input
           ref={fileInput}
           type="file"
-          accept={ACCEPT_MEDIA}
+          accept={libraryKind === 'video' ? 'video/*,.mp4,.mov,.m4v,.webm' : 'audio/*,.mp3,.m4a,.aac,.wav,.aif,.aiff,.flac,.ogg'}
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -740,7 +932,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
             e.target.value = '';
           }}
         />
-        <span id="screen-on-help" className="sr-only">Prevents dimming and auto-lock while MixDeck is visible. Tap again to turn it off.</span>
+        <span id="screen-on-help" className="sr-only">Prevents dimming and auto-lock while ClassTempo is visible. Tap again to allow sleep.</span>
       </div>, actionsContainer)}
 
       <div className="dancer-clock">
@@ -784,7 +976,10 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
         {videoElement ? (
           <div className="dancer-media" style={{ ['--video-ar' as string]: String(song?.aspect ?? 16 / 9) }}>
             {/* Stage borrows this same media element, preserving playback and the iOS gesture. */}
-            <VideoView element={stageOpen ? null : videoElement} playing={playing} onTap={ready ? togglePlay : undefined} className="dancer-video" />
+            <VideoView element={stageOpen ? null : videoElement} playing={playing} onTap={ready ? togglePlay : undefined} className="dancer-video" mirrored={practice.videoMirrored} zoom={practice.videoZoom} />
+            <VideoTools mirrored={practice.videoMirrored} zoom={practice.videoZoom}
+              onMirroredChange={(value) => updatePractice({ ...practice, videoMirrored: value }, false)}
+              onZoomChange={(value) => updatePractice({ ...practice, videoZoom: value }, false)} />
             <Waveform {...waveformProps} className="strip" />
           </div>
         ) : (
@@ -792,12 +987,14 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
         )}
       </div>
 
+      {pendingLabel && <div className="practice-countdown" role="status">{pendingLabel}</div>}
+
       <div className="dancer-transport">
         <button className={`play ${playing ? 'on' : ''}`} onClick={togglePlay} disabled={!ready} title="Space">
-          {playing ? '❚❚  Pause' : '▶  Play'}
+          {waiting ? '✕  Cancel' : playing ? '❚❚  Pause' : '▶  Play'}
         </button>
         <button onClick={restart} disabled={!ready} title="Home">
-          ⟲ Restart
+          ⟲ {selectedSection ? 'Section' : 'Restart'}
         </button>
         <button
           ref={stageButton}
@@ -816,7 +1013,20 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       {/* one box only where a layout needs it (phone landscape with a video: tempo above the pads); elsewhere its
           children sit straight on the card's grid (display: contents) */}
       <div className="dancer-side">
-        <TempoControl value={tempo} onChange={changeTempo} disabled={!ready} />
+        <div className="class-tempo-panel">
+          <TempoControl value={tempo} onChange={changeTempo} disabled={!ready} />
+          <div className="class-tools">
+            <button className={practice.mode !== 'off' || practice.delaySeconds > 0 ? 'on' : ''}
+              onClick={() => { pause(); setPracticeOpen(true); }} disabled={!ready}>
+              {selectedSection && practice.mode !== 'off' ? `${practice.mode === 'repeat' ? '↻' : '▸'} ${selectedSection.name}` : 'Practice'}
+            </button>
+            <button className={talking ? 'on' : ''} aria-pressed={talking} onClick={toggleTalk} disabled={!ready}
+              title={song?.kind === 'video' ? 'Pause the video while you talk; tap again to resume' : 'Lower the music while you talk; tap again to restore'}>
+              {talking ? 'Finish talking' : 'Talk'}
+            </button>
+            <button disabled={!ready || tempo === 100} onClick={() => changeTempo(100)} title="Reset to original tempo">100%</button>
+          </div>
+        </div>
 
         <div className="cues">
           <div className="cues-head">
@@ -825,17 +1035,35 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
               <span className="dim cues-hint">Press a pad to move it here · ✕ clears · ✎ renames</span>
             ) : (
               <span className="dim cues-hint">
-                <span className="hint-long">Empty pad: set a cue here · set pad: launch it · saved per song</span>
-                <span className="hint-short">Tap empty pad to set · tap set pad to launch</span>
+                <span className="hint-long">Tap a saved cue to play · Edit to add or change cues</span>
+                <span className="hint-short">Saved per song · Edit to add</span>
               </span>
             )}
+            {editing && <button className="cues-undo" disabled={undoCues.length === 0} onClick={() => {
+              const previous = undoCues[undoCues.length - 1];
+              if (previous) { setSong((s) => s && { ...s, cues: previous }); setUndoCues((h) => h.slice(0, -1)); }
+            }}>Undo</button>}
             <button className={`cues-edit ${editing ? 'on' : ''}`} onClick={() => setEditing((v) => !v)} disabled={!ready}>
-              Edit cues
+              {editing ? 'Done' : 'Edit cues'}
             </button>
           </div>
-          <CuePads cues={song?.cues ?? NO_CUES} editing={editing} disabled={!ready} onPress={pressPad} onClear={clearPad} onRename={renamePad} />
+          <CuePads cues={song?.cues ?? NO_CUES} editing={editing} locked={!editing} disabled={!ready} onPress={pressPad} onClear={clearPad} onRename={renamePad} />
         </div>
       </div>
+
+      <LibraryModal open={libraryOpen} initialKind={libraryKind} onClose={() => setLibraryOpen(false)}
+        currentFile={currentFile} currentTitle={track?.name ?? null}
+        currentPractice={practice} currentDuration={track?.duration}
+        onLoad={async (file, id, exercise) => {
+          if (!await loadFile(file, id)) throw new Error('This file could not be opened.');
+          if (exercise && playerRef.current?.track) {
+            const next = normalizePracticeSettings(exercise, playerRef.current.track.duration);
+            practiceRef.current = next; setPractice(next);
+            playerRef.current.setTempo(next.tempo); setTempo(Math.round(next.tempo * 100));
+          }
+        }} />
+      {practiceOpen && track && <PracticePanel settings={practice} onChange={(value) => updatePractice(value)}
+        position={displayPos} duration={track.duration} delayDisabled={song?.kind === 'video' && !videoStarted.current} onClose={() => setPracticeOpen(false)} />}
 
       <p className="dancer-hint kbd-hint">
         <kbd>1</kbd>–<kbd>8</kbd> pads · <kbd>Space</kbd> play / pause · <kbd>←</kbd> <kbd>→</kbd> tempo ±1 % · <kbd>Home</kbd> restart
@@ -862,6 +1090,16 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
           onRestart={restart}
           onLaunch={(i) => pressPad(i, true)}
           onClose={closeStage}
+          tempo={tempo}
+          onTempoChange={changeTempo}
+          mirrored={practice.videoMirrored}
+          zoom={practice.videoZoom}
+          onMirroredChange={(value) => updatePractice({ ...practice, videoMirrored: value }, false)}
+          onZoomChange={(value) => updatePractice({ ...practice, videoZoom: value }, false)}
+          onRestartSection={selectedSection ? restart : undefined}
+          pendingLabel={pendingLabel}
+          talking={talking}
+          onToggleTalk={toggleTalk}
         />
       )}
     </section>

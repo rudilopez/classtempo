@@ -1,0 +1,161 @@
+/* Keep Stage controls separated and within reach, without shrinking its 72 px cue targets. */
+.stage.stage-classroom {
+  background: #071019;
+  gap: 10px;
+}
+.stage.stage-classroom .stage-screen {
+  position: relative;
+}
+.stage.stage-classroom .stage-bar {
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #30485b;
+  border-radius: 16px;
+  background: #0f1e2b;
+}
+.stage-classroom .stage-controls {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+.stage.stage-classroom .stage-transport {
+  gap: 6px;
+}
+.stage.stage-classroom .stage-with-talk {
+  grid-template-columns: 1.3fr 1fr 0.65fr;
+}
+.stage.stage-classroom .stage-play,
+.stage.stage-classroom .stage-restart,
+.stage-classroom .stage-talk {
+  min-width: 0;
+  min-height: 56px;
+  padding: 6px 8px;
+  border-radius: 12px;
+}
+.stage.stage-classroom .stage-play {
+  font-size: 20px;
+}
+.stage.stage-classroom .stage-restart {
+  border-color: #466078;
+  background: #192c3d;
+  color: #edf5fb;
+  font-size: 14px;
+}
+.stage-classroom .stage-talk {
+  border-color: #466078;
+  background: #192c3d;
+  font-size: 13px;
+}
+.stage-classroom .stage-talk.on {
+  border-color: #e9b85a;
+  background: #513b16;
+  color: #ffdf9d;
+}
+.stage-classroom .stage-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+.stage-classroom .stage-tempo {
+  display: flex;
+  flex: none;
+  align-items: center;
+  border: 1px solid #395167;
+  border-radius: 10px;
+  background: #09141f;
+}
+.stage-classroom .stage-tempo button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: #e8f1f9;
+  font-size: 18px;
+}
+.stage-classroom .stage-tempo .stage-tempo-value {
+  min-width: 62px;
+  color: #8cebd3;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.stage.stage-classroom .stage-pads {
+  gap: 6px;
+  grid-auto-rows: 72px;
+}
+.stage.stage-classroom .stage-pad {
+  min-width: 72px;
+  min-height: 72px;
+  padding: 16px 6px 6px;
+  border: 1px solid color-mix(in srgb, var(--pad) 65%, #30485b);
+  background: color-mix(in srgb, var(--pad) 12%, #0c1b28);
+  color: #f5f8fb;
+  font-size: 13px;
+}
+.stage.stage-classroom .stage-pad-key {
+  color: var(--pad);
+  opacity: 1;
+}
+.stage-classroom .stage-pending {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border-radius: 12px;
+  background: #071019b8;
+  color: #b6f5e5;
+  font-size: clamp(24px, 7vw, 52px);
+  font-weight: 800;
+  text-align: center;
+  pointer-events: none;
+}
+@media (max-width: 379px) and (orientation: portrait) {
+  .stage.stage-classroom .stage-bar {
+    padding: 6px;
+  }
+  .stage.stage-classroom .stage-pads {
+    gap: 4px;
+  }
+}
+@media (orientation: landscape) {
+  .stage.stage-classroom .stage-bar {
+    grid-template-columns: minmax(250px, 0.8fr) minmax(0, 1.2fr);
+    align-items: center;
+  }
+  .stage.stage-classroom.stage-has-video .stage-screen {
+    position: absolute;
+  }
+  .stage.stage-classroom.stage-has-video .stage-bar {
+    background: #0b1725e6;
+  }
+  .stage.stage-classroom .stage-transport {
+    grid-template-columns: 1.2fr 1fr;
+  }
+  .stage.stage-classroom .stage-with-talk {
+    grid-template-columns: 1.2fr 1fr 0.65fr;
+  }
+  .stage.stage-classroom .stage-pads {
+    grid-template-columns: repeat(4, minmax(72px, 1fr));
+  }
+}
+@media (orientation: landscape) and (max-height: 499px) {
+  .stage.stage-classroom .stage-bar {
+    gap: 8px;
+    padding: 8px;
+  }
+  .stage.stage-classroom .stage-play,
+  .stage.stage-classroom .stage-restart,
+  .stage-classroom .stage-talk {
+    min-height: 44px;
+  }
+  .stage.stage-classroom .stage-play {
+    font-size: 16px;
+  }
+  .stage.stage-classroom .stage-pad {
+    font-size: 12px;
+  }
+}
