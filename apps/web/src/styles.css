@@ -1,0 +1,1211 @@
+:root {
+  --bg: #0b0d12;
+  --panel: #141821;
+  --panel-2: #1b2130;
+  --line: #262d3d;
+  --text: #e8ecf4;
+  --dim: #8a93a6;
+  --a: #4fd1ff;
+  --b: #ff6fae;
+  --on: #38e07a;
+  color-scheme: dark;
+}
+
+/*
+ * Breakpoints (by viewport, not device type, so an iPad Split View / Slide Over window gets the phone layout):
+ *   phone portrait / narrow  (max-width: 599px)
+ *   phone landscape          (orientation: landscape) and (max-height: 499px)
+ *   tablet / desktop         everything else; Dancer mode goes two-column in any landscape window ≥ 560 px wide
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  /* an app surface, not a document: no pull-to-refresh, no rubber-band bounce */
+  overscroll-behavior: none;
+  /* no font inflation on rotation, no grey flash on tap */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Full-height shell on the dynamic viewport (100vh fallback). index.html sets viewport-fit=cover, so the insets keep
+   everything clear of the notch / Dynamic Island, rounded corners and home indicator, portrait and landscape. */
+#root {
+  height: 100vh;
+  height: 100dvh;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
+/* no double-tap zoom on controls; pinch-zoom stays available */
+button,
+input,
+label,
+canvas {
+  touch-action: manipulation;
+}
+
+button {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+/* hover only where a pointer can hover, so a tapped control doesn't keep a sticky hover look on touch screens */
+@media (hover: hover) {
+  button:hover:not(:disabled) {
+    border-color: var(--accent, var(--dim));
+  }
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+button.on {
+  background: var(--accent, var(--on));
+  color: #000;
+  border-color: transparent;
+}
+/* touch-target floor on touch screens */
+@media (pointer: coarse) {
+  button {
+    min-height: 44px;
+  }
+}
+/* keyboard-shortcut hints only where there is likely a keyboard */
+@media (hover: none) and (pointer: coarse) {
+  .kbd-hint {
+    display: none;
+  }
+}
+
+input[type='range'] {
+  accent-color: var(--accent, var(--a));
+  width: 100%;
+}
+input[type='range'].vertical {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 28px;
+  height: 140px;
+}
+/* DJ sliders get a 44 px touch box on touch screens; phone landscape (height < 500) has no room and keeps them slim */
+@media (pointer: coarse) and (min-height: 500px) {
+  .deck input[type='range'],
+  .mixer input[type='range']:not(.vertical),
+  .master input[type='range'] {
+    min-height: 44px;
+    margin-block: 0;
+  }
+  .mixer input[type='range'].vertical {
+    min-width: 44px;
+  }
+}
+/* phone landscape DJ: the pitch, crossfader and master sliders and the channel faders still fit a 44 px touch box
+   (the EQ rows do not) */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 499px) {
+  .pitch input[type='range'],
+  .crossfader input[type='range'],
+  .master input[type='range'] {
+    min-height: 44px;
+    margin-block: 0;
+  }
+  .strip input[type='range'].vertical {
+    min-width: 44px;
+  }
+}
+
+/* gate */
+.gate {
+  min-height: 100%;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 24px 16px;
+}
+.gate h1 {
+  font-size: 40px;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+.gate p {
+  margin: 0;
+}
+.gate-sub {
+  max-width: 36em;
+  text-wrap: balance;
+}
+.gate .hint {
+  color: var(--dim);
+  font-size: 12px;
+  max-width: 420px;
+  text-wrap: balance;
+}
+@media (orientation: landscape) and (max-height: 499px) {
+  .gate {
+    gap: 8px;
+    padding: 12px 16px;
+  }
+  .gate h1 {
+    font-size: 32px;
+  }
+}
+.error {
+  color: #ff7b7b;
+}
+
+/* app */
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.logo {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.meta {
+  color: var(--dim);
+  font-size: 12px;
+  white-space: nowrap;
+}
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  min-height: 0;
+}
+
+/* deck */
+.deck {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.deck.drag {
+  border-color: var(--accent);
+  background: var(--panel-2);
+}
+.deck-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.deck-label {
+  font-weight: 900;
+  font-size: 20px;
+  color: var(--accent);
+  width: 28px;
+  flex: none;
+}
+.deck-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--dim);
+}
+.deck-head button {
+  flex: none;
+}
+.deck-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.deck-info .big {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.deck-info .unit {
+  color: var(--dim);
+  margin-right: auto;
+}
+.deck-info .time {
+  font-size: 18px;
+}
+.dim {
+  color: var(--dim);
+}
+.waveform {
+  display: block;
+  width: 100%;
+  height: 110px;
+  background: #0a0c11;
+  border-radius: 8px;
+  cursor: crosshair;
+}
+.transport {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr 1fr 1fr;
+  gap: 8px;
+}
+.transport button {
+  min-width: 0;
+  padding: 10px 6px;
+  white-space: nowrap;
+}
+.transport .play {
+  font-size: 18px;
+}
+.transport .cue {
+  border-color: #ff9f40;
+  color: #ff9f40;
+}
+.pitch label {
+  display: block;
+  color: var(--dim);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+/* mixer */
+.mixer {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  justify-content: space-between;
+  min-width: 0;
+}
+.strips {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
+}
+.strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+/* EQ: band name and value above a full-width slider */
+.knob {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name val'
+    'range range';
+  align-items: center;
+  column-gap: 6px;
+  font-size: 11px;
+  color: var(--dim);
+}
+.knob > span:first-child {
+  grid-area: name;
+}
+.knob input {
+  grid-area: range;
+  margin: 2px 0 0;
+}
+.knob .val {
+  grid-area: val;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.fader,
+.master {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--dim);
+}
+.crossfader {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+}
+.crossfader .xa {
+  color: var(--a);
+}
+.crossfader .xb {
+  color: var(--b);
+}
+.crossfader input {
+  accent-color: #fff;
+}
+
+/* DJ mode: deck | mixer | deck on tablets, desktop and phones in landscape; stacked on phones in portrait */
+.dj-main {
+  grid-template-columns: minmax(0, 1fr) clamp(200px, 25vw, 260px) minmax(0, 1fr);
+  overflow: auto;
+}
+/* tablet portrait: panels as tall as their content (the crossfader stays by the strips), taller waveforms */
+@media (min-width: 700px) and (min-height: 700px) and (orientation: portrait) {
+  .dj-main {
+    align-items: start;
+  }
+  .deck .waveform {
+    height: clamp(110px, 18dvh, 220px);
+  }
+}
+.rotate-hint {
+  display: none;
+  margin: 0;
+  color: var(--dim);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* start screen: mode picker */
+.modes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  width: 100%;
+  max-width: 420px;
+  margin: 8px 0;
+}
+@media (min-width: 700px), (orientation: landscape) and (min-width: 560px) {
+  .modes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 620px;
+  }
+}
+.mode {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  padding: 20px;
+  min-height: 112px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  letter-spacing: 0;
+}
+.mode strong {
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+.mode span {
+  color: var(--dim);
+  font-weight: 400;
+}
+.mode-dj {
+  --accent: var(--a);
+}
+.mode-dancer {
+  --accent: var(--b);
+}
+@media (hover: hover) {
+  .mode:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--panel-2);
+  }
+}
+.head-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.mode-tag {
+  color: var(--dim);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.modes-btn {
+  padding: 6px 12px;
+  min-height: 44px;
+  min-width: 44px;
+  font-size: 12px;
+}
+
+/* full-screen "Tap to resume audio": an interruption the browser will only undo inside a tap */
+.resume-audio {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+  border: 0;
+  border-radius: 0;
+  background: rgba(11, 13, 18, 0.88);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+}
+.resume-audio strong {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 28px;
+  border-radius: 999px;
+  background: var(--a);
+  color: #000;
+  font-size: 20px;
+}
+.resume-audio span {
+  color: var(--dim);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* dancer mode: one card on a grid. One column (pads anchored at the bottom) in portrait; in landscape song, clock,
+   waveform, transport and tempo on the left and the pads filling the right. */
+.dancer-main {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.dancer {
+  --accent: var(--a);
+  --gap: 14px;
+  --clock: clamp(48px, 5.5dvh, 72px);
+  --wave-h: clamp(96px, 11dvh, 160px);
+  --play-h: clamp(64px, 7dvh, 88px);
+  --pad-min: 96px;
+  --pad-max: 260px;
+  --pad-gap: 10px;
+  flex: 1 0 auto;
+  margin: auto;
+  width: 100%;
+  max-width: 1100px;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+  grid-template-areas: 'head' 'clock' 'wave' 'transport' 'tempo' 'cues';
+  gap: var(--gap);
+}
+.dancer.drag {
+  border-color: var(--accent);
+  background: var(--panel-2);
+}
+/* touch-target floor; :where() keeps it at class specificity so component rules below (.pad, .play) can raise it */
+.dancer :where(button) {
+  min-height: 44px;
+}
+.dancer-head {
+  grid-area: head;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dancer-head .deck-title {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 15px;
+}
+/* "Keep screen on" (Screen Wake Lock): an icon toggle; the label shows only where the head row has room */
+.dancer-head .screen-on {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+}
+.screen-on svg {
+  flex: none;
+}
+.screen-on-label {
+  display: none;
+}
+@media (min-width: 600px) and (orientation: portrait) {
+  .screen-on-label {
+    display: inline;
+  }
+}
+.dancer-clock {
+  grid-area: clock;
+  display: flex;
+  align-items: baseline;
+  column-gap: 10px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+.dancer-clock .elapsed {
+  font-size: var(--clock);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.dancer-clock .total {
+  font-size: calc(var(--clock) * 0.4);
+  color: var(--dim);
+}
+.dancer-clock .bpm {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.dancer-clock .bpm .big {
+  font-size: calc(var(--clock) * 0.57);
+  font-weight: 700;
+  color: var(--accent);
+}
+.dancer-clock .bpm .unit {
+  color: var(--dim);
+  margin-left: 6px;
+}
+.dancer .waveform {
+  --accent: #5d6b85; /* muted peaks so the coloured cue markers stand out */
+  grid-area: wave;
+  height: var(--wave-h);
+}
+.dancer-transport {
+  grid-area: transport;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 10px;
+}
+.dancer-transport button {
+  min-width: 0;
+  white-space: nowrap;
+}
+.dancer-transport .play {
+  min-height: var(--play-h);
+  font-size: 24px;
+}
+.tempo {
+  grid-area: tempo;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.tempo-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: var(--dim);
+  font-size: 12px;
+}
+.tempo-readout {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+/* slider with the ±1 % nudges at its ends */
+.tempo-slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tempo input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+}
+.tempo-nudge {
+  flex: none;
+  min-width: 60px;
+  padding: 6px 8px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* presets: one row of compact chips */
+.tempo-buttons {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.tempo-buttons button {
+  padding: 6px 4px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+.cues {
+  grid-area: cues;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+.cues-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cues-head h2 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.cues-head .dim {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cues-head .cues-edit {
+  flex: none;
+}
+.hint-short {
+  display: none;
+}
+/* 4×2, rows share the space left in the card (capped so pads stay pad-shaped) */
+.pads {
+  flex: 1 1 auto;
+  max-height: calc(2 * var(--pad-max) + var(--pad-gap));
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(var(--pad-min), 1fr));
+  gap: var(--pad-gap);
+}
+.pad-slot {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+.pad {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: var(--pad-min);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 22px 12px 10px;
+  border: 2px solid var(--pad);
+  border-radius: 12px;
+  background: var(--panel-2);
+  color: var(--text);
+  text-align: left;
+  letter-spacing: 0;
+  min-width: 0;
+}
+.pad.set {
+  background: var(--pad);
+  color: #000;
+  border-color: transparent;
+}
+.pad.empty {
+  border-style: dashed;
+  border-color: var(--line);
+  color: var(--dim);
+}
+.pad.editing {
+  outline: 2px dashed rgba(255, 255, 255, 0.55);
+  outline-offset: -5px;
+  /* room for the ✕ / ✎ column (2 × 44 px) on the right */
+  min-height: 88px;
+  padding-right: 56px;
+}
+@media (hover: hover) {
+  .pad:hover:not(:disabled) {
+    border-color: var(--pad);
+    filter: brightness(1.08);
+  }
+}
+.pad:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.pad-key {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  font-size: 11px;
+  opacity: 0.6;
+}
+.pad-name {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pad-time {
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+/* edit-mode tools, stacked on the pad's right edge: ✕ top, ✎ bottom */
+.pad-tool {
+  position: absolute;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+}
+@media (hover: hover) {
+  .pad-tool:hover {
+    background: #000;
+  }
+  .pad-clear:hover {
+    color: #ff7b7b;
+  }
+  .pad-rename:hover {
+    color: var(--a);
+  }
+}
+.pad-clear {
+  top: 0;
+  border-radius: 0 12px 0 12px;
+}
+.pad-rename {
+  bottom: 0;
+  border-radius: 12px 0 12px 0;
+}
+.dancer-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--dim);
+  font-size: 12px;
+  text-align: center;
+}
+.dancer-hint kbd {
+  font: inherit;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* ---------- landscape: Dancer two-column (phones, tablets, desktop) ---------- */
+@media (orientation: landscape) and (min-width: 560px) {
+  .dancer {
+    /* exactly the space below the header, so the waveform row (not the page) absorbs the difference */
+    flex: 1 1 0;
+    min-height: 0;
+    --wave-h: 200px;
+    --pad-max: 100vh;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    grid-template-rows: auto auto minmax(40px, 1fr) auto auto;
+    grid-template-areas:
+      'head cues'
+      'clock cues'
+      'wave cues'
+      'transport cues'
+      'tempo cues';
+    column-gap: calc(var(--gap) * 1.5);
+  }
+  .dancer .waveform {
+    height: 100%;
+    max-height: var(--wave-h);
+    align-self: center;
+    /* its size comes from the grid row only, never from the canvas's pixel buffer */
+    contain: size;
+  }
+}
+/* tablet / desktop landscape: wider pad column, and the card stops growing (centred) on very tall screens */
+@media (orientation: landscape) and (min-width: 560px) and (min-height: 500px) {
+  .dancer {
+    max-height: 760px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+    /* the waveform fills its row, so the left column keeps even gaps */
+    --wave-h: 100%;
+  }
+}
+/* tablet portrait: taller pads so a tall screen (iPad Pro) leaves no blank band above the cues */
+@media (min-width: 700px) and (min-height: 700px) and (orientation: portrait) {
+  .dancer {
+    --pad-max: 320px;
+  }
+}
+
+/* ---------- phones (portrait, or a narrow window) and phones in landscape: shared compact styling ---------- */
+@media (max-width: 599px), (orientation: landscape) and (max-height: 499px) {
+  header {
+    padding: 2px 12px;
+  }
+  .dancer-main {
+    padding: 0;
+  }
+  .dancer {
+    --pad-min: 72px;
+    --pad-gap: 8px;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    padding: 10px 12px 12px;
+  }
+  .dancer-head .deck-title {
+    font-size: 14px;
+  }
+  .dancer-head button {
+    padding: 8px 12px;
+  }
+  .dancer-transport {
+    gap: 8px;
+  }
+  .dancer-transport .play {
+    font-size: 22px;
+  }
+  .dancer-transport button:not(.play) {
+    font-size: 13px;
+  }
+  .cues {
+    gap: 8px;
+  }
+  .cues-head {
+    gap: 8px;
+  }
+  .cues-head .cues-edit {
+    padding: 8px 12px;
+  }
+  .cues-head .dim {
+    font-size: 11px;
+    line-height: 1.25;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .hint-long {
+    display: none;
+  }
+  .hint-short {
+    display: inline;
+  }
+  .pad {
+    padding: 20px 8px 8px;
+    border-radius: 10px;
+  }
+  .pad-key {
+    top: 4px;
+    left: 8px;
+  }
+  /* narrow pads: the ✕ / ✎ tools sit side by side along the bottom edge instead of in a right-hand column */
+  .pad.editing {
+    min-height: 96px;
+    padding: 18px 8px 48px;
+  }
+  .pad-tool {
+    width: 50%;
+  }
+  .pad-clear {
+    top: auto;
+    bottom: 0;
+    right: auto;
+    left: 0;
+    border-radius: 0 0 0 10px;
+  }
+  .pad-rename {
+    right: 0;
+    border-radius: 0 0 10px 0;
+  }
+  /* each half-width tool reaches into the pad gap so its hit area is at least ~44 px wide */
+  .pad-tool::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+  }
+  .pad-clear::after {
+    left: calc(var(--pad-gap) / -2);
+    right: 0;
+  }
+  .pad-rename::after {
+    left: 0;
+    right: calc(var(--pad-gap) / -2);
+  }
+}
+
+/* ---------- header: phones (≤ 600 px wide) keep logo, mode and Modes only ---------- */
+@media (max-width: 600px) {
+  .meta {
+    display: none;
+  }
+}
+
+/* ---------- phone portrait / narrow window: Dancer one column fitted to the screen ---------- */
+@media (max-width: 599px) {
+  .dancer {
+    --gap: 10px;
+    --clock: clamp(36px, 5.6dvh, 48px);
+    --wave-h: clamp(64px, 9dvh, 80px);
+    --play-h: clamp(52px, 7dvh, 64px);
+    --pad-max: 200px;
+  }
+}
+/* narrow Android phones (360 px): slimmer side padding keeps the edit-mode ✕ / ✎ hit areas at 44 px */
+@media (max-width: 379px) {
+  .dancer {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+@media (max-width: 599px) and (max-height: 700px) {
+  .dancer {
+    --gap: 8px;
+    padding-top: 8px;
+  }
+  /* short phones: edit mode drops the time so the pads keep their height */
+  .pad.editing {
+    min-height: 84px;
+    padding: 16px 8px 44px;
+  }
+  .pad.editing .pad-time {
+    display: none;
+  }
+}
+
+/* ---------- phone landscape: Dancer two columns, compact ---------- */
+@media (orientation: landscape) and (max-height: 499px) {
+  .dancer {
+    --gap: 8px;
+    --clock: 30px;
+    --wave-h: 72px;
+    --play-h: 48px;
+    padding: 8px 12px;
+    column-gap: 16px;
+    grid-template-rows: auto auto minmax(32px, 1fr) auto auto;
+  }
+  .dancer-head button {
+    padding: 6px 12px;
+  }
+  .tempo {
+    gap: 2px;
+  }
+  .tempo-readout {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+  .tempo-buttons button {
+    min-height: 44px;
+  }
+  /* no room for the shortcut line in a window this short */
+  .kbd-hint {
+    display: none;
+  }
+}
+@media (orientation: landscape) and (max-height: 380px) {
+  .dancer {
+    --gap: 6px;
+    --clock: 26px;
+    --play-h: 44px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+}
+
+/* ---------- DJ: stacked decks on phones in portrait and in narrow windows; the page scrolls ---------- */
+@media (max-width: 599px), (max-width: 699px) and (min-height: 500px) {
+  .dj-main {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 10px;
+    padding: 10px;
+  }
+}
+@media (max-width: 599px) and (orientation: portrait) {
+  .rotate-hint {
+    display: block;
+  }
+  .deck .waveform {
+    height: 80px;
+  }
+  /* compact mixer: channel faders turn horizontal under their EQ, so the crossfader stays on the first screen */
+  .strip > .fader {
+    align-self: stretch;
+  }
+  .fader input[type='range'].vertical {
+    writing-mode: horizontal-tb;
+    direction: ltr;
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 44px;
+    margin-block: 0;
+  }
+}
+
+/* ---------- DJ: narrower decks and a compact mixer (master as a row under the EQ) below 1024 px or on phones ---------- */
+@media (max-width: 1023px), (orientation: landscape) and (max-height: 499px) {
+  .deck {
+    padding: 12px;
+    gap: 10px;
+  }
+  .deck-head {
+    gap: 8px;
+  }
+  .deck-head button {
+    padding: 8px 10px;
+  }
+  .deck-info {
+    column-gap: 6px;
+  }
+  .deck-info .big {
+    font-size: 22px;
+  }
+  .deck-info .time {
+    font-size: 15px;
+  }
+  .transport {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .transport button {
+    padding: 8px 2px;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .transport .play {
+    font-size: 16px;
+  }
+  .mixer {
+    padding: 12px;
+    gap: 12px;
+  }
+  .strips {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      'a b'
+      'm m';
+    gap: 10px 14px;
+  }
+  .strips > .strip:first-child {
+    grid-area: a;
+  }
+  .strips > .strip:last-child {
+    grid-area: b;
+  }
+  .strips > .master {
+    grid-area: m;
+    flex-direction: row;
+  }
+  .master input[type='range'].vertical {
+    writing-mode: horizontal-tb;
+    direction: ltr;
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    height: auto;
+  }
+  input[type='range'].vertical {
+    height: 110px;
+  }
+}
+
+/* ---------- DJ: phone landscape, deck | mixer | deck with no page scroll ---------- */
+@media (orientation: landscape) and (max-height: 499px) and (min-width: 600px) {
+  .dj-main {
+    grid-template-columns: minmax(0, 1fr) clamp(170px, 24vw, 220px) minmax(0, 1fr);
+    gap: 6px;
+    padding: 6px;
+  }
+  .deck {
+    padding: 8px;
+    gap: 6px;
+    border-radius: 10px;
+  }
+  .deck-label {
+    font-size: 16px;
+    width: 16px;
+  }
+  .deck-title {
+    font-size: 12px;
+  }
+  .deck-head button {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .deck-info .big {
+    font-size: 20px;
+  }
+  .deck-info .time {
+    font-size: 13px;
+  }
+  .deck .waveform {
+    height: 56px;
+  }
+  .transport button {
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+  .pitch label {
+    font-size: 11px;
+    margin-bottom: 0;
+  }
+  .mixer {
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 10px;
+  }
+  .strips {
+    gap: 6px 10px;
+  }
+  .strip {
+    gap: 4px;
+  }
+  .knob .val {
+    font-size: 10px;
+  }
+  input[type='range'].vertical {
+    height: 84px;
+  }
+}

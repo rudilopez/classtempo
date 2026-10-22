@@ -1,0 +1,26 @@
+{
+  "name": "mixdeck",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Phone- and tablet-first web DJ app (installable PWA) with DJ and Dancer modes, built on Web Audio + AudioWorklet",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/web",
+    "preview": "npm run preview -w apps/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "icons": "node scripts/gen-icons.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0",
+    "vitest": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

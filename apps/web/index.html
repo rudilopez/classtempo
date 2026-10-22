@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover lets the layout run edge to edge (under the notch / Dynamic Island, rounded corners and
+         home indicator); styles.css pads #root with env(safe-area-inset-*) so nothing interactive sits there.
+         Pinch-zoom stays enabled: double-tap zoom is turned off per control with touch-action: manipulation. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>MixDeck</title>
+    <meta name="description" content="DJ two decks or practise dance moves with cue pads and key-locked tempo. Works offline; your songs never leave the device." />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b0d12" />
+    <!-- Installable web app (all paths relative so the build works at / and under a sub-path). -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192" />
+    <!-- iPhone / iPad Home Screen -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- "black" keeps the Home Screen app below the status bar. "black-translucent" (edge to edge, content under the
+         clock / Dynamic Island) is now safe too, because #root pads with env(safe-area-inset-*) (see styles.css); keep
+         that padding whenever either this or viewport-fit=cover above is in use. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="MixDeck" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./src/main.tsx"></script>
+  </body>
+</html>
