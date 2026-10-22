@@ -167,7 +167,7 @@ and iPad. Breakpoints, as in `apps/web/src/styles.css`:
   phone landscape) the decks narrow and the mixer goes compact, with the master fader as a row under the EQ.
   One-deck focus on phone portrait, touch gestures and 4 decks on iPad landscape come in Phase 1.
 - **Shell:** header mode pills form an accessible radio group; Dancer is always the launch default. The header
-  shares one row with Dancer Demo / Load / Screen on actions, portalled from Dancer to preserve handler ownership.
+  shares one row with Dancer Load / Screen on actions, portalled from Dancer to preserve handler ownership.
   The sample-rate / latency readout remains in DJ at wider sizes. Inactive modes retain loaded tracks and settings.
 - **Visual hierarchy:** ink background, elevated media/tempo surfaces, mint Play, cyan waveform and colored cue
   outlines. Now Playing replaces its O with the supplied white logo while retaining a complete accessible label.

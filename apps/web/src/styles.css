@@ -460,7 +460,7 @@ main {
   -webkit-box-orient: vertical;
 }
 /* "Screen on" (Screen Wake Lock): a labelled toggle (sun icon + "Screen on"), lit with the accent while the screen
-   is kept on; compact so it fits the song row next to Demo and Load from 360 px wide */
+   is kept on; compact so it fits the song row next to Load from 360 px wide */
 .dancer-head .screen-on {
   flex: none;
   display: inline-flex;

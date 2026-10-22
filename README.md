@@ -36,7 +36,7 @@ waveform area when Stage closes. Cue storage remains per file name and duration;
 saved set was found. **Screen on** prevents dimming and auto-lock while MixDeck is visible and the browser
 holds the wake lock; tap it again to allow sleep. Its confirmation explains the behavior.
 
-The compact header keeps Demo, Load and Screen on beside MixDeck and the mode pills. Now Playing uses the supplied
+The compact header keeps Load and Screen on beside MixDeck and the mode pills. Now Playing uses the supplied
 white logo for its O; the song name sits inside the media panel. A mint Play button, separate tempo panel and
 colored cue outlines distinguish the controls. Tempo percentage sits on the slider between minus and plus;
 Stage cue pads use compact 72 px rows. Videos use a seekable timeline without an extra waveform/BPM decode,
