@@ -1,0 +1,106 @@
+/*
+ * App shell: the launch splash, the header's Dancer | DJ mode pills, and the two modes, which both stay mounted (the
+ * inactive one hidden) so songs stay loaded across switches. Base header rules (header, .logo, .head-left, .meta)
+ * live in styles.css.
+ */
+
+/* launch splash: only while the audio engine is created (no tap needed, so it is brief) */
+.splash {
+  height: 100%;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px 16px;
+  text-align: center;
+}
+.splash-logo {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.splash p {
+  margin: 0;
+}
+.splash-status {
+  color: var(--dim);
+}
+.splash-error {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 36em;
+  text-wrap: balance;
+}
+
+/* the inactive mode: hidden whatever display its own layout rules give <main> */
+.app > main[hidden] {
+  display: none;
+}
+
+/* ---------- mode pills: a compact segmented control next to the logo ---------- */
+.mode-switch {
+  --accent: var(--a);
+  display: inline-flex;
+  flex: none;
+  border-radius: 999px;
+  background: #0a0c11;
+  /* an inset ring rather than a border, so the control is exactly as tall as its 44 px pills */
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.mode-switch .mode-pill {
+  min-width: 64px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 14px;
+  /* the transparent border insets the visible pill while the whole 44 px box stays the touch target */
+  border: 4px solid transparent;
+  border-radius: 999px;
+  background-color: transparent;
+  background-clip: padding-box;
+  color: var(--dim);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  touch-action: manipulation;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+.mode-switch .mode-pill[aria-checked='true'] {
+  background-color: var(--accent);
+  color: #000;
+}
+.mode-switch .mode-pill[aria-checked='false']:active {
+  background-color: var(--panel-2);
+  color: var(--text);
+}
+/* the ring sits in the transparent border, clear of the fill, so it shows on the active pill too */
+.mode-switch .mode-pill:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
+@media (hover: hover) {
+  /* outranks the global button:hover border */
+  .mode-switch .mode-pill:hover:not(:disabled) {
+    border-color: transparent;
+  }
+  .mode-switch .mode-pill[aria-checked='false']:hover {
+    color: var(--text);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mode-switch .mode-pill {
+    transition: none;
+  }
+}
+/* tablets and wider windows: roomier pills */
+@media (min-width: 600px) {
+  .mode-switch .mode-pill {
+    min-width: 84px;
+    padding: 0 20px;
+    font-size: 14px;
+  }
+}

@@ -19,10 +19,21 @@ interface Props {
   positionRef: MutableRefObject<number>;
   onSeek: (seconds: number) => void;
   markers?: WaveformMarker[];
+  /** Extra class names after `waveform` (e.g. Dancer mode's slim progress strip under a video). */
+  className?: string;
+  /** Drag to seek (pointer down, then move): seeks continuously while dragging. Default: a click seeks once. */
+  scrub?: boolean;
+}
+
+/** Seconds at the pointer's x on `el`, clamped to the track. */
+function timeAt(el: HTMLElement, clientX: number, duration: number): number {
+  const r = el.getBoundingClientRect();
+  if (r.width <= 0) return 0;
+  return Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * duration;
 }
 
 /** Overview waveform with bar markers, loop region, cue, labelled markers and playhead. Redraws on rAF while mounted. */
-export function Waveform({ peaks, duration, bpm, firstBeat, loop, cuePoint, positionRef, onSeek, markers }: Props) {
+export function Waveform({ peaks, duration, bpm, firstBeat, loop, cuePoint, positionRef, onSeek, markers, className, scrub = false }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -118,10 +129,28 @@ export function Waveform({ peaks, duration, bpm, firstBeat, loop, cuePoint, posi
     return () => cancelAnimationFrame(raf);
   }, [peaks, duration, bpm, firstBeat, loop, cuePoint, positionRef, markers]);
 
+  if (scrub) {
+    return (
+      <canvas
+        ref={canvas}
+        className={className ? `waveform ${className}` : 'waveform'}
+        onPointerDown={(e) => {
+          if (!duration || (e.pointerType === 'mouse' && e.button !== 0)) return;
+          // capture: the drag keeps seeking when the finger or mouse leaves the strip
+          e.currentTarget.setPointerCapture(e.pointerId);
+          onSeek(timeAt(e.currentTarget, e.clientX, duration));
+        }}
+        onPointerMove={(e) => {
+          if (duration && e.currentTarget.hasPointerCapture(e.pointerId)) onSeek(timeAt(e.currentTarget, e.clientX, duration));
+        }}
+      />
+    );
+  }
+
   return (
     <canvas
       ref={canvas}
-      className="waveform"
+      className={className ? `waveform ${className}` : 'waveform'}
       onClick={(e) => {
         if (!duration) return;
         const r = e.currentTarget.getBoundingClientRect();

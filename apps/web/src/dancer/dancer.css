@@ -1,0 +1,419 @@
+/*
+ * Dancer mode features: the video in the waveform area (with its slim progress strip), the Stage view and the
+ * status toast. The Dancer grid, pads, tempo and breakpoints live in styles.css, which loads after this file, so
+ * rules here that refine a styles.css rule use a more specific selector.
+ */
+
+/* ---------- waveform: tap or drag to seek ---------- */
+/* horizontal drags scrub; vertical ones still scroll the page (tablets) and pinch-zoom still works */
+.dancer .waveform {
+  touch-action: pan-y pinch-zoom;
+}
+
+/* ---------- video in the waveform area ---------- */
+.dancer {
+  /* space left in the card for the video: the viewport inside the safe area */
+  --avail-h: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  /* tablet / desktop portrait: what the pads can spare (they keep ~140 px rows on an iPad), up to 45 % of the
+     screen, never smaller than the waveform it replaces */
+  --video-h: clamp(var(--wave-h), calc(var(--avail-h) * 0.85 - 750px), 45dvh);
+}
+.dancer-media {
+  grid-area: wave;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  /* lets the frame cap its height at the video's own aspect ratio (cqw = the column's width) */
+  container-type: inline-size;
+}
+.video-view {
+  position: relative;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.dancer-video {
+  flex: none;
+  width: 100%;
+  height: var(--video-h);
+  /* no black bars above and below: a wide video's frame is only as tall as the picture */
+  max-height: calc(100cqw / var(--video-ar, 1.7778));
+}
+.video-slot {
+  position: absolute;
+  inset: 0;
+}
+.video-slot video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+/* ▶ badge while paused: says that a tap on the picture plays */
+.video-paused {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  padding-left: 4px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  pointer-events: none;
+}
+/* slim progress strip under the video: cue markers + playhead, tap or drag to seek */
+.dancer .waveform.strip {
+  flex: none;
+  height: 28px;
+  max-height: none;
+  align-self: stretch;
+  contain: none;
+  border-radius: 6px;
+  touch-action: none;
+}
+
+/* phone portrait: the video takes the waveform's place plus whatever the pads can spare above their minimum, so the
+   one-column layout still fits without scrolling (390 × 844, 430 × 932, and the same phones inside their safe area) */
+@media (max-width: 599px) {
+  .dancer {
+    /* measured: the rest of the column needs ~480 px + 15 % of the height above 763 px, and the pads keep ≥ ~76 px */
+    --video-h: clamp(var(--wave-h), calc(var(--avail-h) * 0.85 - 545px), 36dvh);
+  }
+}
+@media (max-width: 599px) and (max-height: 700px) {
+  .dancer {
+    --video-h: var(--wave-h);
+  }
+}
+/* landscape (phones, tablets, desktop): the video fills the left column's flexible row */
+@media (orientation: landscape) and (min-width: 560px) {
+  .dancer-media {
+    height: 100%;
+  }
+  .dancer-video {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 40px;
+  }
+}
+
+/* tempo + cues wrapper: no box of its own, its children sit on the card's grid... */
+.dancer-side {
+  display: contents;
+}
+/* ...except in phone landscape with a video: tempo moves above the pads in the right column, so the left column's
+   flexible row (the video) gets the tempo block's height too; the pads give up a little height (≥ 56 px) */
+@media (orientation: landscape) and (max-height: 499px) {
+  .dancer.has-video {
+    --pad-min: 56px;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'head cues'
+      'clock cues'
+      'wave cues'
+      'transport cues';
+  }
+  .dancer.has-video .dancer-side {
+    grid-area: cues;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    min-width: 0;
+    min-height: 0;
+  }
+  .dancer.has-video .dancer-side .tempo {
+    flex: none;
+  }
+  .dancer.has-video .dancer-side .cues {
+    flex: 1 1 auto;
+  }
+  /* editing cues needs the taller edit pads (✕ / ✎ along their bottom): the tempo block steps aside meanwhile */
+  .dancer.has-video.editing .dancer-side .tempo {
+    display: none;
+  }
+}
+
+/* ---------- status toast ("Cues restored", load errors) ---------- */
+.dancer-toast-region {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+  z-index: 80;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.dancer-toast {
+  max-width: 100%;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(27, 33, 48, 0.97);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  animation: dancer-toast-in 0.2s ease-out;
+}
+@keyframes dancer-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dancer-toast {
+    animation: none;
+  }
+}
+
+/* ---------- Stage view: full-screen performance screen ---------- */
+/* above the app; below the "Tap to resume audio" overlay (z-index 100), which must stay reachable */
+.stage {
+  --accent: var(--a);
+  --stage-pad-h: 72px;
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) calc(env(safe-area-inset-right, 0px) + 12px)
+    calc(env(safe-area-inset-bottom, 0px) + 12px) calc(env(safe-area-inset-left, 0px) + 12px);
+  background: #000;
+  color: var(--text);
+  outline: none;
+  overscroll-behavior: contain;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* touch-target floor at zero specificity, so the 72 px pads and transport below win */
+.stage :where(button) {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+.stage-screen {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+}
+.stage-video {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 12px;
+}
+/* no video: the current cue section and the elapsed time, readable from across the room */
+.stage-now {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+  text-align: center;
+}
+.stage-title {
+  max-width: 100%;
+  color: var(--dim);
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stage-section {
+  max-width: 100%;
+  font-size: clamp(40px, 11vw, 120px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.stage-time {
+  color: var(--dim);
+  font-size: clamp(28px, 7vw, 64px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.stage-bar {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.stage-transport {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 10px;
+}
+.stage-play,
+.stage-restart {
+  min-height: var(--stage-pad-h);
+  white-space: nowrap;
+}
+.stage-play {
+  font-size: 24px;
+}
+.stage-restart {
+  font-size: 16px;
+}
+.stage-pads {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.stage-pad {
+  position: relative;
+  min-width: 0;
+  min-height: var(--stage-pad-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 8px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--pad);
+  color: #000;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.stage-pad:active {
+  transform: scale(0.97);
+  filter: brightness(1.12);
+}
+.stage-pad-key {
+  position: absolute;
+  top: 5px;
+  left: 9px;
+  font-size: 11px;
+  opacity: 0.6;
+}
+.stage-pad-name {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stage-hint {
+  margin: 0;
+  padding: 12px;
+  color: var(--dim);
+  text-align: center;
+}
+.stage-exit {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  right: calc(env(safe-area-inset-right, 0px) + 8px);
+  z-index: 2;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+}
+/* portrait: room for the ✕ above the video instead of on it; the video full width on top (shrinking when the screen
+   is short), Play / Restart and taller pads (up to 112 px) at the bottom within thumb reach */
+@media (orientation: portrait) {
+  .stage {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 64px);
+  }
+  .stage-has-video {
+    display: flex;
+    flex-direction: column;
+  }
+  .stage-has-video .stage-screen {
+    flex: 0 1 auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .stage-has-video .stage-video {
+    height: auto;
+    aspect-ratio: var(--video-ar, 1.7778);
+    max-height: 100%;
+  }
+  .stage-has-video .stage-bar {
+    flex: none;
+    margin-top: auto;
+  }
+  .stage-has-video .stage-pads {
+    grid-auto-rows: minmax(var(--stage-pad-h), 112px);
+  }
+}
+/* landscape (phones and tablets): transport and pads side by side in one bar at the bottom */
+@media (orientation: landscape) {
+  .stage-bar {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: end;
+  }
+  .stage-transport {
+    grid-template-columns: auto auto;
+  }
+  .stage-play {
+    min-width: 140px;
+  }
+  .stage-restart {
+    min-width: 104px;
+  }
+  .stage-pads {
+    grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  }
+  /* with a video: the picture fills the screen behind, the bar floats over it, translucent */
+  .stage-has-video {
+    display: block;
+  }
+  .stage-has-video .stage-screen {
+    position: absolute;
+    inset: 0;
+  }
+  .stage-has-video .stage-video {
+    border-radius: 0;
+  }
+  .stage-has-video .stage-bar {
+    position: absolute;
+    left: calc(env(safe-area-inset-left, 0px) + 12px);
+    right: calc(env(safe-area-inset-right, 0px) + 12px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    padding: 10px;
+    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.5);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+}
+/* phone landscape: the big type scales with the short side */
+@media (orientation: landscape) and (max-height: 499px) {
+  .stage-section {
+    font-size: clamp(32px, 13vh, 72px);
+  }
+  .stage-time {
+    font-size: clamp(22px, 9vh, 48px);
+  }
+}
+@media (hover: hover) {
+  .stage-pad:hover {
+    filter: brightness(1.08);
+  }
+  .stage-exit:hover:not(:disabled) {
+    background: #000;
+    border-color: #fff;
+  }
+}

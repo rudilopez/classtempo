@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearMediaSession, setHandlers, setNowPlaying, setPlaybackState, setPosition } from './mediaSession';
+import {
+  clearMediaSession,
+  refreshHandlers,
+  setHandlers,
+  setNowPlaying,
+  setNowPlayingArtist,
+  setPlaybackState,
+  setPosition,
+} from './mediaSession';
 
 /** Records what the helpers do to `navigator.mediaSession`. */
 function fakeSession(unsupported: string[] = []) {
@@ -30,6 +38,7 @@ describe('mediaSession helpers', () => {
   });
 
   afterEach(() => {
+    clearMediaSession(); // forgets the handlers kept for refreshHandlers
     vi.unstubAllGlobals();
   });
 
@@ -49,6 +58,42 @@ describe('mediaSession helpers', () => {
   it('sets the playback state', () => {
     setPlaybackState('playing');
     expect(ms.playbackState).toBe('playing');
+  });
+
+  it('reports only the moves into playing (WebKit starts a session there)', () => {
+    expect(setPlaybackState('paused')).toBe(false);
+    expect(setPlaybackState('playing')).toBe(true);
+    expect(setPlaybackState('playing')).toBe(false);
+    expect(setPlaybackState('paused')).toBe(false);
+    expect(setPlaybackState('none')).toBe(false);
+    expect(setPlaybackState('playing')).toBe(true);
+  });
+
+  it('changes only the second line of the current metadata', () => {
+    setNowPlayingArtist('nothing to change yet');
+    expect(ms.metadata).toBeNull();
+    const metadata = { title: 'Song', artist: 'MixDeck · Dancer mode', artwork: [] };
+    ms.metadata = metadata;
+    setNowPlayingArtist('Chorus · next: Bridge');
+    expect(ms.metadata).toBe(metadata);
+    expect(metadata).toEqual({ title: 'Song', artist: 'Chorus · next: Bridge', artwork: [] });
+  });
+
+  it('re-registers the last handlers, and nothing after a clear', () => {
+    refreshHandlers();
+    expect(ms.handlers.size).toBe(0);
+    const play = vi.fn();
+    const seekto = vi.fn();
+    setHandlers({ play, seekto });
+    ms.handlers.clear(); // e.g. dropped by the browser
+    refreshHandlers();
+    expect(ms.handlers.get('play')).toBe(play);
+    expect(ms.handlers.get('seekto')).toBe(seekto);
+    expect(ms.handlers.get('pause')).toBeNull();
+    expect(ms.handlers.get('seekforward')).toBeNull();
+    clearMediaSession();
+    refreshHandlers();
+    expect([...ms.handlers.values()].every((h) => h === null)).toBe(true);
   });
 
   it('passes valid positions, clamped to the track', () => {
@@ -108,9 +153,11 @@ describe('mediaSession helpers', () => {
     vi.stubGlobal('navigator', {});
     expect(() => {
       setNowPlaying({ title: 'x' });
-      setPlaybackState('paused');
+      expect(setPlaybackState('playing')).toBe(false);
       setPosition({ duration: 1, position: 0, rate: 1 });
       setHandlers({ play: () => {} });
+      refreshHandlers();
+      setNowPlayingArtist('x');
       clearMediaSession();
     }).not.toThrow();
   });
