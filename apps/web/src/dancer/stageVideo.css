@@ -1,4 +1,4 @@
-/* Video gets all space above a persistent, compact dock. Trays cover the picture only while requested. */
+/* Video gets all space above a persistent, compact dock. Open controls remain below the picture. */
 .stage.stage-classroom.stage-has-video {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -70,41 +70,48 @@
 }
 .stage-video-controls .stage-practice { min-height: 44px; }
 .stage-video-controls .stage-practice button { min-height: 44px; }
-.stage-video-tray {
-  position: absolute;
-  z-index: 4;
-  bottom: 0;
-  left: 6px;
-  right: 6px;
+.stage-video-panel {
   display: flex;
   flex-direction: column;
-  max-height: calc(100% - 8px);
+  grid-column: 1 / -1;
   min-height: 0;
-  border: 1px solid #466078;
-  border-bottom: 0;
-  border-radius: 14px 14px 0 0;
-  background: #10202ef5;
-  box-shadow: 0 -8px 28px #0005;
-}
-.stage-video-tray-header {
-  display: flex;
-  flex: none;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 44px;
-  padding-left: 12px;
+  min-width: 0;
   border-bottom: 1px solid #30485b;
-  font-size: 13px;
+  background: #10202e;
 }
-.stage-video-tray-header button {
+.stage-video-tools-panel { max-height: 35dvh; }
+.stage-cue-help { margin: 0; padding: 5px 2px 3px; color: #a3b9ca; font-size: 11px; line-height: 1.25; }
+.stage-cue-strip {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 0 5px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #466078 transparent;
+}
+.stage .stage-cue-number {
+  display: flex;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   min-width: 44px;
+  width: 44px;
   min-height: 44px;
+  height: 44px;
   padding: 0;
-  border: 0;
-  background: transparent;
-  color: #eef6fb;
+  border: 1px solid color-mix(in srgb, var(--pad) 70%, #30485b);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--pad) 16%, #10202e);
+  color: #f5f8fb;
   font-size: 16px;
+  font-weight: 750;
 }
+.stage .stage-cue-number.empty { border-style: dashed; background: #0a1520; color: #a3b9ca; }
+.stage-cue-number small { font-size: 12px; }
+.stage .stage-cue-number:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
 .stage-video-tray-body {
   display: grid;
   gap: 8px;
@@ -112,11 +119,6 @@
   padding: 8px;
   overflow: auto;
   overscroll-behavior: contain;
-}
-.stage.stage-classroom .stage-video-tray .stage-pads {
-  grid-template-columns: repeat(4, minmax(72px, 1fr));
-  grid-auto-rows: 72px;
-  gap: 6px;
 }
 .stage-video-tool-row {
   display: flex;
@@ -139,7 +141,9 @@
   font-size: 12px;
 }
 @media (orientation: landscape) {
-  .stage-video-tray { left: max(6px, calc((100% - 640px) / 2)); right: max(6px, calc((100% - 640px) / 2)); }
+  .stage-video-tray-body { display: flex; align-items: center; gap: 12px; }
+  .stage-video-tool-row { flex: none; }
+  .stage-video-tool-actions { flex: 1; }
 }
 @media (orientation: landscape) and (max-height: 499px) {
   .stage-video-controls { grid-template-columns: minmax(0, .85fr) minmax(260px, 1.15fr); align-items: center; column-gap: 8px; }

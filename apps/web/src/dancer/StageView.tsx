@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { formatTime } from '../types';
 import { padColor } from './CuePads';
-import type { CueSlots } from './cueStore';
+import { CUE_SLOTS, type CueSlots } from './cueStore';
 import { clampTempo, TEMPO_MAX, TEMPO_MIN } from './TempoControl';
 import { VideoTools } from './VideoTools';
 import { VideoView } from './VideoView';
@@ -29,8 +29,10 @@ interface Props {
   section: string | null;
   onTogglePlay: () => void;
   onRestart: () => void;
-  /** Launches pad `index` (only set pads are shown). */
+  /** Launches an existing cue. Audio Stage shows only these set pads. */
   onLaunch: (index: number) => void;
+  /** Sets an empty video Stage cue without moving existing cues or changing playback. */
+  onSetCue?: (index: number) => void;
   onClose: () => void;
   tempo?: number;
   onTempoChange?: (percent: number) => void;
@@ -87,12 +89,12 @@ function exitFullscreen(): void {
 
 /**
  * Stage view: a full-viewport teaching screen with the video or current section, essential playback and tempo
- * controls, and the set cue pads as launch-only buttons. Rendered into <body> above the app; recovery portals into this root while it owns
+ * controls, a compact video cue strip, and launch-only audio cue pads. Rendered into <body> above the app; recovery portals into this root while it owns
  * full screen, so its resume button stays reachable. Full screen is left again when Stage closes. Escape, or
  * leaving full screen (Esc, Android back), closes it.
  */
 export function StageView({
-  video, aspect, title, playing, position, cues, section, onTogglePlay, onRestart, onLaunch, onClose,
+  video, aspect, title, playing, position, cues, section, onTogglePlay, onRestart, onLaunch, onSetCue, onClose,
   duration = 0, practiceRange, onSeek, onOpenPractice,
   tempo = 100, onTempoChange, mirrored = false, zoom = 1, onMirroredChange, onZoomChange,
   onRestartSection, practiceName, onEndPractice, pendingLabel, talking = false, onToggleTalk, onRetryVideo, onVideoDetails,
@@ -139,7 +141,10 @@ export function StageView({
       const items = focusable();
       const current = items.indexOf(document.activeElement as HTMLElement);
       const next = event.shiftKey ? (current <= 0 ? items.length - 1 : current - 1) : (current + 1) % items.length;
-      (items[next] ?? el).focus({ preventScroll: true });
+      const item = items[next] ?? el;
+      item.focus({ preventScroll: true });
+      // The numbered cue strip can scroll horizontally on narrow phones; keyboard focus must reveal it.
+      if (item.classList.contains('stage-cue-number')) item.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     };
     const onFocus = (event: FocusEvent) => {
       const target = event.target;
@@ -190,7 +195,7 @@ export function StageView({
   }, [video]);
 
   useLayoutEffect(() => {
-    if (tray) trayRoot.current?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
+    if (tray) trayRoot.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({ preventScroll: true });
   }, [tray]);
 
   const closeTray = () => {
@@ -236,18 +241,24 @@ export function StageView({
           </div>
         )}
         {pendingLabel && <div className="stage-pending" role="status">{pendingLabel}</div>}
-        {video && tray && <div ref={trayRoot} id={`stage-${tray}-tray`} className="stage-video-tray" role="region" aria-label={tray === 'cues' ? 'Cue controls' : 'Video tools'}>
-          <div className="stage-video-tray-header">
-            <strong>{tray === 'cues' ? 'Cues' : 'Video tools'}</strong>
-            <button type="button" onClick={closeTray} aria-label={`Close ${tray === 'cues' ? 'cues' : 'tools'}`}>✕</button>
-          </div>
-          <div className="stage-video-tray-body">
-            {tray === 'cues' ? pads.length > 0 ? <div className="stage-pads">
-              {pads.map(({ cue, index }) => <button key={index} className="stage-pad" style={{ ['--pad' as string]: padColor(index) }} onClick={() => onLaunch(index)} disabled={videoFailed} title={`Launch ${cue.name} (key ${index + 1})`}>
-                <span className="stage-pad-key">{index + 1}</span>
-                <span className="stage-pad-name">{cue.name}</span>
-              </button>)}
-            </div> : <p className="stage-hint">No cues yet. Exit Stage, open Cues, then tap an empty pad to set one.</p> : <>
+      </div>
+      {video ? <div className="stage-video-controls">
+        {tray && <div ref={trayRoot} id={`stage-${tray}-tray`} className={`stage-video-panel stage-video-${tray}-panel`} role="region" aria-label={tray === 'cues' ? 'Cue controls' : 'Video tools'}>
+          {tray === 'cues' ? <>
+            <p className="stage-cue-help">Tap + to set · Tap a saved number to play</p>
+            <div className="stage-cue-strip">
+              {Array.from({ length: CUE_SLOTS }, (_, index) => {
+                const cue = cues[index] ?? null;
+                return <button key={index} className={`stage-cue-number ${cue ? 'set' : 'empty'}`} style={{ ['--pad' as string]: padColor(index) }}
+                  onClick={() => cue ? onLaunch(index) : onSetCue?.(index)} disabled={videoFailed || (!cue && !onSetCue)}
+                  aria-label={cue ? `Play cue ${index + 1}: ${cue.name} at ${formatTime(cue.time)}` : `Set cue ${index + 1} at current position`}
+                  title={cue ? `${cue.name} · ${formatTime(cue.time)}` : 'Set a cue at the current position'}>
+                  <span>{index + 1}</span>{!cue && <small aria-hidden="true">+</small>}
+                </button>;
+              })}
+            </div>
+          </> : <>
+            <div className="stage-video-tray-body">
               {onTempoChange && <div className="stage-video-tool-row">
                 <span>Tempo</span>
                 <div className="stage-tempo" role="group" aria-label="Tempo">
@@ -261,11 +272,9 @@ export function StageView({
                 {onToggleTalk && <button className={talking ? 'on' : ''} onClick={onToggleTalk} disabled={videoFailed} aria-pressed={talking} title="Pause video while you speak">Talk</button>}
                 {!videoFailed && onMirroredChange && onZoomChange && <VideoTools mirrored={mirrored} zoom={zoom} onMirroredChange={onMirroredChange} onZoomChange={onZoomChange} />}
               </div>
-            </>}
-          </div>
+            </div>
+          </>}
         </div>}
-      </div>
-      {video ? <div className="stage-video-controls">
         {onEndPractice && <div className="stage-practice">
           <span title={practiceName}>Practice · {practiceName}</span>
           <button onClick={onEndPractice}>End practice</button>

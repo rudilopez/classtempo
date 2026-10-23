@@ -33,10 +33,9 @@ import { StageView } from './StageView';
 import { clampTempo, TempoControl } from './TempoControl';
 import { VideoView } from './VideoView';
 import { VideoTools } from './VideoTools';
-import { VideoTimeline } from './VideoTimeline';
+import { CueStemsSwitch, StemsUnavailable, type CuePanel } from './CueStemsSwitch';
 import './dancer.css';
 import './classroom.css';
-import './videoPlayer.css';
 
 interface Props {
   engine: Engine;
@@ -131,10 +130,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   const modalOpen = useRef(false);
   const [dragOver, setDragOver] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
-  const [videoPanel, setVideoPanel] = useState<'cues' | 'tools' | null>(null);
-  const videoCuesButton = useRef<HTMLButtonElement>(null);
-  const videoToolsButton = useRef<HTMLButtonElement>(null);
-  const videoPanelClose = useRef<HTMLButtonElement>(null);
+  const [cuePanel, setCuePanel] = useState<CuePanel>('cues');
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const positionRef = useRef(0);
   const [displayPos, setDisplayPos] = useState(0);
@@ -851,18 +847,12 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     stageButton.current?.focus({ preventScroll: true });
   };
 
-  const closeVideoPanel = () => {
-    const button = videoPanel === 'cues' ? videoCuesButton.current : videoToolsButton.current;
-    setVideoPanel(null);
+  useEffect(() => { setCuePanel('cues'); }, [song?.id]);
+
+  const selectCuePanel = (panel: CuePanel) => {
     setEditing(false);
-    button?.focus({ preventScroll: true });
+    setCuePanel(panel);
   };
-  const toggleVideoPanel = (panel: 'cues' | 'tools') => {
-    setEditing(false);
-    setVideoPanel((previous) => previous === panel ? null : panel);
-  };
-  useLayoutEffect(() => { if (videoPanel) videoPanelClose.current?.focus({ preventScroll: true }); }, [videoPanel]);
-  useEffect(() => { setVideoPanel(null); setEditing(false); }, [song?.id, stageOpen]);
 
   // keyboard and lock-screen controls: the latest handlers live in refs so the single listener and the
   // once-registered Media Session handlers never see a stale closure
@@ -964,7 +954,6 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     : null;
   // Keep the element mounted even when WebKit reports dimensions after loadedmetadata.
   const videoElement = pendingVideo ?? (song?.kind === 'video' && player instanceof VideoDeck ? player.element : null);
-  const videoLayout = !!videoElement || !!failedVideoFile;
   useEffect(() => {
     if (!videoElement) return;
     const updateAspect = () => {
@@ -995,8 +984,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   return (
     <section
-      className={`dancer ${dragOver ? 'drag' : ''} ${videoElement ? 'has-video' : ''} ${videoLayout ? 'video-first' : ''} ${videoLayout && practiceConfigured ? 'video-practicing' : ''} ${videoError || failedVideoFile ? 'has-video-error' : ''} ${editing ? 'editing' : ''}`}
-      data-video-panel={videoPanel ?? undefined}
+      className={`dancer ${dragOver ? 'drag' : ''} ${videoElement ? 'has-video' : ''} ${videoError || failedVideoFile ? 'has-video-error' : ''} ${editing ? 'editing' : ''}`}
       onDragOver={(e) => {
         e.preventDefault();
         if (stageOpen || !active) return;
@@ -1088,6 +1076,10 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
             {/* Stage borrows this same media element, preserving playback and the iOS gesture. */}
             <VideoView element={stageOpen ? null : videoElement} playing={playing} onTap={ready ? togglePlay : undefined} className="dancer-video" mirrored={practice.videoMirrored} zoom={practice.videoZoom}
               onRetry={currentFile && isVideoFile(currentFile) ? retryVideo : undefined} onDetails={copyVideoDetails} />
+            {!videoError && <VideoTools mirrored={practice.videoMirrored} zoom={practice.videoZoom}
+              onMirroredChange={(value) => updatePractice({ ...practice, videoMirrored: value }, false)}
+              onZoomChange={(value) => updatePractice({ ...practice, videoZoom: value }, false)} />}
+            <Waveform {...waveformProps} className="strip" />
           </div>
         ) : (
           <Waveform {...waveformProps} />
@@ -1096,23 +1088,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
       {pendingLabel && <div className="practice-countdown" role="status">{pendingLabel}</div>}
 
-      {videoLayout ? <div className="video-controls">
-        {practiceConfigured && <div className="video-practice-status" onKeyDown={(event) => event.stopPropagation()} onKeyUp={(event) => event.stopPropagation()}>
-          <span><strong>{practiceActive ? selectedSection.name : 'Start delay'}</strong><small>{practiceActive ? `${practiceRange} · ${practiceProgress}` : `${practice.delaySeconds}s countdown`}</small></span>
-          <button onClick={endPractice}>End practice</button>
-        </div>}
-        <VideoTimeline position={displayPos} duration={track?.duration ?? 0} onSeek={seek} disabled={!ready}
-          cues={song?.cues} practiceRange={practiceActive ? selectedSection : undefined} />
-        <div className="video-dock" onKeyDown={(event) => event.stopPropagation()} onKeyUp={(event) => event.stopPropagation()}>
-          <button className={`play ${playing ? 'on' : ''}`} onClick={togglePlay} disabled={!ready}>
-            {videoError || failedVideoFile ? 'Error' : waiting ? 'Cancel' : playing ? '❚❚ Pause' : practiceActive ? (practice.mode === 'repeat' ? '↻ Repeat' : '▶ Section') : '▶ Play'}
-          </button>
-          <button ref={videoCuesButton} onClick={() => toggleVideoPanel('cues')} disabled={!ready} aria-expanded={videoPanel === 'cues'} aria-controls="video-control-tray">Cues</button>
-          <button onClick={(event) => { event.currentTarget.focus(); setVideoPanel(null); setEditing(false); pause(); setPracticeOpen(true); }} disabled={!ready} className={practiceConfigured ? 'on' : ''}>Practice</button>
-          <button ref={videoToolsButton} onClick={() => toggleVideoPanel('tools')} disabled={!ready} aria-expanded={videoPanel === 'tools'} aria-controls="video-control-tray" className="video-tools-open"><span>Tools</span><small>{tempo}%</small></button>
-          <button ref={stageButton} className="stage-open" onClick={() => { setVideoPanel(null); setEditing(false); setStageOpen(true); }} disabled={!ready} title="Stage: larger video and compact controls">Stage</button>
-        </div>
-      </div> : <div className="dancer-transport">
+      <div className="dancer-transport">
         <button className={`play ${playing ? 'on' : ''} ${practiceActive ? 'practice-play' : ''}`} onClick={togglePlay} disabled={!ready} title={practiceActive ? `${practice.mode === 'repeat' ? 'Repeat' : 'Play'} ${practiceRange}` : 'Space'}>
           <span>{videoError || failedVideoFile ? 'Video error' : waiting ? '✕ Cancel' : playing ? '❚❚ Pause' : practiceActive ? (practice.mode === 'repeat' ? '↻ Repeat' : '▶ Section') : '▶ Play'}</span>
           {practiceActive && !videoError && !failedVideoFile && <small>{waiting ? (practiceState.phase === 'gap' ? 'Between passes' : 'Starting soon') : practiceProgress}</small>}
@@ -1132,14 +1108,11 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
           </svg>
           Stage
         </button>
-      </div>}
+      </div>
 
-      {/* Audio lays these controls on the card; video exposes one temporary tray at a time. */}
-      <div className="dancer-side" id={videoLayout ? 'video-control-tray' : undefined}
-        hidden={videoLayout && !videoPanel} role={videoLayout ? 'region' : undefined} aria-label={videoLayout ? videoPanel === 'cues' ? 'Video cues' : 'Video tools' : undefined}
-        onKeyDown={videoLayout ? (event) => { event.stopPropagation(); if (event.key === 'Escape') { event.preventDefault(); closeVideoPanel(); } } : undefined}
-        onKeyUp={videoLayout ? (event) => event.stopPropagation() : undefined}>
-        {videoLayout && <div className="video-tray-heading"><strong>{videoPanel === 'cues' ? 'Cues' : 'Video tools'}</strong><button ref={videoPanelClose} onClick={closeVideoPanel} aria-label="Close video controls">✕</button></div>}
+      {/* one box only where a layout needs it (phone landscape with a video: tempo above the pads); elsewhere its
+          children sit straight on the card's grid (display: contents) */}
+      <div className="dancer-side">
         <div className="class-tempo-panel">
           <TempoControl value={tempo} onChange={changeTempo} disabled={!ready} />
           <div className={`class-tools ${practiceConfigured ? 'has-practice' : ''}`}>
@@ -1158,34 +1131,30 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
             </button>
             <button disabled={!ready || tempo === 100} onClick={() => changeTempo(100)} title="Reset to original tempo">100%</button>
           </div>
-          {videoLayout && <div className="video-extra-tools">
-            <button onClick={restart} disabled={!ready}>{practiceActive ? 'Restart practice' : 'Restart video'}</button>
-            <VideoTools mirrored={practice.videoMirrored} zoom={practice.videoZoom}
-              onMirroredChange={(value) => updatePractice({ ...practiceRef.current, videoMirrored: value }, false)}
-              onZoomChange={(value) => updatePractice({ ...practiceRef.current, videoZoom: value }, false)} />
-          </div>}
         </div>
 
         <div className={`cues ${undoCues.length ? 'has-undo' : ''}`}>
           <div className="cues-head">
-            <h2>Cues</h2>
-            {editing ? (
+            <CueStemsSwitch value={cuePanel} onChange={selectCuePanel} />
+            {cuePanel === 'cues' && (editing ? (
               <span className="dim cues-hint">Press a pad to move it here · ✕ clears · ✎ renames</span>
             ) : (
               <span className="dim cues-hint">
                 <span className="hint-long">Tap an empty pad to set · Tap a saved cue to play</span>
                 <span className="hint-short">Tap empty to set</span>
               </span>
-            )}
-            {(editing || undoCues.length > 0) && <button className="cues-undo" disabled={undoCues.length === 0} onClick={() => {
+            ))}
+            {cuePanel === 'cues' && (editing || undoCues.length > 0) && <button className="cues-undo" disabled={undoCues.length === 0} onClick={() => {
               const previous = undoCues[undoCues.length - 1];
               if (previous) { setSong((s) => s && { ...s, cues: previous }); setUndoCues((h) => h.slice(0, -1)); }
             }}>Undo</button>}
-            <button className={`cues-edit ${editing ? 'on' : ''}`} onClick={() => setEditing((v) => !v)} disabled={!ready}>
+            {cuePanel === 'cues' && <button className={`cues-edit ${editing ? 'on' : ''}`} onClick={() => setEditing((v) => !v)} disabled={!ready}>
               {editing ? 'Done' : 'Edit cues'}
-            </button>
+            </button>}
           </div>
-          <CuePads cues={song?.cues ?? NO_CUES} editing={editing} disabled={!ready} onPress={pressPad} onClear={clearPad} onRename={renamePad} />
+          {cuePanel === 'cues'
+            ? <CuePads cues={song?.cues ?? NO_CUES} editing={editing} disabled={!ready} onPress={pressPad} onClear={clearPad} onRename={renamePad} />
+            : <StemsUnavailable />}
         </div>
       </div>
 
@@ -1232,6 +1201,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
           onTogglePlay={togglePlay}
           onRestart={restart}
           onLaunch={(i) => pressPad(i, true)}
+          onSetCue={(i) => pressPad(i)}
           onClose={closeStage}
           tempo={tempo}
           onTempoChange={changeTempo}
