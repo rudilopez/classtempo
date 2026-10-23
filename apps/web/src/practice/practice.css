@@ -28,6 +28,11 @@
 .practice-block { min-width: 0; display: grid; gap: 12px; border: 1px solid #38516a; background: #192d43; border-radius: 14px; padding: 13px; }
 .practice-block h3 { font-size: 14px; margin: 0; }
 .practice-block-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.practice-block-heading h3 { flex: 1; }
+.practice-block-heading button { flex: none; }
+.practice-saved-block { border-color: #6dafa8; background: #203b48; }
+.practice-name-field > span { font-size: 14px; font-weight: 700; color: #f5f8fc; }
+.practice-name-field input { border-color: #7cafad; font-weight: 600; }
 .practice-dialog button, .practice-dialog select, .practice-dialog input { min-height: 44px; min-width: 0; border: 1px solid #526b83; border-radius: 9px; font: inherit; font-size: 14px; color: #f5f8fc; background: #0d1d2e; padding: 9px 11px; }
 .practice-dialog button { cursor: pointer; }
 .practice-dialog .practice-close { flex: none; width: 44px; padding: 0; font-size: 18px; }
@@ -50,7 +55,7 @@
 .practice-edge { display: grid; align-content: start; gap: 9px; min-width: 0; }
 .practice-time-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .practice-time-grid button { font-size: 11px; padding-inline: 5px; }
-.practice-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+.practice-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
 .practice-modes button { font-size: 12px; padding-inline: 4px; }
 .practice-presets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .practice-hint, .practice-error { margin: 0; font-size: 12px; line-height: 1.45; }
@@ -63,6 +68,7 @@
 .practice-preview strong { color: #f5f8fc; }
 .practice-footer-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
 .practice-footer-actions button { padding-inline: 6px; }
+.practice-dialog .practice-end { background: #263c51; border-color: #7992aa; color: #f5f8fc; font-weight: 600; }
 @media (max-height: 450px) {
   .practice-backdrop { padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: max(6px, env(safe-area-inset-bottom)); }
   .practice-heading { padding-block: 8px; }

@@ -19,6 +19,9 @@
   gap: 8px;
   min-width: 0;
 }
+.stage-practice { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.stage-practice span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8cebd3; font-size: 12px; }
+.stage-practice button { flex: none; min-height: 44px; padding: 6px 10px; border: 1px solid #9e8049; border-radius: 10px; background: #302719; color: #ffe1a3; font-size: 12px; }
 .stage.stage-classroom .stage-transport {
   gap: 6px;
 }

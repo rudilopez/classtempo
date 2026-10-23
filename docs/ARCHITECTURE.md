@@ -45,13 +45,22 @@ A five-minute stereo audio buffer at 48 kHz float32 is approximately 115 MB befo
 ## Practice and transport
 
 Practice edits a local draft. Cue selectors populate exact start/end times; `draft.ts` validates and commits the
-visible range when Start practice or Save & close is chosen. Start invokes the host synchronously within the
+visible range when Start practice or Save practice is chosen. Start invokes the host synchronously within the
 user gesture and seeks to A; Save closes paused. ✕/Escape discard the draft. The main Practice button retains a
-stable label with mode/range, and the transport shows Repeat/Section plus pass/completion status.
+stable label with the active saved name, and the transport shows Repeat/Section plus pass/completion status.
+The player, editor and Stage expose End practice. It cancels pending passes, pauses at the current position,
+clears Talk and the active delay, and sets mode off while preserving tempo, selection and every saved preset.
+Normal Play then continues through the full track. A failed settings save is reported rather than overwritten
+by a success toast.
 
 `src/practice/settings.ts` defines validated per-track settings: tempo, up to 12 named sections, the selected
 section, off/once/repeat mode, repeat count, gap and start-delay seconds, video mirror and zoom. Section endpoints
-are clamped to the loaded duration; invalid values are normalized before playback is scheduled.
+are clamped to the loaded duration; invalid values are normalized before playback is scheduled. Each section
+may contain a `playback` snapshot of tempo, once/repeat, total passes, gap, delay, mirror and zoom. Explicitly
+choosing a saved practice restores its snapshot; normalizing storage never activates one automatically. Older
+range-only sections retain their IDs/names and use the current options until saved. New practice creates an
+independent preset; saving an existing one updates only that preset. Storage keys and class/backup formats remain
+compatible, and nested snapshots are validated on import.
 
 `src/practice/controller.ts` is a position-driven state machine: idle → preparing → delay → playing → gap,
 complete or error. It counts total passes including the first, supports repeat-until-stopped, and resumes a first
