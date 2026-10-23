@@ -16,18 +16,22 @@ original `mixdeck` name.
    the first opens. **Classes** holds ordered lesson lists made from that media; choose a class to prepare or use
    its exercises. Class entries advance manually and can reuse a file with different practice settings.
 3. Adjust speed between **50% and 150%**, preserving pitch where the playback engine/browser supports it.
-   The percentage sits between the minus and plus controls; **100%** restores original speed.
+   The percentage sits between the minus and plus controls; **100%** restores original speed. For video, open
+   **Tools** for speed, Restart, Talk, Mirror and Fit/zoom.
 4. Open **Practice**, enter a **Practice name**, and choose a start cue/time and an end cue/time. **Save practice**
    keeps its range, tempo, repeats, gap, delay and video settings with this track; **Start practice** saves and
    starts it. Use **+ New practice** to save another, or **Saved practices** to reopen one. Repeat until stopped
    is the default. The player shows the active name and pass progress. **End practice**, available in the player,
    editor and Stage, pauses at the current position and returns to normal Play without deleting saved practices.
    Tap Play to continue the full track at the current tempo, without the practice delay. ✕ discards unsaved edits.
-5. Tap an **empty cue pad** to save the current position immediately, even while playing. Tap a saved cue to
+5. Open **Cues** when watching a video. Tap an **empty cue pad** to save the current position immediately, even while playing. Tap a saved cue to
    play from it. **Edit cues** moves, renames or clears existing cues; Undo restores recent changes. Launching a
    cue inside the active practice range keeps repeating; a cue outside it switches to full-track playback with
    visible feedback.
-6. **Stage** keeps playback and selected cues within reach. Video supports mirror and zoom in both views.
+6. Video fills the space above a compact **Play · Cues · Practice · Tools · Stage** bar and seek line. Cue pads
+   and tools open over the picture, then close to give the space back. The full picture stays visible at Fit.
+   **Stage** expands it further and keeps the same controls, with **Exit** to return. An active practice always
+   exposes **End practice** without opening another panel. Stage cues launch previously saved positions.
 
 When adding the currently loaded file to a class, its speed, sections, repeat/delay and video settings are
 captured for that exercise. Use **Use current settings** in the class list to update a particular exercise.
@@ -85,7 +89,8 @@ guarantee. Safari and the Home Screen installation may have separate storage; pr
 
 **Physical iPhone checks remain required:** lock-screen scrubbing, interruption recovery, practice delays and
 repeats in the background, the reported 31-second 4K H.264 video, and Stage transitions. Desktop browser tests do
-not establish real-phone acceptance. Paused lock-screen scrubbing remains a known WebKit limitation.
+not establish real-phone acceptance. The owner confirmed that the supplied 1080p copy plays on the iPhone;
+this does not establish support for the original 4K file. Paused lock-screen scrubbing remains a known WebKit limitation.
 
 ## Development
 

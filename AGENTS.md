@@ -48,6 +48,9 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
 - iOS gesture rules: call `play()` / `engine.unlock()` / `keepAlive.start()` synchronously inside the gesture,
   before any `await`. A delayed first native-video start is not reliable; preserve the first-Play permission path.
 - Preserve one native video element through Stage. Do not decode the full video's audio for analysis or waveform.
+- Video prioritizes picture size: keep playback/seeking visible, secondary cues/tools in temporary trays, and
+  End practice reachable without opening a tray. Audio retains its separate layout. Tray buttons must keep
+  native keyboard activation without also firing global shortcuts; toggling trays never remounts the video.
 - Cancel pending practice work before loads, manual seeks, pauses, cue launches and teardown. Delayed callbacks
   must not revive an old track. Practice sections are rehearsal controls, not sample-accurate loops.
 - Keep cue keys `mixdeck.dancer.cues.<name>|<duration.toFixed(2)>` stable. Practice keys use
