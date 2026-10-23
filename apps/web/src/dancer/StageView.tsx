@@ -36,6 +36,8 @@ interface Props {
   pendingLabel?: string | null;
   talking?: boolean;
   onToggleTalk?: () => void;
+  onRetryVideo?: () => void;
+  onVideoDetails?: () => void;
 }
 
 /** Element and document full-screen API, unprefixed or with the older WebKit prefix (iPadOS before 16.4). */
@@ -84,7 +86,7 @@ function exitFullscreen(): void {
 export function StageView({
   video, aspect, title, playing, position, cues, section, onTogglePlay, onRestart, onLaunch, onClose,
   tempo = 100, onTempoChange, mirrored = false, zoom = 1, onMirroredChange, onZoomChange,
-  onRestartSection, pendingLabel, talking = false, onToggleTalk,
+  onRestartSection, pendingLabel, talking = false, onToggleTalk, onRetryVideo, onVideoDetails,
 }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const [videoFailed, setVideoFailed] = useState(!!video?.error);
@@ -180,7 +182,7 @@ export function StageView({
     >
       <div className="stage-screen">
         {video ? (
-          <VideoView element={video} playing={playing} onTap={onTogglePlay} mirrored={mirrored} zoom={zoom} className="stage-video" />
+          <VideoView element={video} playing={playing} onTap={onTogglePlay} mirrored={mirrored} zoom={zoom} className="stage-video" onRetry={onRetryVideo} onDetails={onVideoDetails} />
         ) : (
           <div className="stage-now" aria-live="polite">
             <span className="stage-title">{title}</span>

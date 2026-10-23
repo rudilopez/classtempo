@@ -28,6 +28,11 @@ Video files use a `VideoDeck` backed by one native `<video playsinline>` and an 
 `preservesPitch` control speed where supported. Video never triggers a second whole-file audio decode for BPM
 or waveform analysis. Its timeline is seekable but has no derived waveform/BPM. The element mounts during load,
 reports readiness/errors, and moves into and out of Stage without replacing the media element or its playback.
+It requests metadata preloading and starts at zero without a URL time fragment or forced initial seek. Error
+recovery retries the same in-memory file paused. Already saved files are not written again; a first Open that
+failed before metadata retains its original save intent and saves only after successful recovery. A bounded 32-event diagnostic
+snapshot contains media dimensions/state/error and file size/type, omitting filenames, URLs and media bytes;
+copying it is an explicit user action.
 A fatal native decoder error latches a paused/unavailable state until a fresh load; late play events cannot
 reactivate it. The readable recovery message replaces the picture controls in both player views.
 Mirror and zoom are visual transforms; they do not rewrite the source file. Native-video Talk pauses and resumes
@@ -38,6 +43,11 @@ current load. Audio decoding still has a significant memory cost; videos avoid t
 A five-minute stereo audio buffer at 48 kHz float32 is approximately 115 MB before analysis/engine copies.
 
 ## Practice and transport
+
+Practice edits a local draft. Cue selectors populate exact start/end times; `draft.ts` validates and commits the
+visible range when Start practice or Save & close is chosen. Start invokes the host synchronously within the
+user gesture and seeks to A; Save closes paused. ✕/Escape discard the draft. The main Practice button retains a
+stable label with mode/range, and the transport shows Repeat/Section plus pass/completion status.
 
 `src/practice/settings.ts` defines validated per-track settings: tempo, up to 12 named sections, the selected
 section, off/once/repeat mode, repeat count, gap and start-delay seconds, video mirror and zoom. Section endpoints
@@ -59,8 +69,10 @@ snapshot applies it to that session without replacing the file's default merely 
 Changing settings or explicitly capturing them updates the relevant saved data through the owning UI.
 
 Cue storage remains `mixdeck.dancer.cues.<name>|<duration.toFixed(2)>`. Existing users' cues therefore survive the
-product rename. Eight slots store `{ time, name }` or null. Cue creation/movement/removal/renaming requires Edit;
-outside Edit, only existing cues launch. Undo stores recent cue edits for the current load. Stage is launch-only.
+product rename. Eight slots store `{ time, name }` or null. An empty pad sets a cue immediately without changing
+playback; editing an existing position/name or clearing it requires Edit. Undo is available after a one-tap
+creation as well. A cue launch within an active practice range starts a new run at that cue without disabling
+its mode; launches outside the range explicitly switch to full track. Stage is launch-only.
 
 ## Library, class sets and backups
 

@@ -21,7 +21,7 @@
   overflow: hidden;
   box-shadow: 0 24px 80px #0008;
 }
-.practice-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #334a61; }
+.practice-heading { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #334a61; }
 .practice-heading h2 { font-size: 21px; line-height: 1.2; margin: 0; }
 .practice-heading p { font-size: 12px; color: #b6c7d8; margin: 4px 0 0; }
 .practice-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px; display: grid; gap: 14px; }
@@ -30,9 +30,10 @@
 .practice-block-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .practice-dialog button, .practice-dialog select, .practice-dialog input { min-height: 44px; min-width: 0; border: 1px solid #526b83; border-radius: 9px; font: inherit; font-size: 14px; color: #f5f8fc; background: #0d1d2e; padding: 9px 11px; }
 .practice-dialog button { cursor: pointer; }
+.practice-dialog .practice-close { flex: none; width: 44px; padding: 0; font-size: 18px; }
 .practice-dialog button:disabled { opacity: .48; cursor: default; }
 .practice-dialog button:focus-visible, .practice-dialog input:focus-visible, .practice-dialog select:focus-visible { outline: 3px solid #8af0d6; outline-offset: 2px; }
-.practice-dialog button[aria-pressed=true], .practice-dialog .practice-primary, .practice-dialog .practice-done { background: #8af0d6; border-color: #8af0d6; color: #0a2630; font-weight: 700; }
+.practice-dialog button[aria-pressed=true], .practice-dialog .practice-primary { background: #8af0d6; border-color: #8af0d6; color: #0a2630; font-weight: 700; }
 .practice-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 12px; color: #c7d5e3; }
 .practice-field input, .practice-field select { width: 100%; box-sizing: border-box; }
 .practice-dialog input, .practice-dialog select { font-size: 16px; }
@@ -46,11 +47,9 @@
   background-size: 5px 5px;
   background-repeat: no-repeat;
 }
-.practice-section-form { display: grid; gap: 12px; }
+.practice-edge { display: grid; align-content: start; gap: 9px; min-width: 0; }
 .practice-time-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .practice-time-grid button { font-size: 11px; padding-inline: 5px; }
-.practice-form-actions { display: flex; gap: 8px; }
-.practice-form-actions .practice-primary { flex: 1; }
 .practice-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
 .practice-modes button { font-size: 12px; padding-inline: 4px; }
 .practice-presets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
@@ -58,7 +57,14 @@
 .practice-hint { color: #b9cbdc; }
 .practice-error { color: #ffc1ba; }
 .practice-undo { width: 100%; }
+.practice-dialog .practice-delete { color: #ffc1ba; }
+.practice-footer { flex: none; display: grid; gap: 9px; padding: 12px 16px; border-top: 1px solid #41576e; background: #122236; }
+.practice-preview { margin: 0; font-size: 12px; line-height: 1.45; color: #c7d5e3; overflow-wrap: anywhere; }
+.practice-preview strong { color: #f5f8fc; }
+.practice-footer-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.practice-footer-actions button { padding-inline: 6px; }
 @media (max-height: 450px) {
   .practice-backdrop { padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: max(6px, env(safe-area-inset-bottom)); }
   .practice-heading { padding-block: 8px; }
+  .practice-footer { padding-block: 8px; gap: 5px; }
 }

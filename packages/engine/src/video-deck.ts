@@ -16,11 +16,33 @@ const REPORT_INTERVAL_MS = 50;
 const FRAME_STARVED_MS = 300;
 /** A load that has neither metadata nor an error by then fails instead of hanging. */
 const LOAD_TIMEOUT_MS = 20_000;
-/**
- * Media fragment that makes iOS Safari seek during the load and so show the first frame before playback (it
- * otherwise stays black until play). Playback starts 1 ms in; seeks and replays go to 0 as usual.
- */
-const FIRST_FRAME_FRAGMENT = '#t=0.001';
+/** Keep only low-frequency media events, never per-frame history or file contents. */
+const DIAGNOSTIC_EVENT_LIMIT = 32;
+
+export interface VideoDiagnosticEvent {
+  event: string;
+  elapsedMs: number;
+  position: number;
+  readyState: number;
+  networkState: number;
+  errorCode: number | null;
+}
+
+export interface VideoDiagnostics {
+  file: { bytes: number; type: string } | null;
+  duration: number | null;
+  position: number;
+  width: number;
+  height: number;
+  paused: boolean;
+  ended: boolean;
+  seeking: boolean;
+  rate: number;
+  readyState: number;
+  networkState: number;
+  error: { code: number | null; message: string } | null;
+  events: VideoDiagnosticEvent[];
+}
 
 /** Tempo for a requested rate: clamped to the key-locked range, or null for a non-finite rate (ignored). */
 export function clampTempo(rate: number): number | null {
@@ -110,12 +132,17 @@ export class VideoDeck implements DancerPlayer {
   private lastFrameAt = 0;
   private lastReportAt = -Infinity;
   private readonly listeners: [string, EventListener][];
+  private diagnosticFile: VideoDiagnostics['file'] = null;
+  private diagnosticError: VideoDiagnostics['error'] = null;
+  private diagnosticEvents: VideoDiagnosticEvent[] = [];
+  private diagnosticStartedAt = 0;
   private disposed = false;
 
   constructor() {
     const v = document.createElement('video');
     v.playsInline = true;
-    v.preload = 'auto';
+    // Opening a large phone video should not force a decode/seek before the first Play gesture.
+    v.preload = 'metadata';
     v.controls = false;
     v.disableRemotePlayback = true;
     v.muted = false;
@@ -132,6 +159,9 @@ export class VideoDeck implements DancerPlayer {
       ['timeupdate', () => this.handleTimeUpdate()],
       ['error', () => this.handleError()],
     ];
+    for (const event of ['loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'playing', 'pause', 'waiting', 'stalled', 'seeking', 'seeked', 'ended', 'error']) {
+      this.listeners.push([event, () => this.recordDiagnostic(event)]);
+    }
     for (const [type, fn] of this.listeners) v.addEventListener(type, fn);
   }
 
@@ -149,6 +179,26 @@ export class VideoDeck implements DancerPlayer {
       : null);
   }
 
+  /** Local troubleshooting snapshot: no media bytes, filename, object URL or automatic network reporting. */
+  getDiagnostics(): VideoDiagnostics {
+    const v = this.element;
+    return {
+      file: this.diagnosticFile ? { ...this.diagnosticFile } : null,
+      duration: isUsableDuration(v.duration) ? v.duration : this._track?.duration ?? null,
+      position: Number.isFinite(v.currentTime) ? v.currentTime : 0,
+      width: v.videoWidth,
+      height: v.videoHeight,
+      paused: v.paused,
+      ended: v.ended,
+      seeking: v.seeking,
+      rate: v.playbackRate,
+      readyState: v.readyState,
+      networkState: v.networkState,
+      error: this.diagnosticError ? { ...this.diagnosticError } : null,
+      events: this.diagnosticEvents.map((event) => ({ ...event })),
+    };
+  }
+
   /**
    * Opens `file` (paused, at 0, tempo kept). Resolves once its metadata is in with a usable duration, rejects
    * with a readable message when the browser cannot play it; a load superseded by a newer `load` / `unload`
@@ -161,6 +211,10 @@ export class VideoDeck implements DancerPlayer {
     const v = this.element;
     this.playSeq++;
     this.playbackError = null;
+    this.diagnosticFile = { bytes: file.size, type: file.type };
+    this.diagnosticError = null;
+    this.diagnosticEvents = [];
+    this.diagnosticStartedAt = performance.now();
     this._track = null;
     if (!v.paused) v.pause();
     this.setPlaying(false);
@@ -188,7 +242,11 @@ export class VideoDeck implements DancerPlayer {
         if (settled) return;
         settled = true;
         done();
-        if (seq === this.loadSeq) this.clearSource();
+        if (seq === this.loadSeq) {
+          this.diagnosticError ??= { code: v.error?.code ?? null, message: this.diagnosticMessage(v.error?.message || message) };
+          this.recordDiagnostic('load-failed');
+          this.clearSource();
+        }
         reject(new Error(message));
       };
       const finish = (duration: number): void => {
@@ -222,7 +280,7 @@ export class VideoDeck implements DancerPlayer {
       const timer = setTimeout(() => fail(`“${name}” took too long to open.`), LOAD_TIMEOUT_MS);
       for (const [type, fn] of handlers) v.addEventListener(type, fn);
       this.cancelLoad = cancel;
-      v.src = url + FIRST_FRAME_FRAGMENT;
+      v.src = url;
       v.load(); // explicit, for iOS Safari, which may otherwise wait for a play before reading metadata
     });
   }
@@ -233,6 +291,9 @@ export class VideoDeck implements DancerPlayer {
     this.loadSeq++;
     this.playSeq++;
     this.playbackError = null;
+    this.diagnosticFile = null;
+    this.diagnosticError = null;
+    this.diagnosticEvents = [];
     this._track = null;
     const v = this.element;
     if (!v.paused) v.pause();
@@ -279,7 +340,8 @@ export class VideoDeck implements DancerPlayer {
     try {
       if (v.ended || v.currentTime >= this._track.duration) v.currentTime = 0;
       started = v.play();
-    } catch {
+    } catch (error) {
+      this.recordPlayFailure(error);
       // Some engines throw synchronously. Never leave a silent player reporting "Pause" indefinitely.
       this.setPlaying(false);
       return;
@@ -287,8 +349,9 @@ export class VideoDeck implements DancerPlayer {
     if (this.error) this.handleError();
     else this.setPlaying(true);
     this.report(true);
-    started?.catch(() => {
+    started?.catch((error: unknown) => {
       if (seq !== this.playSeq) return;
+      this.recordPlayFailure(error);
       // NotAllowedError (no gesture / locked), AbortError (a pause or load overtook it), NotSupportedError.
       if (v.paused || v.error) this.setPlaying(false);
     });
@@ -374,10 +437,40 @@ export class VideoDeck implements DancerPlayer {
   private handleError(): void {
     const error = this.error;
     if (!error) return; // An old queued error may arrive after a new load cleared the native failure.
+    const nativeError = this.element.error;
+    this.diagnosticError = { code: nativeError?.code ?? this.diagnosticError?.code ?? null, message: this.diagnosticMessage(nativeError?.message || error) };
     this.playbackError = error;
     this.playSeq++;
     try { if (!this.element.paused) this.element.pause(); } catch { /* Native decoder already stopped. */ }
     this.setPlaying(false);
+  }
+
+  private recordPlayFailure(error: unknown): void {
+    this.diagnosticError = {
+      code: this.element.error?.code ?? null,
+      message: this.diagnosticMessage(error instanceof Error ? `${error.name}: ${error.message}` : 'Native play was refused.'),
+    };
+    this.recordDiagnostic('play-rejected');
+  }
+
+  private diagnosticMessage(message: string): string {
+    const name = this.element.getAttribute('aria-label');
+    const redacted = name ? message.split(name).join('[video]') : message;
+    return redacted.replace(/(?:blob:|file:\/\/|https?:\/\/|[A-Za-z]:[\\/]|(?<![\w.])\/)[^\s"'<>]+/g, '[source]').slice(0, 1000);
+  }
+
+  private recordDiagnostic(event: string): void {
+    if (!this.diagnosticFile) return;
+    const v = this.element;
+    this.diagnosticEvents.push({
+      event,
+      elapsedMs: Math.max(0, Math.round(performance.now() - this.diagnosticStartedAt)),
+      position: Number.isFinite(v.currentTime) ? v.currentTime : 0,
+      readyState: v.readyState,
+      networkState: v.networkState,
+      errorCode: v.error?.code ?? null,
+    });
+    if (this.diagnosticEvents.length > DIAGNOSTIC_EVENT_LIMIT) this.diagnosticEvents.shift();
   }
 
   private handleTimeUpdate(): void {

@@ -56,8 +56,10 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   overwrite a file's default merely by loading it. Validate imported settings against actual track duration.
 - Save File/Blob and library metadata atomically. A successful load is not a successful offline save. Report
   failures; a metadata backup never proves the media exists. Browser storage may be evicted or cleared.
-- Cue edits require explicit Edit; preserve Undo. Dialogs contain focus, restore background inert state and
-  prevent global player shortcuts from firing while open.
+- Empty cue pads set the current position with one tap; changing an existing cue requires Edit. Preserve Undo.
+  Practice footer actions must commit the visible range directly; no separate Add-section prerequisite. A cue
+  inside an active range keeps repeating; leaving it must visibly explain the switch to full-track playback.
+  Dialogs contain focus, restore background inert state and prevent global player shortcuts while open.
 - Apple Music/Spotify are not integrated. Do not add a fake connection button or promise streaming feature parity.
   Apple Music feasibility awaits credentials. Stems stay hidden research with existing weight/device gates;
   no model auto-download or server fallback is authorized by the classroom feature scope.

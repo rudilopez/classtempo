@@ -30,6 +30,14 @@
   font-size: 12px;
   letter-spacing: 0;
 }
+.class-tools .practice-open { display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+.practice-open small { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 10px; font-weight: 500; }
+.dancer .dancer-transport .practice-play { display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+.dancer .dancer-transport .practice-play small { font-size: 10px; font-weight: 600; letter-spacing: 0; line-height: 1.1; }
+.dancer .cues.has-undo .cues-hint { display: none; }
+.video-load-recovery { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; min-height: 0; overflow: auto; flex: 1; text-align: center; }
+.video-load-recovery p { margin: 0; font-size: 12px; color: #ffe1a3; }
+.video-load-recovery > button { min-height: 44px; font-size: 12px; }
 .source-switch .mode-pill[aria-pressed='true'] { background-color: var(--a); color: #082b28; }
 .source-switch .mode-pill[aria-pressed='false'] { color: var(--dim); }
 .dancer .dancer-media { position: relative; }

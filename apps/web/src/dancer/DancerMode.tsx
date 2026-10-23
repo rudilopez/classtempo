@@ -107,6 +107,8 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   const [pendingVideo, setPendingVideo] = useState<HTMLVideoElement | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [failedVideoFile, setFailedVideoFile] = useState<File | null>(null);
+  const failedVideoLibraryId = useRef<string | null | undefined>(undefined);
   const [playing, setPlaying] = useState(false);
   /** percent */
   const [tempo, setTempo] = useState(100);
@@ -475,6 +477,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       console.error(e);
       const message = errorText(e, `“${file.name}” could not be opened.`);
       setLoadError(message);
+      setFailedVideoFile(file);
       showToast(message);
       setPendingVideo(null);
       if (previous === video) {
@@ -516,6 +519,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   /** Loads one file: videos on the VideoDeck, audio decoded for the StretchDeck. Ignored while another load runs. */
   const loadFile = async (file: File, libraryId?: string | null): Promise<boolean> => {
     if (loadingRef.current) return false;
+    setFailedVideoFile(null);
     const request = ++loadRequest.current;
     practiceController.current?.cancel();
     pauseNow();
@@ -524,6 +528,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     engine.setDancerGain(1);
     let loaded = false;
     if (isVideoFile(file)) {
+      failedVideoLibraryId.current = libraryId;
       loaded = await loadVideo(file);
     } else if (!stretch) {
       showToast(deckError ? 'The key-locked player failed to start.' : 'The player is still starting — try again in a moment.');
@@ -560,6 +565,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   };
 
   const seek = (seconds: number) => {
+    if (failedVideoFile) return;
     practiceController.current?.cancel();
     talkResume.current = false;
     const p = playerRef.current;
@@ -574,7 +580,10 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     const settings = practiceRef.current;
     const section = selectedPracticeSection(settings);
     if (settings.mode !== 'off' && section) {
-      if (seconds < section.start || seconds >= section.end) updatePractice({ ...settings, mode: 'off' }, false);
+      if (seconds < section.start || seconds >= section.end) {
+        updatePractice({ ...settings, mode: 'off' }, false);
+        showToast('Outside the practice range. Full track is now on. Choose Practice to repeat again.');
+      }
       else if (wasPlaying) practiceController.current?.start({ settings: { ...settings, delaySeconds: 0 }, duration: p.track.duration, position: p.position });
     }
     syncMedia();
@@ -589,7 +598,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
    */
   const startPlayback = (run: (p: DancerPlayer) => void) => {
     const p = playerRef.current;
-    if (!p?.track || !activeRef.current || loadingRef.current || (p instanceof VideoDeck && p.error)) return;
+    if (!p?.track || !activeRef.current || loadingRef.current || failedVideoFile || (p instanceof VideoDeck && p.error)) return;
     if (setPlaybackState('playing')) keepAlive.claim();
     run(p);
     if (p.kind === 'audio') {
@@ -625,7 +634,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   const play = () => {
     const p = playerRef.current;
-    if (!p?.track || loadingRef.current || p.playing || (p instanceof VideoDeck && p.error)) return;
+    if (!p?.track || loadingRef.current || failedVideoFile || p.playing || (p instanceof VideoDeck && p.error)) return;
     if (['delay', 'gap', 'preparing'].includes(practiceController.current?.getState().phase ?? '')) return;
     if (p.kind === 'video' && talking) { setTalking(false); talkResume.current = false; }
     let settings = practiceRef.current;
@@ -643,14 +652,26 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   const waiting = ['preparing', 'delay', 'gap'].includes(practiceState.phase);
   const togglePlay = () => (playerRef.current?.playing || waiting ? pause() : play());
 
-  const restart = () => seek(selectedPracticeSection(practiceRef.current)?.start ?? 0);
+  const restart = () => seek(practiceRef.current.mode !== 'off' ? selectedPracticeSection(practiceRef.current)?.start ?? 0 : 0);
 
   /** Jump to `seconds` and play: cue launch, and lock-screen / headphone previous and next. */
   const launch = (seconds: number) => {
+    if (failedVideoFile) return;
     practiceController.current?.cancel();
     talkResume.current = false;
-    if (practiceRef.current.mode !== 'off') updatePractice({ ...practiceRef.current, mode: 'off' }, false);
     if (playerRef.current?.kind === 'video' && talking) { setTalking(false); talkResume.current = false; }
+    const p = playerRef.current;
+    const settings = practiceRef.current;
+    const section = selectedPracticeSection(settings);
+    if (settings.mode !== 'off' && section && p?.track) {
+      if (seconds >= section.start && seconds < section.end) {
+        practiceController.current?.start({ settings: { ...settings, delaySeconds: 0 }, duration: p.track.duration, position: seconds,
+          prepare: () => { engine.unlock(); if (p.kind === 'audio') void keepAlive.start(); } });
+        return;
+      }
+      updatePractice({ ...settings, mode: 'off' }, false);
+      showToast('Cue is outside the practice range. Full track is now on.');
+    }
     startPlayback((p) => {
       p.jumpTo(seconds);
       positionRef.current = p.position;
@@ -660,6 +681,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   const cueTimes = (): (number | null)[] => song?.cues.map((c) => c?.time ?? null) ?? [];
 
   const previousCue = () => {
+    if (failedVideoFile) return;
     const p = playerRef.current;
     if (p instanceof VideoDeck && p.error) return;
     const selected = selectedPracticeSection(practiceRef.current);
@@ -680,7 +702,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   const changeTempo = (percent: number) => {
     const p = playerRef.current;
-    if (!p || (p instanceof VideoDeck && p.error)) return;
+    if (!p || failedVideoFile || (p instanceof VideoDeck && p.error)) return;
     const v = clampTempo(percent);
     p.setTempo(v / 100);
     setTempo(v);
@@ -700,9 +722,40 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     if (!savePracticeSettings(s.track.name, s.track.duration, next)) showToast('Practice settings could not be saved on this device.');
   };
 
-  const toggleTalk = () => {
+  /** Commit the panel's visible range and start at A within this same user gesture. */
+  const startPractice = (value: PracticeSettings) => {
+    updatePractice(value);
     const p = playerRef.current;
     if (!p?.track || (p instanceof VideoDeck && p.error)) return;
+    const section = value.mode !== 'off' ? selectedPracticeSection(value) : null;
+    if (section) p.seek(section.start);
+    positionRef.current = p.position;
+    setDisplayPos(p.position);
+    setPracticeOpen(false);
+    play();
+  };
+
+  const retryVideo = () => {
+    const file = failedVideoFile ?? currentFile;
+    if (!file || !isVideoFile(file) || loadingRef.current) return;
+    setStageOpen(false);
+    // A first Open that failed before metadata still needs its original save attempt after recovery.
+    // Already loaded files and previously failed saves must not be written a second time.
+    void loadFile(file, failedVideoFile ? failedVideoLibraryId.current : null);
+  };
+
+  const copyVideoDetails = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const details = JSON.stringify({ app: 'ClassTempo', browser: navigator.userAgent, video: video.getDiagnostics() }, null, 2);
+    const manualCopy = () => { window.prompt('Copy these video details and send them with your bug report:', details); };
+    if (!navigator.clipboard?.writeText) { manualCopy(); return; }
+    void navigator.clipboard.writeText(details).then(() => showToast('Video details copied. Include them when reporting this problem.'), manualCopy);
+  };
+
+  const toggleTalk = () => {
+    const p = playerRef.current;
+    if (!p?.track || failedVideoFile || (p instanceof VideoDeck && p.error)) return;
     if (!talking) {
       talkResume.current = p.playing;
       if (p.kind === 'video') { practiceController.current?.cancel(); pauseNow(); }
@@ -730,12 +783,13 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
    */
   const pressPad = (i: number, launchOnly = false) => {
     const p = playerRef.current;
-    if (!p?.track || !song || (p instanceof VideoDeck && p.error)) return;
+    if (!p?.track || !song || failedVideoFile || (p instanceof VideoDeck && p.error)) return;
     const cue = song.cues[i] ?? null;
-    if (!launchOnly && editing) {
+    if (!launchOnly && (editing || !cue)) {
       const time = p.position; // live, not the last ~50 ms report
       editCues((cues) => cues.map((c, j) => (j === i ? { time, name: c?.name ?? `Cue ${i + 1}` } : c)));
       void requestPersistentStorage(); // once per page load: keep saved cues from being evicted
+      showToast(`Cue ${i + 1} ${cue ? 'moved' : 'set'} at ${formatTime(time)}. Tap it to play from here.`);
       return;
     }
     if (cue) launch(cue.time);
@@ -859,8 +913,13 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   const track = song?.track ?? null;
   const bpm = track?.bpm ? track.bpm * (tempo / 100) : null;
-  const ready = player !== null && song !== null && !loading && !videoError;
+  const ready = player !== null && song !== null && !loading && !videoError && !failedVideoFile;
   const selectedSection = selectedPracticeSection(practice);
+  const practiceActive = practice.mode !== 'off' && selectedSection !== null;
+  const practiceRange = practiceActive ? `${formatTime(selectedSection.start)}–${formatTime(selectedSection.end)}` : '';
+  const practiceProgress = practiceState.phase === 'complete' ? 'Complete · tap to restart'
+    : practiceState.pass > 0 ? `Pass ${practiceState.pass}${practice.mode === 'repeat' && practice.repetitions !== null ? ` of ${practice.repetitions}` : ''}`
+      : 'Ready · tap to start';
   const pendingLabel = waiting
     ? `${practiceState.phase === 'gap' ? 'Next repetition' : 'Get ready'} · ${Math.ceil(practiceState.remainingSeconds)}s`
     : null;
@@ -896,7 +955,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   return (
     <section
-      className={`dancer ${dragOver ? 'drag' : ''} ${videoElement ? 'has-video' : ''} ${editing ? 'editing' : ''}`}
+      className={`dancer ${dragOver ? 'drag' : ''} ${videoElement ? 'has-video' : ''} ${videoError || failedVideoFile ? 'has-video-error' : ''} ${editing ? 'editing' : ''}`}
       onDragOver={(e) => {
         e.preventDefault();
         if (stageOpen || !active) return;
@@ -979,10 +1038,15 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
             {loading ? 'Opening video or song…' : loadError ? loadError : track?.name ?? (deckError ? `Player failed to start: ${deckError}` : 'Tap Open to choose a song or video')}
           </div>
         </div>
-        {videoElement ? (
+        {failedVideoFile ? <div className="video-load-recovery">
+          <p role="alert">This video could not open. Retry it or copy details to report the problem.</p>
+          <div className="video-error-actions"><button onClick={retryVideo}>Retry video</button><button onClick={copyVideoDetails}>Copy details</button></div>
+          {track && <button onClick={() => { setFailedVideoFile(null); setLoadError(null); }}>Return to loaded track</button>}
+        </div> : videoElement ? (
           <div className="dancer-media" style={{ ['--video-ar' as string]: String(song?.aspect ?? 16 / 9) }}>
             {/* Stage borrows this same media element, preserving playback and the iOS gesture. */}
-            <VideoView element={stageOpen ? null : videoElement} playing={playing} onTap={ready ? togglePlay : undefined} className="dancer-video" mirrored={practice.videoMirrored} zoom={practice.videoZoom} />
+            <VideoView element={stageOpen ? null : videoElement} playing={playing} onTap={ready ? togglePlay : undefined} className="dancer-video" mirrored={practice.videoMirrored} zoom={practice.videoZoom}
+              onRetry={currentFile && isVideoFile(currentFile) ? retryVideo : undefined} onDetails={copyVideoDetails} />
             {!videoError && <VideoTools mirrored={practice.videoMirrored} zoom={practice.videoZoom}
               onMirroredChange={(value) => updatePractice({ ...practice, videoMirrored: value }, false)}
               onZoomChange={(value) => updatePractice({ ...practice, videoZoom: value }, false)} />}
@@ -996,11 +1060,12 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       {pendingLabel && <div className="practice-countdown" role="status">{pendingLabel}</div>}
 
       <div className="dancer-transport">
-        <button className={`play ${playing ? 'on' : ''}`} onClick={togglePlay} disabled={!ready} title="Space">
-          {videoError ? 'Video error' : waiting ? '✕  Cancel' : playing ? '❚❚  Pause' : '▶  Play'}
+        <button className={`play ${playing ? 'on' : ''} ${practiceActive ? 'practice-play' : ''}`} onClick={togglePlay} disabled={!ready} title={practiceActive ? `${practice.mode === 'repeat' ? 'Repeat' : 'Play'} ${practiceRange}` : 'Space'}>
+          <span>{videoError || failedVideoFile ? 'Video error' : waiting ? '✕ Cancel' : playing ? '❚❚ Pause' : practiceActive ? (practice.mode === 'repeat' ? '↻ Repeat' : '▶ Section') : '▶ Play'}</span>
+          {practiceActive && !videoError && !failedVideoFile && <small>{waiting ? (practiceState.phase === 'gap' ? 'Between passes' : 'Starting soon') : practiceProgress}</small>}
         </button>
         <button onClick={restart} disabled={!ready} title="Home">
-          ⟲ {selectedSection ? 'Section' : 'Restart'}
+          ⟲ {practiceActive ? 'Section' : 'Restart'}
         </button>
         <button
           ref={stageButton}
@@ -1022,9 +1087,10 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
         <div className="class-tempo-panel">
           <TempoControl value={tempo} onChange={changeTempo} disabled={!ready} />
           <div className="class-tools">
-            <button className={practice.mode !== 'off' || practice.delaySeconds > 0 ? 'on' : ''}
-              onClick={() => { pause(); setPracticeOpen(true); }} disabled={!ready}>
-              {selectedSection && practice.mode !== 'off' ? `${practice.mode === 'repeat' ? '↻' : '▸'} ${selectedSection.name}` : 'Practice'}
+            <button className={`practice-open ${practiceActive || practice.delaySeconds > 0 ? 'on' : ''}`} aria-label="Practice"
+              onClick={(event) => { event.currentTarget.focus(); pause(); setPracticeOpen(true); }} disabled={!ready}>
+              <span>Practice{practiceActive ? ` · ${practice.mode === 'repeat' ? 'Repeat' : 'Once'}` : ''}</span>
+              {practiceActive && <small>{practiceRange}{practice.mode === 'repeat' && practice.gapSeconds > 0 ? ` · ${practice.gapSeconds}s gap` : ''}</small>}
             </button>
             <button className={talking ? 'on' : ''} aria-pressed={talking} onClick={toggleTalk} disabled={!ready}
               title={song?.kind === 'video' ? 'Pause the video while you talk; tap again to resume' : 'Lower the music while you talk; tap again to restore'}>
@@ -1034,18 +1100,18 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
           </div>
         </div>
 
-        <div className="cues">
+        <div className={`cues ${undoCues.length ? 'has-undo' : ''}`}>
           <div className="cues-head">
             <h2>Cues</h2>
             {editing ? (
               <span className="dim cues-hint">Press a pad to move it here · ✕ clears · ✎ renames</span>
             ) : (
               <span className="dim cues-hint">
-                <span className="hint-long">Tap a saved cue to play · Edit to add or change cues</span>
-                <span className="hint-short">Saved per song · Edit to add</span>
+                <span className="hint-long">Tap an empty pad to set · Tap a saved cue to play</span>
+                <span className="hint-short">Tap empty to set</span>
               </span>
             )}
-            {editing && <button className="cues-undo" disabled={undoCues.length === 0} onClick={() => {
+            {(editing || undoCues.length > 0) && <button className="cues-undo" disabled={undoCues.length === 0} onClick={() => {
               const previous = undoCues[undoCues.length - 1];
               if (previous) { setSong((s) => s && { ...s, cues: previous }); setUndoCues((h) => h.slice(0, -1)); }
             }}>Undo</button>}
@@ -1053,7 +1119,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
               {editing ? 'Done' : 'Edit cues'}
             </button>
           </div>
-          <CuePads cues={song?.cues ?? NO_CUES} editing={editing} locked={!editing} disabled={!ready} onPress={pressPad} onClear={clearPad} onRename={renamePad} />
+          <CuePads cues={song?.cues ?? NO_CUES} editing={editing} disabled={!ready} onPress={pressPad} onClear={clearPad} onRename={renamePad} />
         </div>
       </div>
 
@@ -1070,6 +1136,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
           }
         }} />
       {practiceOpen && track && <PracticePanel settings={practice} onChange={(value) => updatePractice(value)}
+        cues={song?.cues ?? NO_CUES} onStart={startPractice}
         position={displayPos} duration={track.duration} delayDisabled={song?.kind === 'video' && !videoStarted.current} onClose={() => setPracticeOpen(false)} />}
 
       <p className="dancer-hint kbd-hint">
@@ -1103,10 +1170,12 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
           zoom={practice.videoZoom}
           onMirroredChange={(value) => updatePractice({ ...practice, videoMirrored: value }, false)}
           onZoomChange={(value) => updatePractice({ ...practice, videoZoom: value }, false)}
-          onRestartSection={selectedSection ? restart : undefined}
+          onRestartSection={practiceActive ? restart : undefined}
           pendingLabel={pendingLabel}
           talking={talking}
           onToggleTalk={toggleTalk}
+          onRetryVideo={retryVideo}
+          onVideoDetails={copyVideoDetails}
         />
       )}
     </section>
