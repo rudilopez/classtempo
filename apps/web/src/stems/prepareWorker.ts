@@ -10,11 +10,15 @@ export interface StemFailureDetails {
   stage: string;
   message: string;
   gpuFailure?: string;
+  reservedMaxMiB?: number;
+  observedHeapMiB?: number | null;
 }
 
 export class StemPreparationError extends Error {
   constructor(readonly details: StemFailureDetails) {
-    super('Stems could not be prepared on this device. Try again, or copy details if it repeats. Your original song is available.');
+    super(/out of memory|memory access out of bounds|allocation failed/i.test(details.message)
+      ? 'Not enough memory to prepare stems. Close other tabs and reopen ClassTempo before trying again. Your original song is available.'
+      : 'Stems could not be prepared on this device. Try again, or copy details if it repeats. Your original song is available.');
     this.name = 'StemPreparationError';
   }
 }
@@ -60,9 +64,9 @@ export function prepareStemWorker(input: SeparationInput, options: {
       signal.removeEventListener('abort', onAbort);
     };
     const onAbort = (): void => { finish(); reject(new DOMException('Cancelled', 'AbortError')); };
-    const fail = (message: string, runtimeVersion = '1.30.0'): void => {
+    const fail = (message: string, runtimeVersion = '1.30.0', memory: { reservedMaxMiB?: number; observedHeapMiB?: number | null } = {}): void => {
       finish();
-      reject(new StemPreparationError({ runtime, runtimeVersion, stage, message: message.slice(0, 4000), gpuFailure }));
+      reject(new StemPreparationError({ runtime, runtimeVersion, stage, message: message.slice(0, 4000), gpuFailure, ...memory }));
     };
     const start = (request: SeparationInput): void => {
       if (signal.aborted) { onAbort(); return; }
@@ -85,7 +89,8 @@ export function prepareStemWorker(input: SeparationInput, options: {
             stage = 'Starting compatible stems engine…';
             onProgress(stage, null);
             start({ ...input, channels: message.channels, sampleRate: message.sampleRate, provider: 'wasm', fallbackReason: gpuFailure });
-          } else if (message.type === 'error') fail(message.message, message.runtimeVersion);
+          } else if (message.type === 'error') fail(message.message, message.runtimeVersion,
+            { reservedMaxMiB: message.reservedMaxMiB, observedHeapMiB: message.observedHeapMiB });
           else { finish(); resolve(message); }
         };
         worker.postMessage(request, [...new Set(request.channels.map((channel) => channel.buffer))]);

@@ -1,12 +1,13 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin, type Rollup } from 'vite';
+import { cappedOrtWasm } from './build/cappedOrtWasm';
 
 const SW_FILE = 'sw.js';
 
 export default defineConfig({
   // Relative base: the same build works at the domain root (Vercel) and under a sub-path (GitHub Pages /mixdeck/).
   base: './',
-  plugins: [react(), mixdeckServiceWorker()],
+  plugins: [cappedOrtWasm(), react(), mixdeckServiceWorker()],
   server: {
     // Not needed yet: only once SharedArrayBuffer ring buffers / multithreaded WASM land (see docs/ARCHITECTURE.md →
     // Performance & platform notes, Headers). Production hosts set nothing today.
@@ -15,7 +16,7 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'require-corp',
     },
   },
-  worker: { format: 'es' },
+  worker: { format: 'es', plugins: () => [cappedOrtWasm()] },
   // Signalsmith Stretch (Dancer mode) builds its AudioWorklet module by stringifying its own source into a
   // Blob, so the package must reach the browser untranspiled: the dev-server optimizer would lower its class
   // fields to an `__publicField` helper that does not exist inside the AudioWorkletGlobalScope, and the

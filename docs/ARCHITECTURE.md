@@ -165,6 +165,11 @@ Apple browsers and browsers without WebGPU use a separate plain-WASM worker; oth
 JSEP. A failed GPU initialization/inference transfers input back for retry in a fresh CPU-only worker, avoiding
 the runtime's sticky initialization failure. Cancellation terminates whichever worker currently owns the input.
 Failure details preserve the original cause and runtime/version without media contents or filenames.
+The plain runtime's checked build adapter caps its WASM maximum and growth ceiling at 256 MiB (upstream: 4 GiB).
+It verifies the pinned 1.30.0 source hash and fails the build on drift or bypass; GPU bundles and installed
+dependencies are unchanged. Reports include the configured maximum and observed heap. Models are read and
+hash-verified one at a time, with session teardown between runs; only failed cache writes retain weights for
+the current job. Stems preparation alone has a 4:30/100 MB limit; ordinary media playback remains unrestricted.
 
 The four stereo stems use one lazily created eight-channel Signalsmith transport (`StemDeck`) so tempo,
 seeks and cues remain synchronized. A splitter restores stereo pairs, per-stem ramped gains feed a stereo

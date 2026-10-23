@@ -1,5 +1,36 @@
 # Handoff — open work, in priority order
 
+## iPhone stems memory cap and 4:30 limit (2026-10-23)
+
+The next physical iPhone report (`plain-wasm-v1`) failed on the first vocal section with
+`RangeError: Out of memory`. The plain 1.30.0 runtime still requested a 4 GiB WASM maximum. A checked Vite
+adapter now caps that reservation and growth at 256 MiB; it verifies the exact upstream bundle hash and
+fails builds if that source or module resolution changes. It does not patch installed dependencies or the
+GPU runtime. Models are read and verified one at a time; only failed cache writes retain weights for the job.
+Memory failures have actionable wording, and Copy details identifies `bounded-wasm-v2` with the configured
+maximum and observed heap. Model identity, separated audio and existing saved stems remain compatible.
+
+The owner supplied the failing 3:49 stereo AAC and approved **4:30 as the stems-only preparation limit**.
+Ordinary song/video playback has no duration cap. The source-size guard remains 100 MB. Keep Beta until the
+supplied song succeeds on the physical iPhone; desktop checks missed the preceding failure.
+
+The exact song completed local production-browser preparation in 56.9 s, with all 23 sections using at most
+206.8125 MiB of WASM heap. Playback, source/mute/tempo controls and offline saved-stem reopening passed;
+the saved result reopened in 1.38 s without inference/model requests. A constructor guard rejected any WASM
+reservation above 256 MiB throughout the run. Applying a comparable guard to the old deployed worker
+reproduced the phone's first-section error. These are controlled desktop measurements, not physical iPhone
+measurements. Actual desktop WebKit also passed real inference and phone layout checks without cross-origin
+isolation. Typecheck, 253 tests and production build pass.
+
+A 270.000000 s version of the supplied song completed all 26 sections in 61.0 s with the same 206.8125 MiB
+heap peak, working controls and a 2.05 s offline saved reopen. A 270.000998 s file still opens and plays
+normally, but Prepare rejects it with the 4:30 limit before requesting a worker, runtime or model. Test media
+remains outside the repository and is never uploaded.
+
+After deployment, close and reopen the app while online and retry the supplied song. Do not clear website
+data: it contains saved media, cues, practices and classes. A successful phone result is still needed before
+removing Beta or claiming iPhone memory stability.
+
 ## iPhone stems startup correction (2026-10-23)
 
 The owner reported `no available backend found ... previous call to initWasm() failed` on a 3:49 song.

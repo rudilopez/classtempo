@@ -2,7 +2,8 @@
 export const SEPARATION_MODEL_VERSION = 'spleeter4-4866430-ratio2-ola-v1';
 export const SEPARATION_MODEL_REVISION = '486643021f18a4d057d282fff1d11b89a30e9887';
 export const SEPARATION_SAMPLE_RATE = 44_100;
-export const MAX_SEPARATION_SECONDS = 240;
+export const MAX_SEPARATION_SECONDS = 270;
+export const MAX_SEPARATION_DURATION = `${Math.floor(MAX_SEPARATION_SECONDS / 60)}:${String(MAX_SEPARATION_SECONDS % 60).padStart(2, '0')}`;
 export const SEPARATION_MODEL_CACHE = 'classtempo-spleeter-model-v1';
 export const SEPARATION_STEM_NAMES = ['vocals', 'drums', 'bass', 'other'] as const;
 
@@ -27,6 +28,8 @@ export interface SeparationInput {
 }
 
 export interface SeparationReport {
+  reservedMaxMiB?: number;
+  observedHeapMiB?: number | null;
   runtime: SeparationRuntime;
   runtimeVersion: string;
   modelVersion: string;
@@ -49,4 +52,4 @@ export type SeparationMessage =
   | { type: 'progress'; stage: string; fraction: number | null }
   | { type: 'complete'; stems: Float32Array[]; sampleRate: number; report: SeparationReport }
   | { type: 'retry-wasm'; channels: [Float32Array, Float32Array]; sampleRate: number; cause: string; runtime: 'webgpu-jsep'; runtimeVersion: string }
-  | { type: 'error'; message: string; runtime: SeparationRuntime; runtimeVersion: string };
+  | { type: 'error'; message: string; runtime: SeparationRuntime; runtimeVersion: string; reservedMaxMiB?: number; observedHeapMiB?: number | null };
