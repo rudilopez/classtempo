@@ -1,13 +1,14 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin, type Rollup } from 'vite';
 import { cappedOrtWasm } from './build/cappedOrtWasm';
+import { stemUnityPlayback } from './build/stemUnityPlayback';
 
 const SW_FILE = 'sw.js';
 
 export default defineConfig({
   // Relative base: the same build works at the domain root (Vercel) and under a sub-path (GitHub Pages /mixdeck/).
   base: './',
-  plugins: [cappedOrtWasm(), react(), mixdeckServiceWorker()],
+  plugins: [cappedOrtWasm(), stemUnityPlayback(), react(), mixdeckServiceWorker()],
   server: {
     // Not needed yet: only once SharedArrayBuffer ring buffers / multithreaded WASM land (see docs/ARCHITECTURE.md →
     // Performance & platform notes, Headers). Production hosts set nothing today.

@@ -116,7 +116,9 @@ Preparation is capped at **4:30/100 MB** because completed PCM memory still grow
 does not apply to ordinary song/video playback. The owner requested leaving beta after the supplied song works
 on the iPhone; keep that device result as the release gate. The plain runtime now reserves at most 256 MiB
 instead of 4 GiB, with a checked adapter for the exact pinned runtime and one cached model in JS memory at a time.
-Physical iPhone/iPad speed, memory stability, listening quality, Bluetooth and lock-screen playback are still
-acceptance gates. Desktop tests and the beta label do not establish those results. The original roughly
+The owner confirmed the supplied song now prepares and plays on the physical iPhone, but reported warbling
+even with All stems at 100% tempo. Clear playback remains a release gate; successful inference alone is not
+quality acceptance. Broader iPhone/iPad memory stability, listening quality, Bluetooth and lock-screen playback
+remain separate checks. The original roughly
 two-minute target for separating a four-minute iPhone song remains the goal, not a measured guarantee.
 No automatic model download, song upload or server fallback is enabled.

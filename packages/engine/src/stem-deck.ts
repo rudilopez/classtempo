@@ -51,7 +51,7 @@ export class StemDeck implements DancerPlayer {
 
   static async create(ctx: AudioContext, destination: AudioNode): Promise<StemDeck> {
     const splitter = new ChannelSplitterNode(ctx, { numberOfOutputs: 8 });
-    const transport = await StretchDeck.create(ctx, splitter, 8);
+    const transport = await StretchDeck.create(ctx, splitter, 8, true);
     const output = new GainNode(ctx, { gain: 1, channelCount: 2, channelCountMode: 'explicit' });
     const gains = {} as Record<StemName, GainNode>;
     const drumRoutes = {} as Record<DrumFocus, GainNode>;
