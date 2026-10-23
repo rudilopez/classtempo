@@ -1,6 +1,6 @@
 # Stems feasibility benchmark (historical research only)
 
-The current local stems beta uses a separate Spleeter pipeline; see [STEMS_MODEL.md](STEMS_MODEL.md).
+The current local stems feature uses a separate Spleeter pipeline; see [STEMS_MODEL.md](STEMS_MODEL.md).
 This document and hidden route describe the earlier HTDemucs experiment, not the engine used by Prepare stems.
 
 Open https://rudilopez.github.io/mixdeck/#stems-benchmark on the iPhone or iPad. This is a hidden research page;
@@ -73,5 +73,5 @@ The model download was from the real pinned publisher URL, verified by hash. See
 [desktop report JSON](handoff/stems-desktop-results.json) for the raw timing records.
 
 Real iPhone and iPad HTDemucs 30-second/four-minute results remain pending. This historical route never
-enables full-song playback or caching. The current product uses the separate Spleeter beta linked above.
+enables full-song playback or caching. The current product uses the separate Spleeter feature linked above.
 A server fallback, streaming stems and Stems FX remain out of scope.

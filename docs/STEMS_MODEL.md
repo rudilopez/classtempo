@@ -1,4 +1,4 @@
-# ClassTempo local stems (beta)
+# ClassTempo local stems
 
 The production feature uses **Spleeter 4-stem**, separately from the historical HTDemucs research benchmark.
 It produces vocals, drums, bass and other instruments from a local song. Instrumental is drums + bass + other;
@@ -75,12 +75,14 @@ inferences, and temporary source decoder references are dropped before worker st
 ## Memory, quality and device acceptance
 
 The owner confirmed successful preparation on the physical iPhone after the bounded-memory release, then
-reported warbling with All stems at 100% tempo. Actual-model recombination of a 30-second excerpt from the
+reported warbling with All stems at 100% tempo. Following the normal-speed playback correction, the owner
+confirmed on 2026-10-23: "Yes, All at 100% sounds clear." The agreed release gate is complete and Beta is removed.
+Actual-model recombination of a 30-second excerpt from the
 supplied song measures -148 dB residual before caching and -80.8 dB after the PCM16 cache roundtrip. Playback
 quality is a separate gate from inference success. The stem transport now directly plays its existing PCM
 at 100%/zero pitch, avoiding the tempo engine's unity-rate phase processing and eight-channel CPU cost.
-Other rates retain pitch-preserving processing; saved stems require no regeneration. Clear playback on the
-physical iPhone remains required before removing Beta.
+Other rates retain pitch-preserving processing; saved stems require no regeneration. This phone confirmation
+covers the supplied song at normal speed, not isolated-stem quality, other songs or other playback rates.
 
 The playback correction was measured in the production player at 48 kHz using actual cached PCM16 stems.
 All at 100%, cue jumps, pause/resume and return from 80% match the PCM loaded into the worklet at about
@@ -121,8 +123,8 @@ with eight finite outputs and a maximum reconstruction error of 3.75e-8 across a
 This is browser-runtime compatibility
 evidence, **not an iPhone benchmark or an audio-quality review**.
 
-Physical iPhone/iPad preparation speed, memory stability, output quality on the user's music, background
-behavior, pitch-preserving stem playback and Bluetooth/lock-screen acceptance remain separate checks.
+Broader physical iPhone/iPad preparation speed, memory stability, isolated-stem quality, background
+behavior, changed-tempo stem playback and Bluetooth/lock-screen acceptance remain separate checks.
 Spleeter is an older model and can leave audible bleed/artifacts. Finite output and perfect recombination
 verify the signal pipeline; they do not establish good separation quality.
 
@@ -142,7 +144,7 @@ Both passed source switching, mute, tempo and playback controls with a construct
 maximums above 256 MiB. A 270.000998-second file plays normally but stems preparation rejects it before any
 inference requests. Actual desktop WebKit also passed real inference and phone layouts without cross-origin
 isolation. These tests use the pinned real models; local fixture serving excludes publisher download latency.
-The Beta label remains until the physical iPhone succeeds with the supplied song.
+The owner's subsequent preparation and All-at-100% listening confirmations are recorded above.
 
 The production browser build downloaded the four real publisher artifacts and separated a 240-second local
 fixture with 24 chunks: 23.41 seconds separation, 26.94 seconds worker total, 32.19 seconds through cached PCM
