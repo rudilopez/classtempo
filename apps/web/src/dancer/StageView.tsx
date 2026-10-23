@@ -33,6 +33,8 @@ interface Props {
   onMirroredChange?: (mirrored: boolean) => void;
   onZoomChange?: (zoom: number) => void;
   onRestartSection?: () => void;
+  practiceName?: string;
+  onEndPractice?: () => void;
   pendingLabel?: string | null;
   talking?: boolean;
   onToggleTalk?: () => void;
@@ -86,7 +88,7 @@ function exitFullscreen(): void {
 export function StageView({
   video, aspect, title, playing, position, cues, section, onTogglePlay, onRestart, onLaunch, onClose,
   tempo = 100, onTempoChange, mirrored = false, zoom = 1, onMirroredChange, onZoomChange,
-  onRestartSection, pendingLabel, talking = false, onToggleTalk, onRetryVideo, onVideoDetails,
+  onRestartSection, practiceName, onEndPractice, pendingLabel, talking = false, onToggleTalk, onRetryVideo, onVideoDetails,
 }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const [videoFailed, setVideoFailed] = useState(!!video?.error);
@@ -194,6 +196,10 @@ export function StageView({
       </div>
       <div className="stage-bar">
         <div className="stage-controls">
+          {onEndPractice && <div className="stage-practice">
+            <span title={practiceName}>Practice · {practiceName}</span>
+            <button onClick={onEndPractice}>End practice</button>
+          </div>}
           <div className={`stage-transport ${onToggleTalk ? 'stage-with-talk' : ''}`}>
             <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} disabled={videoFailed} title="Space">
               {videoFailed ? 'Unavailable' : pendingLabel ? '✕ Cancel' : playing ? '❚❚ Pause' : '▶ Play'}

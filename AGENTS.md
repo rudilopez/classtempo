@@ -59,6 +59,8 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
 - Empty cue pads set the current position with one tap; changing an existing cue requires Edit. Preserve Undo.
   Practice footer actions must commit the visible range directly; no separate Add-section prerequisite. A cue
   inside an active range keeps repeating; leaving it must visibly explain the switch to full-track playback.
+  Named practices retain independent playback snapshots. End practice cancels timers, pauses at the current
+  position and disables the active delay/mode without deleting presets; returning to Play must not revive a pass.
   Dialogs contain focus, restore background inert state and prevent global player shortcuts while open.
 - Apple Music/Spotify are not integrated. Do not add a fake connection button or promise streaming feature parity.
   Apple Music feasibility awaits credentials. Stems stay hidden research with existing weight/device gates;

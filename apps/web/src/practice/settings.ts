@@ -5,6 +5,20 @@ export interface PracticeSection {
   name: string;
   start: number;
   end: number;
+  /** Older saved ranges have no snapshot and retain the current playback options. */
+  playback?: PracticePlayback;
+}
+
+export interface PracticePlayback {
+  /** Playback rate; 1 is the original tempo. */
+  tempo: number;
+  mode: 'once' | 'repeat';
+  /** Total passes, including the first. Null means repeat until stopped. */
+  repetitions: number | null;
+  gapSeconds: number;
+  delaySeconds: number;
+  videoMirrored: boolean;
+  videoZoom: number;
 }
 
 export interface PracticeSettings {
@@ -32,6 +46,18 @@ function finite(value: unknown, fallback: number, min: number, max: number): num
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
 }
 
+function normalizePlayback(data: Record<string, unknown>): PracticePlayback {
+  return {
+    tempo: finite(data.tempo, 1, 0.5, 1.5),
+    mode: data.mode === 'once' ? 'once' : 'repeat',
+    repetitions: data.repetitions === null || data.repetitions === undefined ? null : Math.round(finite(data.repetitions, 2, 1, 100)),
+    gapSeconds: finite(data.gapSeconds, 0, 0, 30),
+    delaySeconds: finite(data.delaySeconds, 0, 0, 30),
+    videoMirrored: data.videoMirrored === true,
+    videoZoom: finite(data.videoZoom, 1, 1, 2),
+  };
+}
+
 /** Validates stored and imported data before it can schedule playback. */
 export function normalizePracticeSettings(value: unknown, duration: number): PracticeSettings {
   const defaults = defaultPracticeSettings();
@@ -52,24 +78,21 @@ export function normalizePracticeSettings(value: unknown, duration: number): Pra
       ids.add(section.id);
       sections.push({
         id: section.id,
-        name: typeof section.name === 'string' && section.name.trim() ? section.name.trim().slice(0, 60) : `Section ${sections.length + 1}`,
+        name: typeof section.name === 'string' && section.name.trim() ? section.name.trim().slice(0, 60) : `Practice ${sections.length + 1}`,
         start,
         end,
+        ...(section.playback && typeof section.playback === 'object' && !Array.isArray(section.playback)
+          ? { playback: normalizePlayback(section.playback as Record<string, unknown>) } : {}),
       });
     }
   }
   const selectedSectionId = typeof data.selectedSectionId === 'string' && ids.has(data.selectedSectionId)
     ? data.selectedSectionId : sections[0]?.id ?? null;
   return {
-    tempo: finite(data.tempo, 1, 0.5, 1.5),
+    ...normalizePlayback(data),
     sections,
     selectedSectionId,
     mode: selectedSectionId && (data.mode === 'once' || data.mode === 'repeat') ? data.mode : 'off',
-    repetitions: data.repetitions === null || data.repetitions === undefined ? null : Math.round(finite(data.repetitions, 2, 1, 100)),
-    gapSeconds: finite(data.gapSeconds, 0, 0, 30),
-    delaySeconds: finite(data.delaySeconds, 0, 0, 30),
-    videoMirrored: data.videoMirrored === true,
-    videoZoom: finite(data.videoZoom, 1, 1, 2),
   };
 }
 
@@ -98,4 +121,16 @@ export function savePracticeSettings(name: string, duration: number, settings: P
 
 export function selectedPracticeSection(settings: PracticeSettings): PracticeSection | null {
   return settings.sections.find((section) => section.id === settings.selectedSectionId) ?? null;
+}
+
+/** Restore a named practice without changing another practice's saved options. */
+export function activatePracticeSection(settings: PracticeSettings, id: string): PracticeSettings {
+  const section = settings.sections.find((section) => section.id === id);
+  if (!section) return settings;
+  return {
+    ...settings,
+    ...(section.playback ?? {}),
+    selectedSectionId: section.id,
+    mode: section.playback?.mode ?? (settings.mode === 'off' ? 'repeat' : settings.mode),
+  };
 }

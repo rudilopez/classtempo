@@ -17,10 +17,12 @@ original `mixdeck` name.
    its exercises. Class entries advance manually and can reuse a file with different practice settings.
 3. Adjust speed between **50% and 150%**, preserving pitch where the playback engine/browser supports it.
    The percentage sits between the minus and plus controls; **100%** restores original speed.
-4. Open **Practice**, choose a start cue (or exact time) and an end cue/time, then **Start practice**. Repeat is
-   the default for a new range. Choose Until stopped or a total number of plays, with an optional pause between.
-   **Save & close** prepares the range without playing; the main **Repeat / Section** button starts it and shows
-   pass progress. The Practice button displays the active range. Closing with ✕ discards unsaved changes.
+4. Open **Practice**, enter a **Practice name**, and choose a start cue/time and an end cue/time. **Save practice**
+   keeps its range, tempo, repeats, gap, delay and video settings with this track; **Start practice** saves and
+   starts it. Use **+ New practice** to save another, or **Saved practices** to reopen one. Repeat until stopped
+   is the default. The player shows the active name and pass progress. **End practice**, available in the player,
+   editor and Stage, pauses at the current position and returns to normal Play without deleting saved practices.
+   Tap Play to continue the full track at the current tempo, without the practice delay. ✕ discards unsaved edits.
 5. Tap an **empty cue pad** to save the current position immediately, even while playing. Tap a saved cue to
    play from it. **Edit cues** moves, renames or clears existing cues; Undo restores recent changes. Launching a
    cue inside the active practice range keeps repeating; a cue outside it switches to full-track playback with

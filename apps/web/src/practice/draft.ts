@@ -1,4 +1,4 @@
-import { MAX_SECTIONS, MIN_SECTION_SECONDS, normalizePracticeSettings, type PracticeSettings } from './settings';
+import { MAX_SECTIONS, MIN_SECTION_SECONDS, normalizePracticeSettings, type PracticeSection, type PracticeSettings } from './settings';
 
 /** Visible panel fields travel together so Start and Save commit the same range. */
 export interface PracticeDraft {
@@ -29,13 +29,22 @@ export function commitPracticeDraft(draft: PracticeDraft, duration: number, crea
   }
   const existing = draft.settings.sections.some((section) => section.id === draft.sectionId);
   if (!existing && draft.settings.sections.length >= MAX_SECTIONS) {
-    return { error: `This track already has ${MAX_SECTIONS} saved sections. Choose one to edit or delete one first.`, field: 'section' };
+    return { error: `This track already has ${MAX_SECTIONS} saved practices. Choose one to edit or delete one first.`, field: 'section' };
   }
-  const section = {
+  const section: PracticeSection = {
     id: existing && draft.sectionId ? draft.sectionId : createId(),
-    name: draft.name.trim().slice(0, 60) || `Section ${draft.settings.sections.length + 1}`,
+    name: draft.name.trim().slice(0, 60) || `Practice ${draft.settings.sections.length + 1}`,
     start,
     end,
+    playback: {
+      tempo: draft.settings.tempo,
+      mode: draft.settings.mode,
+      repetitions: draft.settings.repetitions,
+      gapSeconds: draft.settings.gapSeconds,
+      delaySeconds: draft.settings.delaySeconds,
+      videoMirrored: draft.settings.videoMirrored,
+      videoZoom: draft.settings.videoZoom,
+    },
   };
   const sections = existing
     ? draft.settings.sections.map((saved) => saved.id === section.id ? section : saved)

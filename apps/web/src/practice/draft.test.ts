@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { commitPracticeDraft, practiceTimeInput, type PracticeDraft } from './draft';
-import { defaultPracticeSettings, MIN_SECTION_SECONDS, type PracticeSettings } from './settings';
+import { activatePracticeSection, defaultPracticeSettings, MIN_SECTION_SECONDS, type PracticeSettings } from './settings';
 
 function draft(settings: Partial<PracticeSettings> = {}): PracticeDraft {
   return {
@@ -17,7 +17,7 @@ describe('committing the visible practice range', () => {
     const result = commitPracticeDraft(draft(), 120, () => 'new-section');
     expect(result).toEqual({ settings: {
       ...defaultPracticeSettings(), tempo: .75, delaySeconds: 3, mode: 'repeat',
-      sections: [{ id: 'new-section', name: 'Turn pattern', start: 20, end: 32.5 }],
+      sections: [{ id: 'new-section', name: 'Turn pattern', start: 20, end: 32.5, playback: { tempo: .75, mode: 'repeat', repetitions: null, gapSeconds: 0, delaySeconds: 3, videoMirrored: false, videoZoom: 1 } }],
       selectedSectionId: 'new-section',
     } });
   });
@@ -32,6 +32,30 @@ describe('committing the visible practice range', () => {
     expect(result).toMatchObject({ settings: { selectedSectionId: 'one', repetitions: 4, gapSeconds: 2, sections: [
       { id: 'one', name: 'Turn pattern', start: 20, end: 32.5 }, { id: 'two', name: 'Other', start: 40, end: 60 },
     ] } });
+  });
+
+  it('captures separate named settings and edits one without changing the other', () => {
+    const first = commitPracticeDraft(draft({ repetitions: 3, gapSeconds: 2, videoMirrored: true, videoZoom: 1.5 }), 120, () => 'turn');
+    if (!('settings' in first)) throw new Error(first.error);
+    const second = commitPracticeDraft({
+      ...draft({ ...first.settings, tempo: 1, mode: 'once', repetitions: null, gapSeconds: 0, delaySeconds: 0, videoMirrored: false, videoZoom: 1 }),
+      name: 'Full-speed chorus', start: '50', end: '75',
+    }, 120, () => 'chorus');
+    if (!('settings' in second)) throw new Error(second.error);
+    const savedTurn = first.settings.sections[0]!;
+    expect(second.settings.sections[0]).toEqual(savedTurn);
+    const turn = activatePracticeSection(second.settings, 'turn');
+    expect(turn).toMatchObject({ tempo: .75, mode: 'repeat', repetitions: 3, gapSeconds: 2, delaySeconds: 3, videoMirrored: true, videoZoom: 1.5 });
+    const edited = commitPracticeDraft({ ...draft({ ...turn, tempo: .6 }), sectionId: 'turn', name: 'Slow turn' }, 120, () => 'unused');
+    if (!('settings' in edited)) throw new Error(edited.error);
+    expect(edited.settings.sections[0]).toMatchObject({ id: 'turn', name: 'Slow turn', playback: { tempo: .6 } });
+    expect(edited.settings.sections[1]).toEqual(second.settings.sections[1]);
+    expect(activatePracticeSection(edited.settings, 'chorus')).toMatchObject({ tempo: 1, mode: 'once', repetitions: null, delaySeconds: 0, videoMirrored: false, videoZoom: 1 });
+  });
+
+  it('gives an unnamed draft a visible practice name and normalizes its saved playback', () => {
+    const result = commitPracticeDraft({ ...draft({ tempo: 20, gapSeconds: -2, videoZoom: 3 }), name: '  ' }, 120, () => 'new');
+    expect(result).toMatchObject({ settings: { sections: [{ name: 'Practice 1', playback: { tempo: 1.5, gapSeconds: 0, videoZoom: 2 } }] } });
   });
 
   it('saves the exact fractional track end and a valid minimum-length section at that end', () => {
@@ -74,6 +98,6 @@ describe('committing the visible practice range', () => {
 
   it('prevents a new draft from silently replacing one of the maximum saved sections', () => {
     const sections = Array.from({ length: 12 }, (_, index) => ({ id: String(index), name: String(index), start: index, end: index + 1 }));
-    expect(commitPracticeDraft(draft({ sections }), 120, () => 'new')).toMatchObject({ field: 'section' });
+    expect(commitPracticeDraft(draft({ sections }), 120, () => 'new')).toMatchObject({ field: 'section', error: expect.stringContaining('12 saved practices') });
   });
 });

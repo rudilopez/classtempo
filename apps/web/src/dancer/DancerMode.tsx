@@ -719,7 +719,26 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     setPractice(next);
     playerRef.current?.setTempo(next.tempo);
     setTempo(Math.round(next.tempo * 100));
-    if (!savePracticeSettings(s.track.name, s.track.duration, next)) showToast('Practice settings could not be saved on this device.');
+    const saved = savePracticeSettings(s.track.name, s.track.duration, next);
+    if (!saved) showToast('Practice settings could not be saved on this device.');
+    return saved;
+  };
+
+  /** Leave rehearsal explicitly: cancel every pending pass, keep the position and saved presets. */
+  const endPractice = () => {
+    pause();
+    setTalking(false);
+    engine.setDancerGain(1);
+    const saved = updatePractice({ ...practiceRef.current, mode: 'off', delaySeconds: 0 }, false);
+    setPracticeOpen(false);
+    if (saved) showToast('Practice ended. Tap Play for the full track. Your saved practices are kept.');
+  };
+
+  const savePractice = (value: PracticeSettings) => {
+    if (updatePractice(value)) {
+      const selected = selectedPracticeSection(value);
+      showToast(selected ? `Saved “${selected.name}” for this track.` : 'Saved practice changes.');
+    }
   };
 
   /** Commit the panel's visible range and start at A within this same user gesture. */
@@ -916,6 +935,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   const ready = player !== null && song !== null && !loading && !videoError && !failedVideoFile;
   const selectedSection = selectedPracticeSection(practice);
   const practiceActive = practice.mode !== 'off' && selectedSection !== null;
+  const practiceConfigured = practiceActive || practice.delaySeconds > 0;
   const practiceRange = practiceActive ? `${formatTime(selectedSection.start)}–${formatTime(selectedSection.end)}` : '';
   const practiceProgress = practiceState.phase === 'complete' ? 'Complete · tap to restart'
     : practiceState.pass > 0 ? `Pass ${practiceState.pass}${practice.mode === 'repeat' && practice.repetitions !== null ? ` of ${practice.repetitions}` : ''}`
@@ -1086,12 +1106,16 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       <div className="dancer-side">
         <div className="class-tempo-panel">
           <TempoControl value={tempo} onChange={changeTempo} disabled={!ready} />
-          <div className="class-tools">
+          <div className={`class-tools ${practiceConfigured ? 'has-practice' : ''}`}>
             <button className={`practice-open ${practiceActive || practice.delaySeconds > 0 ? 'on' : ''}`} aria-label="Practice"
+              title={practiceActive ? `${selectedSection.name} · ${practiceRange}` : 'Create or open a saved practice'}
               onClick={(event) => { event.currentTarget.focus(); pause(); setPracticeOpen(true); }} disabled={!ready}>
-              <span>Practice{practiceActive ? ` · ${practice.mode === 'repeat' ? 'Repeat' : 'Once'}` : ''}</span>
-              {practiceActive && <small>{practiceRange}{practice.mode === 'repeat' && practice.gapSeconds > 0 ? ` · ${practice.gapSeconds}s gap` : ''}</small>}
+              <span>Practice</span>
+              {practiceActive && <small>{selectedSection.name}</small>}
             </button>
+            {practiceConfigured && <button className="practice-end" onClick={endPractice} aria-label="End practice" title="Stop practice and return to normal playback">
+              <span>End practice</span><small>Back to Play</small>
+            </button>}
             <button className={talking ? 'on' : ''} aria-pressed={talking} onClick={toggleTalk} disabled={!ready}
               title={song?.kind === 'video' ? 'Pause the video while you talk; tap again to resume' : 'Lower the music while you talk; tap again to restore'}>
               {talking ? 'Finish talking' : 'Talk'}
@@ -1135,8 +1159,8 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
             playerRef.current.setTempo(next.tempo); setTempo(Math.round(next.tempo * 100));
           }
         }} />
-      {practiceOpen && track && <PracticePanel settings={practice} onChange={(value) => updatePractice(value)}
-        cues={song?.cues ?? NO_CUES} onStart={startPractice}
+      {practiceOpen && track && <PracticePanel settings={practice} onChange={savePractice}
+        cues={song?.cues ?? NO_CUES} onStart={startPractice} onEnd={endPractice}
         position={displayPos} duration={track.duration} delayDisabled={song?.kind === 'video' && !videoStarted.current} onClose={() => setPracticeOpen(false)} />}
 
       <p className="dancer-hint kbd-hint">
@@ -1171,6 +1195,8 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
           onMirroredChange={(value) => updatePractice({ ...practice, videoMirrored: value }, false)}
           onZoomChange={(value) => updatePractice({ ...practice, videoZoom: value }, false)}
           onRestartSection={practiceActive ? restart : undefined}
+          practiceName={practiceActive ? selectedSection.name : practice.delaySeconds > 0 ? 'Start delay' : undefined}
+          onEndPractice={practiceConfigured ? endPractice : undefined}
           pendingLabel={pendingLabel}
           talking={talking}
           onToggleTalk={toggleTalk}

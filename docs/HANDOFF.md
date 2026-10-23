@@ -1,9 +1,29 @@
 # Handoff — open work, in priority order
 
+## Named practices and explicit exit (2026-10-23)
+
+Practice name and saved-practice selection now lead the editor. Save practice and Start practice commit the
+visible name/range together with independent tempo, repeat/count, gap, delay and video options. Existing saved
+sections and storage keys remain compatible. End practice is available in the main player, editor and Stage:
+it cancels timers, pauses at the current position, clears Talk and active delay, and restores full-track Play.
+Saved practices remain available and selecting one restores its options.
+
+Verification: 206 tests and typecheck/build pass. Chromium and persistent WebKit cover named preset save,
+restore, rename, reload, discard, delete/Undo and modal focus. Dialogs passed 28 phone/tablet/safe-area cases;
+main player and Stage passed 56 layout cases. End during audio/video playback, delay, gap and completion,
+plus Stage and video Talk, passed 22 real-browser cases while preserving saved snapshots and cancelling timers.
+Four additional main/Stage checks cover legacy full-track delays: End remains visible and clears the delay.
+
+The original 31-second M4V was subsequently supplied. The iPhone diagnostics show metadata followed by native
+decode error 3 before the first picture (zero dimensions), with the source labeled video/quicktime. The exact
+source passes full desktop Chromium/WebKit playback, including forced QuickTime and M4V MIME labels. No MIME
+workaround was published without evidence. A local 1080p MP4 derivative passed full desktop playback, Stage and
+library reopening; its actual iPhone acceptance is pending. Neither source nor derivative belongs in Git.
+
 ## Cue, Practice and video follow-up (2026-10-23)
 
-The owner reports the original 31-second video still crashes. The source file and whether this is a full-page
-reload, frozen picture or native decode error are still being requested. Do not mark that original failure fixed.
+The owner reports the original 31-second video still fails. The subsequently supplied file and iPhone native
+decode diagnostics are covered above. Do not mark that original phone failure fixed.
 The loading path now avoids a forced 0.001-second seek and uses metadata preloading. Native errors offer a
 user-initiated paused retry and a bounded diagnostic copy with no media bytes, filename or file path.
 
@@ -34,7 +54,7 @@ with unsaved feedback. Save current preserves the loaded track and practice stat
 
 Native video decode failures now latch playback off until a new load, cancel pending practice, and replace
 Mirror/Fit with a readable error. The transport no longer shows Pause after a fatal failure. The original user
-M4V is still unavailable here, so its exact decoding failure remains a physical-device/media acceptance item.
+M4V's iPhone decoding failure remains a physical-device acceptance item; see the exact-file investigation above.
 
 The classroom release adds local IndexedDB media storage and recents, ordered class sets with independent
 exercise settings, named A/B sections, finite/continuous repetition, pauses between attempts, an adjustable

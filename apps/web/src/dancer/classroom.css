@@ -31,6 +31,10 @@
   letter-spacing: 0;
 }
 .class-tools .practice-open { display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+.dancer .class-tools.has-practice { grid-template-columns: minmax(0, 1.4fr) minmax(90px, 1.2fr) minmax(44px, .7fr) 44px; }
+.class-tools.has-practice > button:last-child { padding-inline: 2px; }
+.class-tools .practice-end { display: flex; flex-direction: column; justify-content: center; gap: 3px; padding-inline: 4px; color: #ffe1a3; border-color: #9e8049; background: #302719; }
+.practice-end small { font-size: 10px; font-weight: 500; }
 .practice-open small { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 10px; font-weight: 500; }
 .dancer .dancer-transport .practice-play { display: flex; flex-direction: column; justify-content: center; gap: 3px; }
 .dancer .dancer-transport .practice-play small { font-size: 10px; font-weight: 600; letter-spacing: 0; line-height: 1.1; }
