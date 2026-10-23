@@ -29,7 +29,7 @@
 .library-panel button, .library-panel select, .library-panel input:not([hidden]), .library-panel textarea { min-height: 44px; font: inherit; }
 .library-panel button { border: 1px solid #44607a; background: #1a3045; color: #f2f7fc; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
 .library-panel button:disabled { opacity: .45; cursor: default; }
-.library-panel button:focus-visible, .library-panel input:focus-visible, .library-panel select:focus-visible, .library-panel textarea:focus-visible { outline: 3px solid #74dfd0; outline-offset: 2px; }
+.library-panel button:focus-visible, .library-panel input:focus-visible, .library-panel select:focus-visible, .library-panel textarea:focus-visible, .library-panel a:focus-visible { outline: 3px solid #74dfd0; outline-offset: 2px; }
 .library-panel .library-close { flex: 0 0 44px; font-size: 19px; padding: 8px; }
 .library-description { margin: 9px 0 14px; font-size: 13px; color: #b4c8db; flex: none; }
 .library-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex: none; padding: 5px; border-radius: 14px; background: #0a1522; }
@@ -118,6 +118,9 @@
 .library-backup-content p { margin: 8px 0 12px; }
 .library-backup-buttons { display: flex; gap: 8px; }
 .library-backup-buttons button { flex: 1; font-size: 12px; }
+.library-help { flex: none; margin-top: 8px; border-top: 1px solid #304a62; }
+.library-help a { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 0 4px; border-radius: 6px; color: #9de0d4; font-size: 13px; font-weight: 600; text-decoration: none; }
+.library-help a:hover { text-decoration: underline; }
 .library-panel select {
   appearance: none;
   -webkit-appearance: none;

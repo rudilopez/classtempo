@@ -7,6 +7,10 @@ original `mixdeck` name.
 
 **App:** https://rudilopez.github.io/mixdeck/
 
+**Visual user guide:** https://rudilopez.github.io/mixdeck/guide.html — also available in **Library → User guide**.
+Simple instructions, real app screenshots, topic search cover playback, cues, practices,
+classes, Stage, stems, offline use and backups. The guide opens in a separate tab to preserve the player session.
+
 ## Classroom workflow
 
 1. Tap **Open** to choose an ordinary song or video file. The app recognizes its type automatically; cancelling
