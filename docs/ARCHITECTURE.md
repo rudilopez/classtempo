@@ -161,6 +161,10 @@ The regular player retains its picture, full cue pads and tempo controls. Its Cu
 the pad area. Selecting Stems exits cue editing while preserving cue history, track and practice settings;
 it never starts a model download. Prepare explicitly starts a cancellable Spleeter Worker, with pinned size
 and SHA-256 checks for each model. The models and inference runtime are excluded from normal app precaching.
+Apple browsers and browsers without WebGPU use a separate plain-WASM worker; other GPU-capable browsers use
+JSEP. A failed GPU initialization/inference transfers input back for retry in a fresh CPU-only worker, avoiding
+the runtime's sticky initialization failure. Cancellation terminates whichever worker currently owns the input.
+Failure details preserve the original cause and runtime/version without media contents or filenames.
 
 The four stereo stems use one lazily created eight-channel Signalsmith transport (`StemDeck`) so tempo,
 seeks and cues remain synchronized. A splitter restores stereo pairs, per-stem ramped gains feed a stereo

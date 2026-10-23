@@ -1,4 +1,5 @@
 import type { DrumFocus, StemMix } from '@mixdeck/engine';
+import { useEffect, useState } from 'react';
 import type { PreparedStemsState } from './usePreparedStems';
 import { MAX_SEPARATION_SECONDS } from './separationModel';
 import './panel.css';
@@ -25,7 +26,16 @@ interface Props {
 /** Fits the existing pad area. All download and processing are initiated by Prepare, never a tab change. */
 export function StemsPanel({ kind, state, active, disabled, mix, focus, onPrepare, onCancel,
   onActivate, onOriginal, onMix, onFocus, onRemoveSaved, onOpen }: Props) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => { setCopied(false); }, [state.failure]);
   const pads = [['vocals', 'Vocal'], ['other', 'Instruments'], ['bass', 'Bass'], ['drums', 'Drums']] as const;
+  const copyFailure = (): void => {
+    const details = JSON.stringify({ app: 'ClassTempo', startupFix: 'plain-wasm-v1', browser: navigator.userAgent,
+      crossOriginIsolated: globalThis.crossOriginIsolated, ...state.failure }, null, 2);
+    const manual = (): void => { window.prompt('Copy these stems details', details); };
+    if (!navigator.clipboard?.writeText) { manual(); return; }
+    void navigator.clipboard.writeText(details).then(() => setCopied(true), manual);
+  };
   const saveReport = (): void => {
     const url = URL.createObjectURL(new Blob([JSON.stringify({ app: 'ClassTempo', browser: navigator.userAgent,
       elapsedSeconds: state.seconds, stemsSaved: state.saved, ...state.report }, null, 2)], { type: 'application/json' }));
@@ -76,6 +86,7 @@ export function StemsPanel({ kind, state, active, disabled, mix, focus, onPrepar
     </> : <div className="stems-intro">
       <strong>Prepare stems <span className="stems-beta">Beta</span></strong>
       {state.message && <p role={state.phase === 'error' ? 'alert' : 'status'}>{state.message}</p>}
+      {state.failure && <button onClick={copyFailure}>{copied ? 'Details copied' : 'Copy details'}</button>}
       <p>Vocals, drums, bass and instruments. First use downloads an 80 MB engine plus its runtime. Best on Wi-Fi.</p>
       <button className="stems-prepare" disabled={disabled} onClick={onPrepare}>{state.phase === 'error' ? 'Try preparing again' : 'Prepare stems'}</button>
       <small>Start with a short song · Up to {MAX_SEPARATION_SECONDS / 60} minutes · Keep app open</small>

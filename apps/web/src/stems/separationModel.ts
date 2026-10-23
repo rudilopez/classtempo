@@ -15,14 +15,20 @@ export const SEPARATION_MODELS = [
 ].map((model) => ({ ...model, url: `${MODEL_ROOT}/${model.name}.fp16.onnx` }));
 export const SEPARATION_MODEL_BYTES = SEPARATION_MODELS.reduce((total, model) => total + model.bytes, 0);
 
+export type SeparationRuntime = 'wasm' | 'webgpu-jsep';
+
 export interface SeparationInput {
   type: 'separate';
   channels: [Float32Array, Float32Array];
   sampleRate: number;
   provider?: 'auto' | 'wasm';
+  /** Preserves the original GPU failure when a fresh CPU-only Worker retries. */
+  fallbackReason?: string;
 }
 
 export interface SeparationReport {
+  runtime: SeparationRuntime;
+  runtimeVersion: string;
   modelVersion: string;
   modelBytes: number;
   modelFromCache: boolean;
@@ -42,4 +48,5 @@ export interface SeparationReport {
 export type SeparationMessage =
   | { type: 'progress'; stage: string; fraction: number | null }
   | { type: 'complete'; stems: Float32Array[]; sampleRate: number; report: SeparationReport }
-  | { type: 'error'; message: string };
+  | { type: 'retry-wasm'; channels: [Float32Array, Float32Array]; sampleRate: number; cause: string; runtime: 'webgpu-jsep'; runtimeVersion: string }
+  | { type: 'error'; message: string; runtime: SeparationRuntime; runtimeVersion: string };
