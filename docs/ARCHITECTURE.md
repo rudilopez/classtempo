@@ -158,8 +158,20 @@ Library and Keep awake. Titles live inside the media panel; the palm logo replac
 final o in ClassTempo.
 
 The regular player retains its picture, full cue pads and tempo controls. Its Cues/Stems pill switches only
-the pad area's contents; Stems reports unavailable and never imports the research runtime or downloads a model.
-Selecting Stems exits cue editing while preserving the cue history, track and practice settings.
+the pad area. Selecting Stems exits cue editing while preserving cue history, track and practice settings;
+it never starts a model download. Prepare explicitly starts a cancellable Spleeter Worker, with pinned size
+and SHA-256 checks for each model. The models and inference runtime are excluded from normal app precaching.
+
+The four stereo stems use one lazily created eight-channel Signalsmith transport (`StemDeck`) so tempo,
+seeks and cues remain synchronized. A splitter restores stereo pairs, per-stem ramped gains feed a stereo
+mix and the existing classroom Talk gain. Low/High drums replace the drum route with a low/high-pass filter.
+The original stereo deck remains loaded for immediate source switching at the same position; pending
+practice gaps/delays follow the shared current-player commands. Changing media cancels jobs and releases PCM.
+
+Separated audio is saved as scaled PCM16 in `classtempo-stems`, separate from library originals and classes.
+SHA-256 source contents plus model/format versions identify cache entries. Atomic writes and a 500 MiB LRU
+cap preserve complete sets; save failures keep session playback available but explicitly unsaved. Model
+cache and saved-stem eviction are independent. See [STEMS_MODEL.md](STEMS_MODEL.md) for signal and license details.
 
 Video Stage uses a flexing picture, 44 px seek target and 48 px dock for Play, Cues, Practice, Tools and Exit.
 Cues opens a horizontal strip of 44 px numbered buttons below the picture, including empty slots that set a cue
@@ -184,9 +196,9 @@ SharedArrayBuffer requirement. The dev server has COOP/COEP headers; Pages does 
 headers, and future cross-origin-isolated work must account for that difference.
 
 MusicKit and Spotify are not loaded or authenticated. See [Apple Music feasibility](APPLE_MUSIC_FEASIBILITY.md)
-for credential and device-test gates. The hidden stems page lazy-loads the ONNX runtime; normal playback does not
-precache that large runtime or its 166 MB model. The exact weights are research-restricted; production permission,
-phone performance and an owner decision remain separate gates. No server separation fallback is authorized.
+for credential and device-test gates. The hidden historical Demucs page retains its research-only model; the
+production stems beta uses a separate licensed Spleeter model. Neither runtime nor model downloads occur during
+normal playback. Physical phone preparation/playback validation remains separate. No server fallback is enabled.
 
 Tests cover pure data normalization, class ordering/backups, transport cancellation/repetition, engine creation,
 platform helpers and existing analysis. Release verification also needs responsive browser flows, actual saved

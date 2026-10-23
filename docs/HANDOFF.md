@@ -1,5 +1,37 @@
 # Handoff — open work, in priority order
 
+## Local stems beta (2026-10-23)
+
+The owner requested stems. The Cues/Stems panel now prepares local audio with explicitly requested Spleeter
+4-stem inference (vocals/drums/bass/other), replacing the unavailable message. It does not use the historical
+research-restricted Demucs weights. Model provenance, exact hashes and license notices are in STEMS_MODEL.md.
+
+Prepare downloads about 80 MB of model weights plus runtime only after a tap. Separation runs locally in a
+cancellable Worker; the original recording remains available. Ready stems use one 8-channel Signalsmith
+transport for shared tempo, cues and practice. Pads mute parts; Acapella/Instrumental/All are shortcuts.
+Low/High drums focus frequency ranges, rather than isolating kick/hi-hat. Original returns to the source at the
+same position. Pending practice delays/gaps survive source switches; opening new media cancels preparation.
+
+The first beta limits songs to four minutes and 100 MB. Results save as scaled PCM16 in a separate 500 MiB,
+content-addressed LRU cache; saving failure leaves session playback available with honest feedback. Source
+media/classes are never removed by stems cache eviction. No video decoding or streaming integration is added.
+The user has separately enrolled in Apple's Developer Program; MusicKit credentials/testing remain pending.
+
+Verification: typecheck, 236 tests and build pass. Chromium/WebKit each cover actual 12-second preparation,
+pad/shortcut changes, tempo, cue playback, original/stem selection, saved reload and seven required layouts.
+A measured 8-channel Chromium audio test covers 22 stereo/mix/pitch/transport checks. Cancellation, stale load,
+practice gap switching and full/unavailable storage have separate browser cases. WebKit reload testing found
+and fixed a Blob-handle defect: recency now lives in a separate IndexedDB usage store.
+Final browser review also verifies active finite practice passes survive either source switch, and a failed
+replacement file cannot leave the displayed stem mix out of sync with the next prepared song.
+
+The production build fetched all four real pinned models and prepared a 240-second local fixture in 32.2 s
+on the development Mac (23.4 s separation, 480 observed GPU submissions). Saved stems loaded offline in 1.5 s.
+Normal app launch and selecting the Stems pill made no inference/model requests. These are desktop results.
+
+Physical iPhone/iPad preparation speed, memory stability, listening quality, Bluetooth and lock-screen behavior
+remain unverified. The owner's confirmed 1080p video acceptance is unrelated to these new audio stem checks.
+
 ## Stage-only large video and Cues/Stems header (2026-10-23)
 
 The owner clarified that the large video layout belongs only in Stage. The regular player returns to the

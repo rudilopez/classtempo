@@ -66,9 +66,13 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   position and disables the active delay/mode without deleting presets; returning to Play must not revive a pass.
   Dialogs contain focus, restore background inert state and prevent global player shortcuts while open.
 - Apple Music/Spotify are not integrated. Do not add a fake connection button or promise streaming feature parity.
-  Apple Music feasibility awaits credentials. The Cues/Stems header may show an honest unavailable state;
-  the stems engine stays hidden research with existing weight/device gates;
-  no model auto-download or server fallback is authorized by the classroom feature scope.
+  Apple Music feasibility awaits MusicKit credentials (the owner has enrolled in the Developer Program).
+- Stems uses opt-in local Spleeter separation for audio files only, with a four-minute/100 MB beta limit.
+  Selecting the Stems pill never downloads models; Prepare explicitly downloads the pinned, hash-verified engine.
+  Keep original playback available, preserve pending practice during source switches, and cancel stale jobs on loads.
+  Store complete aligned results atomically; never call a failed save offline-ready. Low/High drums are frequency
+  filters, not independently separated instruments. No server upload/fallback is authorized. Physical iPhone
+  preparation and playback acceptance remain required; desktop results do not remove that boundary.
 - Style: 2-space indent, single quotes, trailing commas, explicit exported API types, no `any`.
 - Do not add dependencies without a reason documented in the commit. Do not commit `test-media/`, `.claude/`,
   credentials, user media or private backup files.

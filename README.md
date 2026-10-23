@@ -27,8 +27,12 @@ original `mixdeck` name.
 5. Select **Cues** in the **Cues / Stems** header. Tap an **empty cue pad** to save the current position immediately, even while playing. Tap a saved cue to
    play from it. **Edit cues** moves, renames or clears existing cues; Undo restores recent changes. Launching a
    cue inside the active practice range keeps repeating; a cue outside it switches to full-track playback with
-   visible feedback. **Stems** currently explains that separate vocal/instrument playback is unavailable;
-   selecting it does not change playback or download an engine.
+   visible feedback. **Stems → Prepare stems** separates a local song into Vocal, Instruments, Bass and Drums.
+   Preparation is optional; the first run downloads about 80 MB of model weights plus the runtime. Tap **Use stems**,
+   mute parts, or choose **Acapella**, **Instrumental** or **All**. **Original** returns to the original recording
+   at the current position. Low/High drums focus frequency ranges, rather than isolating a kick or hi-hat.
+   This beta accepts songs up to four minutes and 100 MB. Keep the app visible while preparing; songs stay on
+   the device. Saved stems reopen without separating again. Video and subscription streams are not supported.
 6. The regular player keeps its picture, tempo and cue pads visible together. Tap **Stage** to make video large,
    above a compact **Play · Cues · Practice · Tools · Exit** bar and seek line. In Stage, **Cues** opens one
    horizontally scrollable row of numbered buttons below the picture. Tap an empty number to save a cue, or a
@@ -124,9 +128,12 @@ target without testing the actual worklet startup.
 The production app creates `Engine.create({ dj: false })`; it does not initialize DJ decks or their worklet
 processors. Some legacy mixer components and package scaffolds remain in the repository but are not product UI.
 
-The hidden [stems benchmark](https://rudilopez.github.io/mixdeck/#stems-benchmark) remains research only and is
-deferred behind classroom playback. Its 166 MB weights require an explicit download. Full stems depend on
-physical-device performance and production weight permission; no server fallback is enabled.
+The new [local stems beta](docs/STEMS_MODEL.md) uses Spleeter weights with explicit upstream licensing,
+independently of the historical [HTDemucs benchmark](https://rudilopez.github.io/mixdeck/#stems-benchmark).
+It saves separated PCM in a separate 500 MiB cache, evicting least-recently-used stem results without removing
+original songs or classes. **Saved stems & details** offers removal for the current song. Browser storage can
+still be cleared or evicted. Stems are not included in settings backups. Physical iPhone preparation speed,
+memory stability and listening quality remain to be confirmed; no server fallback is enabled.
 
 Further detail: [architecture](docs/ARCHITECTURE.md), [delivery plan](docs/BUILD_PLAN.md),
 [product scope](docs/VISION_AND_PARITY.md), [historical handoff](docs/HANDOFF.md),

@@ -57,6 +57,7 @@ export class StretchDeck implements DancerPlayer {
   private readonly ctx: AudioContext;
   private readonly stretch: StretchNode;
   private readonly lookahead: number;
+  private readonly channelCount: number;
   /** Input position at the start of the latest scheduled segment. */
   private segInput = 0;
   /** AudioContext time the latest scheduled segment starts at. */
@@ -66,12 +67,13 @@ export class StretchDeck implements DancerPlayer {
   private _semitones = 0;
   private loadSeq = 0;
 
-  private constructor(ctx: AudioContext, stretch: StretchNode, latency: number) {
+  private constructor(ctx: AudioContext, stretch: StretchNode, latency: number, channelCount: number) {
     this.ctx = ctx;
     this.stretch = stretch;
     this.node = stretch;
     // Default preset: input and output latency are equal (60 ms each at any sample rate).
     this.lookahead = latency / 2;
+    this.channelCount = channelCount;
   }
 
   /**
@@ -80,16 +82,19 @@ export class StretchDeck implements DancerPlayer {
    * from process(), so it keeps rendering after disconnect() — so create one per context and reuse it
    * (`Engine.getStretchDeck` does this); `release()` hands it back between uses.
    */
-  static async create(ctx: AudioContext, destination: AudioNode): Promise<StretchDeck> {
+  static async create(ctx: AudioContext, destination: AudioNode, channelCount = 2): Promise<StretchDeck> {
+    if (!Number.isInteger(channelCount) || channelCount < 1 || channelCount > 8) {
+      throw new Error('The stretch player needs between 1 and 8 channels.');
+    }
     // Keep numberOfInputs at 1 (the wrapper's default): the processor's idle branch indexes the input
     // list and throws with 0 inputs. Unconnected, the input is empty and the node plays its buffers.
     const stretch = await SignalsmithStretch(ctx, {
       numberOfInputs: 1,
       numberOfOutputs: 1,
-      outputChannelCount: [2],
+      outputChannelCount: [channelCount],
     });
     const latency = await stretch.latency();
-    const deck = new StretchDeck(ctx, stretch, latency);
+    const deck = new StretchDeck(ctx, stretch, latency, channelCount);
     stretch.connect(destination);
     await stretch.setUpdateInterval(UPDATE_INTERVAL, () => deck.tick());
     return deck;
@@ -99,18 +104,38 @@ export class StretchDeck implements DancerPlayer {
 
   /** Replaces the node's buffers with up to 2 channels of `buffer` (mono duplicated); rewound, paused, tempo kept. */
   async load(buffer: AudioBuffer, name: string): Promise<void> {
+    if (this.channelCount !== 2) throw new Error('Use loadChannels for a multichannel player.');
+    const left = buffer.getChannelData(0);
+    const right = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : left;
+    await this.loadChannels([left, right], this.ctx.sampleRate, name);
+  }
+
+  /**
+   * Loads aligned PCM already resampled to the AudioContext rate. Copies channels by default. Explicit
+   * ownership transfer avoids that allocation: callers must never use any supplied backing buffer again.
+   * Invalid input leaves the currently loaded track unchanged.
+   */
+  async loadChannels(
+    channels: readonly Float32Array[],
+    sampleRate: number,
+    name: string,
+    { transfer = false }: { transfer?: boolean } = {},
+  ): Promise<void> {
+    validateStretchChannels(channels, sampleRate, this.ctx.sampleRate, this.channelCount);
+    if (transfer && channels.some((channel) => !(channel.buffer instanceof ArrayBuffer))) {
+      throw new Error('Ownership transfer requires ordinary ArrayBuffers.');
+    }
     const seq = ++this.loadSeq;
     this.track = null;
     this.schedule({ active: false, input: 0 });
-    const left = buffer.getChannelData(0).slice();
-    const right = buffer.numberOfChannels > 1 ? buffer.getChannelData(1).slice() : left.slice();
-    const channels = [left, right];
+    const frames = channels[0]!.length;
+    const owned = transfer ? [...channels] : channels.map((channel) => channel.slice());
     await this.stretch.dropBuffers();
     if (seq !== this.loadSeq) return; // superseded by a newer load/unload
-    await this.stretch.addBuffers(channels, channels.map((c) => c.buffer));
+    await this.stretch.addBuffers(owned, [...new Set(owned.map((channel) => channel.buffer))]);
     if (seq !== this.loadSeq) return;
     // The worklet plays samples at the context rate (decodeAudioData resamples to it).
-    this.track = { name, duration: buffer.length / this.ctx.sampleRate };
+    this.track = { name, duration: frames / this.ctx.sampleRate };
     this.onPosition?.(0);
   }
 
@@ -250,5 +275,28 @@ export class StretchDeck implements DancerPlayer {
       return;
     }
     this.onPosition?.(this.position);
+  }
+}
+
+/** Pure validation shared by stem loading and the transport; it never silently changes timing. */
+export function validateStretchChannels(
+  channels: readonly Float32Array[],
+  sampleRate: number,
+  contextRate: number,
+  channelCount: number,
+): void {
+  if (!Number.isFinite(sampleRate) || sampleRate <= 0 || sampleRate !== contextRate) {
+    throw new Error('Resample all stem channels to the player sample rate before loading.');
+  }
+  if (channels.length !== channelCount) throw new Error(`Expected ${channelCount} aligned audio channels.`);
+  const frames = channels[0]?.length ?? 0;
+  if (!frames) throw new Error('Audio channels cannot be empty.');
+  for (const channel of channels) {
+    if (!(channel instanceof Float32Array) || channel.length !== frames) {
+      throw new Error('Every audio channel must have the same number of samples.');
+    }
+    for (let frame = 0; frame < channel.length; frame++) {
+      if (!Number.isFinite(channel[frame])) throw new Error('Audio channels must contain finite samples.');
+    }
   }
 }

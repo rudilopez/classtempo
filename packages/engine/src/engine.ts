@@ -1,6 +1,7 @@
 /// <reference path="./audio-session.d.ts" />
 import { Deck } from './deck';
 import { StretchDeck } from './stretch-deck';
+import { StemDeck } from './stem-deck';
 import { DECK_PROCESSOR_SOURCE } from './worklet-source';
 
 const RAMP = 0.01;
@@ -10,7 +11,7 @@ const RAMP = 0.01;
  *   deck[0].output → xf[0] ┐
  *                          ├→ master → destination
  *   deck[1].output → xf[1] ┘
- *   stretch deck → dancer gain (0.9) → destination
+ *   stretch deck / lazy stem deck → dancer gain (0.9) → destination
  * DJ master and crossfader settings never affect Dancer mode (see getStretchDeck).
  * It can be created without a user gesture: the context then starts 'suspended' (autoplay policy) and the first
  * tap, click or key press calls `unlock()` (or `resume()`) to start it.
@@ -23,6 +24,7 @@ export class Engine {
   private readonly xf: readonly [GainNode, GainNode];
   private _crossfader = 0;
   private stretchDeck: Promise<StretchDeck> | null = null;
+  private stemDeck: Promise<StemDeck> | null = null;
 
   private constructor(ctx: AudioContext, dj: boolean) {
     this.ctx = ctx;
@@ -103,6 +105,17 @@ export class Engine {
       });
     }
     return this.stretchDeck;
+  }
+
+  /** Lazily creates one synchronized stem player; normal song/video use never initializes it. */
+  getStemDeck(): Promise<StemDeck> {
+    if (!this.stemDeck) {
+      this.stemDeck = StemDeck.create(this.ctx, this.dancerGain).catch((e: unknown) => {
+        this.stemDeck = null;
+        throw e;
+      });
+    }
+    return this.stemDeck;
   }
 
   /** Decodes any format the browser supports, resampled to the context rate. */
