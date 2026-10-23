@@ -54,7 +54,7 @@ function mixdeckServiceWorker(): Plugin {
       // download ONNX/WASM. Once requested, same-origin lab assets use the existing cache-first fetch path.
       const precache = [...files.keys()].filter((path) =>
         !path.split('/').some((part) => part.startsWith('.')) &&
-        !/(?:StemsBenchmark|stems\.worker|ort-wasm|stems-runtime)/i.test(path),
+        !/(?:StemsBenchmark|stems\.worker|separate\.worker|ort-wasm|stems-runtime)/i.test(path),
       ).sort();
       const version = await contentHash(precache.flatMap((path) => [path, files.get(path) ?? '']).concat(swSource('', [])));
       this.emitFile({ type: 'asset', fileName: SW_FILE, source: swSource(version, precache) });

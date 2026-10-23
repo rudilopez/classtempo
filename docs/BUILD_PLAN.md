@@ -14,7 +14,7 @@ live site, separately from this checklist:
 - Compact phone header, media-panel title, inline speed percentage, supplied Now Playing logo and distinct controls.
 - Key-preserving audio speed at 50–150%; native-video speed/pitch preservation where supported.
 - Native video loading without a duplicate audio decode, explicit readiness/errors and same-element Stage transitions.
-- The regular player retains full controls and a Cues/Stems header; Stems shows an honest unavailable state.
+- The regular player retains full controls and a Cues/Stems header; Stems has opt-in local audio separation.
   Only video Stage maximizes the picture above compact playback/seeking controls. Cues opens a numbered row
   below the picture for setting/launching cues; Tools also opens below it. End practice remains reachable.
 - Keep awake, Stage playback controls, video mirror/zoom and Talk (audio attenuates; native video pauses).
@@ -77,8 +77,8 @@ The owner confirmed the supplied 1080p derivative plays on the iPhone on 2026-10
 
 The intended users primarily obtain music from Apple Music or Spotify. The current file player therefore does
 not yet satisfy that source workflow. Apple Music is a feasibility project, not an enabled feature. The owner
-currently has no Apple Developer account/credentials; authenticated testing remains blocked until those are
-available. Follow [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
+has enrolled in the Apple Developer Program; the MusicKit media identifier/key and developer token remain
+needed for authenticated testing. Follow [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 Once credentials and a suitable test account are available, prove playback, pitch-preserving speed, seeking,
 sections, lock-screen behavior and phone output on the actual target platform. Decide from that evidence whether
@@ -99,16 +99,21 @@ Prioritize these from observed teaching friction rather than restoring the old D
 Do not promise cloud accounts, synchronization, external music integrations or automatic speaker routing as
 already implemented. Preserve the local workflow while those decisions remain open.
 
-## Deferred stems research
+## Local stems beta (2026-10-23)
 
-The hidden HTDemucs benchmark remains available but is lower priority than classroom playback and music access.
-It downloads a 166 MB candidate model on demand and records provider/timing information. The exact pretrained
-weights are research-restricted despite the exporter's MIT label. See [STEMS_BENCHMARK.md](STEMS_BENCHMARK.md).
+The owner requested working stems. The Cues/Stems panel now supports explicitly prepared local songs with
+four Spleeter stems: vocals, drums, bass and other instruments. Acapella/Instrumental/All shortcuts and
+low/high drum frequency focus require no FX controls. Original recording and stem playback share the same
+transport, cue and practice controls. Video retains native playback and never enters separation.
 
-Full stems require both suitable production weight permission and an owner-approved phone result: a four-minute
-song separated in roughly two minutes or less without crashing. Actual provider use and memory visibility must
-be reported honestly. A server fallback would upload songs and incur cost; it remains unapproved.
+The historical HTDemucs research model is not used in the feature. Spleeter's authors explicitly license
+pretrained models under MIT; the pinned ONNX conversion, checksums and notices are documented in
+[STEMS_MODEL.md](STEMS_MODEL.md). Prepare downloads about 80 MB of models plus runtime only on explicit request.
+A cancellable Worker performs chunked inference; full aligned PCM is saved atomically in a separate,
+content-addressed 500 MiB LRU cache. A new source cancels work; failures leave the original available.
 
-If those gates pass, revisit Vocal, Instru (other), Bass and Drums plus filtered Kick/HiHat bands and Acapella /
-Instrumental / All shortcuts. Audio files first, no Stems FX. No automatic model download or full stems promise
-belongs in the classroom release before those gates are satisfied.
+The beta caps preparation at four minutes/100 MB because completed PCM memory still grows with duration.
+Physical iPhone/iPad speed, memory stability, listening quality, Bluetooth and lock-screen playback are still
+acceptance gates. Desktop tests and the beta label do not establish those results. The original roughly
+two-minute target for separating a four-minute iPhone song remains the goal, not a measured guarantee.
+No automatic model download, song upload or server fallback is enabled.

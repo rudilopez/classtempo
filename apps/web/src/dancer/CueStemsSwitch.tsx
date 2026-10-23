@@ -15,10 +15,3 @@ export function CueStemsSwitch({ value, onChange }: Props) {
     <button type="button" aria-pressed={value === 'stems'} onClick={() => onChange('stems')}>Stems</button>
   </div>;
 }
-
-export function StemsUnavailable() {
-  return <div className="stems-unavailable" role="status">
-    <strong>Stems aren’t available yet</strong>
-    <p>Separate vocal and instrument playback is not supported in this version.</p>
-  </div>;
-}

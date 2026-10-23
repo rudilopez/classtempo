@@ -1,0 +1,23 @@
+.dancer .stems-panel { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 2px; border-radius: 10px; background: #0d1924; }
+.stems-panel button { min-width: 44px; min-height: 44px; padding: 4px 8px; font-size: 12px; letter-spacing: 0; }
+.stems-intro { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px; text-align: center; }
+.stems-intro p { margin: 0; max-width: 42ch; color: #b7cbd9; font-size: 12px; line-height: 1.4; }
+.stems-intro strong { font-size: 14px; }
+.stems-intro small { color: #a8bdce; font-size: 10px; }
+.stems-intro a { display: inline-flex; align-items: center; min-height: 44px; font-size: 11px; }
+.stems-intro progress { width: min(280px, 100%); accent-color: #64e1c2; }
+.stems-beta { margin-left: 4px; color: #ffd58a; font-size: 10px; text-transform: uppercase; }
+.dancer .stems-prepare { color: #082b28; background: #64e1c2; font-weight: 800; }
+.stem-source { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 11px; padding: 0 5px 4px; }
+.stem-source span { color: #bad0df; }
+.stem-source button { padding-inline: 12px; }
+.stem-pads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+.dancer .stem-pads button { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 1px; min-width: 0; background: #172635; border: 1px solid #3b5268; color: #9aafbf; }
+.dancer .stem-pads button[aria-pressed=true] { color: #baffec; background: #164b43; border-color: #5edbbd; }
+.stem-pads small { font-size: 9px; font-weight: 500; }
+.stem-presets { display: grid; grid-template-columns: 1fr 1.3fr .7fr; gap: 5px; margin-top: 5px; }
+.stem-presets button { min-width: 0; }
+.stem-details { font-size: 11px; color: #a8bdce; }
+.stem-details summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; padding-inline: 6px; }
+.stem-details p { margin: 6px; line-height: 1.4; }
+.stems-panel :focus-visible { outline: 2px solid #fff; outline-offset: -2px; }

@@ -27,6 +27,7 @@ the current release. The source repository and live `/mixdeck/` URL retain their
 | Speak to the class | Talk lowers audio to 20% of normal; native video pauses instead |
 | Review choreography | Video mirror and zoom, full-screen-style Stage controls |
 | Keep the phone usable nearby | Keep awake where granted; compact controls and safe-area layouts |
+| Hear individual musical parts | Local Spleeter stems beta, part mutes, Acapella/Instrumental shortcuts |
 | Recover prepared work | Settings export/restore; media originals kept separately |
 
 Media contains all saved songs and videos, with explicit type labels and a local search. Classes contains ordered
@@ -41,7 +42,7 @@ ordinary audio/video files. That source mismatch is more important than adding m
 Subscription downloads cannot be treated as importable unprotected files.
 
 Apple Music integration is under feasibility review and is **not configured or supported by this release**.
-Authenticated testing awaits Apple developer credentials; the owner currently has no Apple Developer account.
+The owner has enrolled in the Apple Developer Program; authenticated testing awaits MusicKit identifier/key setup.
 Follow [the feasibility plan](APPLE_MUSIC_FEASIBILITY.md) before choosing a web or native implementation. Do not
 assume that streaming playback exposes raw samples or supports every local-file feature. Spotify support is not
 promised. Technical playback permission and the rights/service terms for a dance class are separate questions.
@@ -73,8 +74,9 @@ phone and speaker. Automatic music analysis is assistance, not authoritative dan
 ## Deferred and excluded work
 
 Musical count-in, finer cue/section nudging, exercise notes and a remote/watch workflow can follow verified class
-use. Stems remain hidden research, gated on actual iPhone performance and production weight permission. No Stems
-FX or server separation fallback is enabled; see [the build plan](BUILD_PLAN.md).
+use. The requested local stems beta is now implemented with licensed Spleeter weights; physical iPhone
+performance, memory stability and listening quality remain unverified. No Stems FX, video separation or server
+separation fallback is enabled; see [the build plan](BUILD_PLAN.md).
 
 Multi-deck mixing, crossfaders, EQ/FX racks, sync, automix, controller mappings, sampler banks and djay feature
 parity are outside the current product scope. Accounts, cloud sync, social features and new native wrappers are

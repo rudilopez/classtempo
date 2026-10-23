@@ -1,4 +1,4 @@
-import type { StretchDeck } from '@mixdeck/engine';
+import type { DancerPlayer } from '@mixdeck/engine';
 import type { KeepAlive } from '../platform/keepAlive';
 
 /**
@@ -6,7 +6,7 @@ import type { KeepAlive } from '../platform/keepAlive';
  * one), null otherwise. `deck.playing` says whether it means to be making sound; `keepAlive` is restarted along
  * with the AudioContext after an interruption.
  */
-export const dancerAudio: { deck: StretchDeck | null; keepAlive: KeepAlive | null } = { deck: null, keepAlive: null };
+export const dancerAudio: { deck: DancerPlayer | null; keepAlive: KeepAlive | null } = { deck: null, keepAlive: null };
 
 /** Whether Dancer mode is playing (or means to be, while the context is interrupted). */
 export function isDancerPlaying(): boolean {

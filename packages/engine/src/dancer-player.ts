@@ -3,6 +3,7 @@ import type { LoadedTrack } from './deck';
 /**
  * The single-track, key-locked player Dancer mode drives, whatever the source:
  * - `StretchDeck` (kind 'audio'): audio files, decoded into memory and played by the Signalsmith Stretch worklet;
+ * - `StemDeck` (kind 'audio'): four aligned stereo stems, sharing one eight-channel Stretch transport;
  * - `VideoDeck` (kind 'video'): video files, played by a `<video>` element straight from the file (the browser's
  *   own key-locked time-stretch via `preservesPitch`), so a large phone video is never decoded into memory.
  *

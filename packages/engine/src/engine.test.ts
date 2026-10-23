@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Engine } from './engine';
+import { StemDeck } from './stem-deck';
 
 /** A linear audio graph: evaluates a unit input's settled gain at the destination. */
 class FakeNode {
@@ -40,6 +41,16 @@ vi.mock('./stretch-deck', () => ({
   },
 }));
 
+vi.mock('./stem-deck', () => ({
+  StemDeck: {
+    create: vi.fn(async (_context: unknown, destination: FakeNode) => {
+      const node = new FakeNode();
+      node.connect(destination);
+      return { node };
+    }),
+  },
+}));
+
 class FakeContext {
   readonly destination = new FakeNode();
   readonly currentTime = 0;
@@ -48,8 +59,34 @@ class FakeContext {
 
 describe('mode output isolation', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.stubGlobal('AudioContext', FakeContext);
     vi.stubGlobal('GainNode', FakeNode);
+  });
+
+  it('keeps stems lazy and reuses one deck routed through Talk independently of DJ master', async () => {
+    const engine = await Engine.create({ dj: false });
+    await engine.getStretchDeck();
+    expect(StemDeck.create).not.toHaveBeenCalled();
+    const [stems, again] = await Promise.all([engine.getStemDeck(), engine.getStemDeck()]);
+    expect(stems).toBe(again);
+    expect(StemDeck.create).toHaveBeenCalledTimes(1);
+    const output = stems.node as unknown as FakeNode;
+    const destination = engine.ctx.destination as unknown as FakeNode;
+    engine.setMasterGain(0);
+    expect(output.signalAt(destination)).toBeCloseTo(0.9);
+    engine.setDancerGain(0.2);
+    expect(output.signalAt(destination)).toBeCloseTo(0.18);
+    engine.setDancerGain(1);
+    expect(output.signalAt(destination)).toBeCloseTo(0.9);
+  });
+
+  it('retries a failed lazy stem initialization', async () => {
+    const engine = await Engine.create({ dj: false });
+    vi.mocked(StemDeck.create).mockRejectedValueOnce(new Error('Worklet unavailable'));
+    await expect(engine.getStemDeck()).rejects.toThrow('Worklet unavailable');
+    await expect(engine.getStemDeck()).resolves.toBeDefined();
+    expect(StemDeck.create).toHaveBeenCalledTimes(2);
   });
 
   afterEach(() => vi.unstubAllGlobals());

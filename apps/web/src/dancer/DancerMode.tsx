@@ -1,5 +1,5 @@
 import { downmix } from '@mixdeck/analysis';
-import { VideoDeck, type DancerPlayer, type Engine, type StretchDeck } from '@mixdeck/engine';
+import { VideoDeck, type DancerPlayer, type DrumFocus, type Engine, type StemMix, type StretchDeck } from '@mixdeck/engine';
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { analysis } from '../analysisClient';
@@ -33,7 +33,9 @@ import { StageView } from './StageView';
 import { clampTempo, TempoControl } from './TempoControl';
 import { VideoView } from './VideoView';
 import { VideoTools } from './VideoTools';
-import { CueStemsSwitch, StemsUnavailable, type CuePanel } from './CueStemsSwitch';
+import { CueStemsSwitch, type CuePanel } from './CueStemsSwitch';
+import { ALL_STEMS, StemsPanel } from '../stems/StemsPanel';
+import { usePreparedStems } from '../stems/usePreparedStems';
 import './dancer.css';
 import './classroom.css';
 
@@ -116,6 +118,9 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   const [editing, setEditing] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const preparedStems = usePreparedStems(engine, currentFile, song?.id ?? null, song?.track.duration ?? 0);
+  const [stemMix, setStemMix] = useState<StemMix>({ ...ALL_STEMS });
+  const [drumFocus, setDrumFocus] = useState<DrumFocus>('full');
   const [practiceOpen, setPracticeOpen] = useState(false);
   const [practice, setPractice] = useState<PracticeSettings>(defaultPracticeSettings);
   const [practiceState, setPracticeState] = useState<PracticeState>({ phase: 'idle', pass: 0, remainingSeconds: 0 });
@@ -240,15 +245,15 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   // App's audio recovery reads whether the Web Audio player is playing and restarts our keep-alive after an
   // interruption; a video is its own media element and needs neither (the StretchDeck is empty and paused then)
   useEffect(() => {
-    if (!stretch) return;
-    dancerAudio.deck = stretch;
+    if (!player || player.kind !== 'audio') return;
+    dancerAudio.deck = player;
     dancerAudio.keepAlive = keepAlive;
     return () => {
-      if (dancerAudio.deck !== stretch) return;
+      if (dancerAudio.deck !== player) return;
       dancerAudio.deck = null;
       dancerAudio.keepAlive = null;
     };
-  }, [stretch, keepAlive]);
+  }, [player, keepAlive]);
 
   /** Lock-screen cue line, rewritten only when the playhead has moved into another section. */
   const syncSection = useCallback(() => {
@@ -256,7 +261,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     const s = songRef.current;
     if (!activeRef.current || !p?.track || !s) return;
     // mid-load the player already has the new track while the song (and its cues) is still the previous one
-    if (p.track.name !== s.track.name || p.track.duration !== s.track.duration) return;
+    if (p.track.name !== s.track.name || Math.abs(p.track.duration - s.track.duration) > 0.002) return;
     const line = sectionLine(s.cues, p.position);
     if (line === artistLine.current) return;
     artistLine.current = line;
@@ -389,6 +394,8 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     setTempo(Math.round(saved.tempo * 100));
     setEditing(false);
     setUndoCues([]);
+    setStemMix({ ...ALL_STEMS });
+    setDrumFocus('full');
     setTalking(false);
     talkResume.current = false;
     engine.setDancerGain(1);
@@ -499,6 +506,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       return false;
     }
     if (previous && previous !== video) previous.unload(); // the audio song: silence it and free its buffers
+    if (stretch && previous !== stretch) stretch.unload();
     video.setTempo(1);
     selectPlayer(video);
     keepAlive.setTrack(null); // never started for a video: the video element is the page's media element
@@ -525,6 +533,12 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     const request = ++loadRequest.current;
     practiceController.current?.cancel();
     pauseNow();
+    // Return to the still-loaded original before releasing the stem worklet. A failed replacement
+    // file must leave the previous song usable, and stale preparation must never take over later.
+    if (playerRef.current === preparedStems.deck.current && stretch?.track) switchAudioPlayer(stretch);
+    preparedStems.reset();
+    setStemMix({ ...ALL_STEMS });
+    setDrumFocus('full');
     setTalking(false);
     talkResume.current = false;
     engine.setDancerGain(1);
@@ -653,6 +667,54 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   const pause = () => { talkResume.current = false; practiceController.current?.cancel(); pauseNow(); };
   const waiting = ['preparing', 'delay', 'gap'].includes(practiceState.phase);
   const togglePlay = () => (playerRef.current?.playing || waiting ? pause() : play());
+
+  /** Switch sources at the current position; all normal cues/practice/lock-screen commands stay shared. */
+  const switchAudioPlayer = (next: DancerPlayer): void => {
+    const previous = playerRef.current;
+    if (!next.track || next === previous || loadingRef.current) return;
+    const position = previous?.position ?? 0;
+    const rate = previous?.tempo ?? 1;
+    const wasPlaying = previous?.playing ?? false;
+    const pending = ['preparing', 'delay', 'gap'].includes(practiceController.current?.getState().phase ?? '');
+    // Source selection is not a new practice run. Silence the outgoing callbacks before pausing
+    // so it cannot cancel the current pass; the controller's commands already use playerRef.
+    if (previous) {
+      previous.onPosition = null;
+      previous.onPlayingChange = null;
+      previous.onEnded = null;
+    }
+    previous?.pause();
+    next.setTempo(rate);
+    next.seek(position);
+    selectPlayer(next);
+    dancerAudio.deck = next;
+    positionRef.current = next.position;
+    setDisplayPos(next.position);
+    setPlaying(false);
+    if (wasPlaying) {
+      startPlayback((p) => p.play());
+    } else if (!pending) keepAlive.stop();
+    syncMedia();
+  };
+
+  const useStems = (): void => {
+    const next = preparedStems.deck.current;
+    if (next && preparedStems.state.phase === 'ready') switchAudioPlayer(next);
+  };
+  const changeStemMix = (value: StemMix): void => {
+    preparedStems.deck.current?.setMix(value);
+    setStemMix(value);
+    useStems();
+  };
+  const changeDrumFocus = (value: DrumFocus): void => {
+    const next = preparedStems.deck.current;
+    next?.setDrumFocus(value);
+    const mix = { ...stemMix, drums: 1 };
+    next?.setMix(mix);
+    setDrumFocus(value);
+    setStemMix(mix);
+    useStems();
+  };
 
   const restart = () => seek(practiceRef.current.mode !== 'off' ? selectedPracticeSection(practiceRef.current)?.start ?? 0 : 0);
 
@@ -846,8 +908,6 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     setStageOpen(false);
     stageButton.current?.focus({ preventScroll: true });
   };
-
-  useEffect(() => { setCuePanel('cues'); }, [song?.id]);
 
   const selectCuePanel = (panel: CuePanel) => {
     setEditing(false);
@@ -1154,7 +1214,13 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
           </div>
           {cuePanel === 'cues'
             ? <CuePads cues={song?.cues ?? NO_CUES} editing={editing} disabled={!ready} onPress={pressPad} onClear={clearPad} onRename={renamePad} />
-            : <StemsUnavailable />}
+            : <StemsPanel kind={song?.kind ?? null} state={preparedStems.state}
+              active={preparedStems.state.phase === 'ready' && player === preparedStems.deck.current}
+              disabled={loading || !!failedVideoFile} mix={stemMix} focus={drumFocus}
+              onPrepare={() => { engine.unlock(); void preparedStems.prepare(); }} onCancel={preparedStems.cancel}
+              onActivate={useStems} onOriginal={() => { if (stretch) switchAudioPlayer(stretch); }}
+              onMix={changeStemMix} onFocus={changeDrumFocus} onRemoveSaved={() => { void preparedStems.removeSaved(); }}
+              onOpen={() => fileInput.current?.click()} />}
         </div>
       </div>
 

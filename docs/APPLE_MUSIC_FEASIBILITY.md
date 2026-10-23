@@ -1,6 +1,7 @@
 # Apple Music feasibility — ClassTempo
 
-Status, 2026-10-22: **not enabled or verified**. The owner confirmed that Apple Developer / MusicKit is not set up.
+Status, 2026-10-23: **not enabled or verified**. The owner has enrolled in the Apple Developer Program.
+MusicKit media identifier/key and developer token setup remain pending.
 ClassTempo currently plays imported local songs and videos. No streaming button or subscription promise is exposed.
 
 ## What is established
