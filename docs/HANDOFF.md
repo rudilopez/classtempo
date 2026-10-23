@@ -1,5 +1,32 @@
 # Handoff — open work, in priority order
 
+## Stems normal-speed playback correction (2026-10-23)
+
+The owner confirmed the bounded-memory release prepares the supplied song on the physical iPhone, but
+reported warbling even with All stems at 100% tempo. This confirms preparation, not listening quality.
+Beta remains until normal-speed stem playback sounds clear on that device.
+
+An actual-model 30-second excerpt from the supplied AAC recombines to the original with a -148 dB residual;
+the production PCM16 cache roundtrip measures -80.8 dB. The separator and saved PCM therefore do not explain
+the All-at-100% distortion in that excerpt. The existing tempo engine phase-processes audio even at unity;
+eight channels also require more processing than ordinary stereo. Neither desktop phase measurements nor CPU
+timings alone prove the exact audible phone cause.
+
+The stem node now opts into direct, scheduled playback of its existing transferred PCM at 100% tempo and
+zero pitch shift. Paused stem nodes also skip unnecessary processing. Other tempos retain the existing
+pitch-preserving engine; the ordinary song player is unchanged. A checked adapter verifies the pinned
+Signalsmith wrapper and fails the build on source drift or bypass. No extra full-song buffers are allocated,
+and saved stems keep their existing identity: users do not need to prepare them again for this playback fix.
+
+The production player at 48 kHz was measured using actual PCM16 cached stems from the supplied-song excerpt.
+All-at-100% output now matches the PCM delivered to the worklet at 148.8 dB SNR; pause/resume, cue jumps and
+returning from 80% to 100% also match. The previous build measured -1.23 dB SNR in the same captured flow.
+Nine tests exercise the real pinned WASM/wrapper at 44.1/48 kHz, including exact scheduled onset, rapid
+replacement of pending cues/pauses, end silence, tempo transitions and unchanged non-unity processing.
+Chromium and actual desktop WebKit both pass this captured production-player flow. Typecheck, 262 tests and
+the production build pass. There are no extra model requests, layout overflows or page errors in the browser checks.
+These establish transport correctness; the owner must still confirm clear sound on the iPhone.
+
 ## iPhone stems memory cap and 4:30 limit (2026-10-23)
 
 The next physical iPhone report (`plain-wasm-v1`) failed on the first vocal section with

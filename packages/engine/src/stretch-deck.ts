@@ -82,7 +82,7 @@ export class StretchDeck implements DancerPlayer {
    * from process(), so it keeps rendering after disconnect() — so create one per context and reuse it
    * (`Engine.getStretchDeck` does this); `release()` hands it back between uses.
    */
-  static async create(ctx: AudioContext, destination: AudioNode, channelCount = 2): Promise<StretchDeck> {
+  static async create(ctx: AudioContext, destination: AudioNode, channelCount = 2, unityBypass = false): Promise<StretchDeck> {
     if (!Number.isInteger(channelCount) || channelCount < 1 || channelCount > 8) {
       throw new Error('The stretch player needs between 1 and 8 channels.');
     }
@@ -92,6 +92,7 @@ export class StretchDeck implements DancerPlayer {
       numberOfInputs: 1,
       numberOfOutputs: 1,
       outputChannelCount: [channelCount],
+      processorOptions: { classTempoUnityBypass: unityBypass },
     });
     const latency = await stretch.latency();
     const deck = new StretchDeck(ctx, stretch, latency, channelCount);

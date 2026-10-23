@@ -171,8 +171,12 @@ dependencies are unchanged. Reports include the configured maximum and observed 
 hash-verified one at a time, with session teardown between runs; only failed cache writes retain weights for
 the current job. Stems preparation alone has a 4:30/100 MB limit; ordinary media playback remains unrestricted.
 
-The four stereo stems use one lazily created eight-channel Signalsmith transport (`StemDeck`) so tempo,
-seeks and cues remain synchronized. A splitter restores stereo pairs, per-stem ramped gains feed a stereo
+The four stereo stems use one lazily created eight-channel transport (`StemDeck`) so tempo,
+seeks and cues remain synchronized. An opt-in, checked Signalsmith wrapper adapter plays the already-owned
+PCM directly at unity tempo/zero pitch and returns silence when paused, avoiding phase processing and its
+CPU cost at normal speed. Scheduled changes keep the same transport latency; other tempos use the existing
+Signalsmith algorithm. The ordinary stereo player does not opt in. The adapter changes no model, cached
+audio or installed dependency, and adds no full-song PCM copy. A splitter restores stereo pairs, per-stem ramped gains feed a stereo
 mix and the existing classroom Talk gain. Low/High drums replace the drum route with a low/high-pass filter.
 The original stereo deck remains loaded for immediate source switching at the same position; pending
 practice gaps/delays follow the shared current-player commands. Changing media cancels jobs and releases PCM.

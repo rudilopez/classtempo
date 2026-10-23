@@ -74,6 +74,20 @@ inferences, and temporary source decoder references are dropped before worker st
 
 ## Memory, quality and device acceptance
 
+The owner confirmed successful preparation on the physical iPhone after the bounded-memory release, then
+reported warbling with All stems at 100% tempo. Actual-model recombination of a 30-second excerpt from the
+supplied song measures -148 dB residual before caching and -80.8 dB after the PCM16 cache roundtrip. Playback
+quality is a separate gate from inference success. The stem transport now directly plays its existing PCM
+at 100%/zero pitch, avoiding the tempo engine's unity-rate phase processing and eight-channel CPU cost.
+Other rates retain pitch-preserving processing; saved stems require no regeneration. Clear playback on the
+physical iPhone remains required before removing Beta.
+
+The playback correction was measured in the production player at 48 kHz using actual cached PCM16 stems.
+All at 100%, cue jumps, pause/resume and return from 80% match the PCM loaded into the worklet at about
+148.8 dB SNR. This comparison isolates playback after resampling; it does not imply lossless original-file
+decoding/resampling, perfect isolated-stem quality, or physical iPhone listening acceptance. Real-wrapper
+regressions cover both 44.1 and 48 kHz timing and unchanged 80% processing.
+
 The owner's next iPhone report exposed the first plain-WASM failure: `RangeError: Out of memory` during the
 first vocal section. The pinned runtime creates a shared WASM memory with a 4 GiB maximum even with one thread.
 Our checked Vite adapter changes that maximum and the three JS growth ceilings to **256 MiB**, preserving the

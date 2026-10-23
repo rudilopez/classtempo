@@ -8,6 +8,7 @@ interface NodeOptions {
   numberOfInputs?: number;
   numberOfOutputs?: number;
   outputChannelCount?: number[];
+  processorOptions?: { classTempoUnityBypass?: boolean };
   type?: BiquadFilterType;
   frequency?: number;
 }
@@ -103,6 +104,7 @@ describe('synchronized stem playback', () => {
     const { context, deck, processor } = await setup();
     await deck.loadChannels(fixture(context), 'Lesson');
     expect(processor.options.outputChannelCount).toEqual([8]);
+    expect(processor.options.processorOptions?.classTempoUnityBypass).toBe(true);
     expect(context.destination.values()).toEqual([85, 170]);
     deck.setMix({ vocals: 0, drums: 0, bass: 0, other: 1 });
     expect(context.destination.values()).toEqual([64, 128]);
@@ -238,5 +240,6 @@ describe('synchronized stem playback', () => {
     const context = new FakeContext();
     await StretchDeck.create(context as unknown as AudioContext, context.destination as unknown as AudioNode);
     expect(vi.mocked(SignalsmithStretch).mock.lastCall?.[1]?.outputChannelCount).toEqual([2]);
+    expect(vi.mocked(SignalsmithStretch).mock.lastCall?.[1]?.processorOptions?.classTempoUnityBypass).toBe(false);
   });
 });
