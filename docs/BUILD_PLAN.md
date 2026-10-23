@@ -28,6 +28,8 @@ live site, separately from this checklist:
 - One-tap empty cues with Undo; existing-cue changes require Edit. Stable saved-cue keys preserve existing work.
 - JSON export/restore for class sets, cue data and practice settings, excluding media files.
 - Existing lock-screen/headphone controls and interruption recovery retained.
+- Visual user guide at `guide.html`, linked from Library, with searchable topics and enlarged screenshots.
+  Guide text is cached with the app; screenshots load on demand and remain available offline after viewing.
 
 The first native-video Play is immediate to establish sound permission; start delay applies on later starts.
 A musical count-in is not part of this delivery. New features must not imply that timer-based repetition or

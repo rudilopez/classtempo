@@ -27,7 +27,7 @@ export default defineConfig({
 });
 
 /**
- * Emits `sw.js` next to index.html, precaching every built file (bundle incl. the worker chunk, plus public/)
+ * Emits `sw.js` next to index.html, precaching normal app and guide assets (including worker chunks and public/)
  * under a cache name derived from their contents, so each deploy gets its own cache. Paths are relative to
  * the SW scope. Uses Rollup's `this.fs` and Web Crypto only, so the config needs no Node typings.
  */
@@ -52,13 +52,16 @@ function mixdeckServiceWorker(): Plugin {
         }
       }
       files.delete(SW_FILE);
-      // The experimental lab and its large inference runtime are opt-in. Opening the normal player must not
-      // download ONNX/WASM. Once requested, same-origin lab assets use the existing cache-first fetch path.
+      // The experimental lab and its large inference runtime are opt-in. Guide screenshots also load only
+      // when requested, so reading help never adds image downloads to ordinary player startup.
       const precache = [...files.keys()].filter((path) =>
         !path.split('/').some((part) => part.startsWith('.')) &&
+        !path.startsWith('guide/images/') &&
         !/(?:StemsBenchmark|stems\.worker|separate(?:-wasm)?\.worker|ort-wasm|stems-runtime)/i.test(path),
       ).sort();
-      const version = await contentHash(precache.flatMap((path) => [path, files.get(path) ?? '']).concat(swSource('', [])));
+      // A screenshot-only edit still needs a new cache; otherwise its lazily cached old copy would persist.
+      const versionFiles = [...precache, ...[...files.keys()].filter((path) => path.startsWith('guide/images/'))].sort();
+      const version = await contentHash(versionFiles.flatMap((path) => [path, files.get(path) ?? '']).concat(swSource('', [])));
       this.emitFile({ type: 'asset', fileName: SW_FILE, source: swSource(version, precache) });
     },
   };
@@ -99,7 +102,7 @@ async function contentHash(parts: (string | Uint8Array)[]): Promise<string> {
  * The service worker. Install precaches the build (redirected responses are stored unflagged, so clean-URL
  * hosts that redirect index.html to ./ still open offline) and takes over at once (skipWaiting + claim), but the
  * page is never reloaded: a running set keeps its already-loaded code, and the new version shows up on the
- * next launch. Navigations are network-first (3 s timeout, then the cached index.html) so updates arrive
+ * next launch. Navigations are network-first (3 s timeout, then the cached page or index.html) so updates arrive
  * when online and the app still opens offline; everything else in scope is cache-first.
  */
 function swSource(version: string, precache: string[]): string {
@@ -167,16 +170,29 @@ async function networkFirstNavigate(request) {
   const timeout = new Promise((resolve) => setTimeout(resolve, NAV_TIMEOUT_MS, null));
   const fresh = await Promise.race([network, timeout]);
   if (fresh && (fresh.ok || fresh.type === 'opaqueredirect')) return fresh;
-  const cached = await caches.open(CACHE).then((cache) => cache.match(INDEX, MATCH));
+  // Static help pages must open their own cached HTML offline, rather than becoming the player shell.
+  const cached = await caches.open(CACHE).then(async (cache) =>
+    (await cache.match(request, { ...MATCH, ignoreSearch: true })) || cache.match(INDEX, MATCH),
+  );
   // Nothing cached yet (first visit still installing): wait for the network however long it takes.
   return cached || (await network) || Response.error();
 }
 
 async function cacheFirst(request) {
   const cache = await caches.open(CACHE);
-  const hit = (await cache.match(request, MATCH)) || (await caches.match(request, MATCH));
+  // Screenshots are not precached. A new release fetches its current picture before reusing an older one;
+  // old app chunks still use the previous cache so a running lesson can finish across a deployment.
+  const guideImage = request.url.startsWith(new URL('guide/images/', BASE).href);
+  const hit = (await cache.match(request, MATCH)) || (!guideImage && (await caches.match(request, MATCH)));
   if (hit) return hit;
-  const response = await fetch(request);
+  let response;
+  try {
+    response = await fetch(request);
+  } catch (error) {
+    const previous = guideImage && (await caches.match(request, MATCH));
+    if (previous) return previous;
+    throw error;
+  }
   // Only cache complete same-origin responses: no opaque, partial or error responses.
   if (response.status === 200 && response.type === 'basic') cache.put(request, response.clone()).catch(() => {});
   return response;

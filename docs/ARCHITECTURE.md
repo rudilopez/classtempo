@@ -218,6 +218,12 @@ The production service worker caches normal app assets, worklets and WASM. Updat
 without forcibly reloading an active class. Registration checks again after returning to the foreground, with
 an hourly throttle. Development unregisters an old preview worker to avoid stale source modules.
 
+`public/guide.html` is a standalone instructional page, linked from Library in a new tab. Its local stylesheet,
+topic search and screenshot dialog do not load the React app or audio engine. The worker precaches guide text,
+styles, script and logo; screenshots are excluded from startup downloads and cached on first view. Offline
+navigation resolves the guide's own cached HTML before falling back to the app shell. Screenshot changes also
+version the cache, and new releases fetch current images before falling back to older offline copies.
+
 Offline playback needs both cached app assets and successfully stored local media. `navigator.storage.persist()`
 is requested where supported, but the browser can still clear/evict data and the user can delete site storage.
 Safari tabs and Home Screen installations may have separate storage. Never infer file availability from an app

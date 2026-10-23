@@ -390,6 +390,11 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
             </div>}
           </div>
         </div>
+        <footer className="library-help">
+          <a href={`${import.meta.env.BASE_URL}guide.html`} target="_blank" rel="noopener noreferrer" aria-label="ClassTempo User guide (opens in a new tab)">
+            <span>User guide</span><span aria-hidden="true">↗</span>
+          </a>
+        </footer>
         <input ref={input} type="file" accept={ACCEPT_MEDIA} multiple hidden onChange={(event) => { const files = Array.from(event.target.files ?? []); event.target.value = ''; if (files.length) void importFiles(files); }} />
         <input ref={backupInput} type="file" accept="application/json,.json" hidden onChange={(event) => {
           const file = event.target.files?.[0]; event.target.value = '';
