@@ -1,5 +1,24 @@
 # Handoff — open work, in priority order
 
+## Video picture and compact controls (2026-10-23)
+
+The owner confirmed the supplied 1080p test copy works on the iPhone. This is acceptance of that derivative,
+not the original 4K M4V. Neither file belongs in Git.
+
+Video now uses the available height above a compact Play / Cues / Practice / Tools / Stage dock and seek line.
+Cues and Tools open over the picture only when requested; the active practice name and End practice remain
+visible. Stage uses the same pattern with Exit. Full-picture Fit remains the default, and tray toggles keep
+the existing native element playing. Audio keeps its previous layout. Narrow editing trays use two columns
+and internal scrolling to preserve Clear/Rename touch targets.
+
+Verification: typecheck, 206 tests and build pass. Main video passed 84 Chromium/WebKit layout cases; Stage
+passed 105 across the seven required phone/tablet sizes, including safe-area checks in Chromium. Browser flows
+cover playback/seeking, cue creation/editing, keyboard focus, mirror/zoom/tempo, named-practice repetition and
+End, same-element Stage transitions and decoder-error recovery. Seven early-load-error layouts retain the
+return-to-audio path. At 390×844 with safe areas, the actual portrait picture grew from about 62×110 to 332×590
+CSS pixels. Separate audio comparisons show unchanged layout. Physical acceptance of this new layout is still
+separate from the owner's confirmed playback of the 1080p test copy.
+
 ## Named practices and explicit exit (2026-10-23)
 
 Practice name and saved-practice selection now lead the editor. Save practice and Start practice commit the
@@ -18,7 +37,8 @@ The original 31-second M4V was subsequently supplied. The iPhone diagnostics sho
 decode error 3 before the first picture (zero dimensions), with the source labeled video/quicktime. The exact
 source passes full desktop Chromium/WebKit playback, including forced QuickTime and M4V MIME labels. No MIME
 workaround was published without evidence. A local 1080p MP4 derivative passed full desktop playback, Stage and
-library reopening; its actual iPhone acceptance is pending. Neither source nor derivative belongs in Git.
+library reopening; the owner subsequently confirmed it works on the iPhone (see the update above).
+Neither source nor derivative belongs in Git.
 
 ## Cue, Practice and video follow-up (2026-10-23)
 

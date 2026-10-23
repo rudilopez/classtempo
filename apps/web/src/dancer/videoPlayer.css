@@ -1,0 +1,68 @@
+/* Video gets the available screen. Secondary controls are explicit, temporary overlays. */
+.dancer.dancer.video-first {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  max-height: none;
+  max-width: none;
+  margin: 0;
+  padding: 4px 0 0;
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  background: #071019;
+}
+.dancer.video-first > .dancer-clock, .dancer.video-first .dancer-track-kicker, .dancer.video-first > .kbd-hint { display: none; }
+.dancer.video-first .dancer-media-panel { flex: 1 1 0; padding: 0; gap: 4px; border: 0; border-radius: 0; background: transparent; min-height: 0; }
+.dancer.video-first .dancer-track-info { padding: 2px 4px; }
+.dancer.video-first .dancer-track-title { font-size: 12px; font-weight: 500; color: #b9cbdc; display: block; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
+.dancer.video-first .dancer-media { flex: 1 1 0; min-height: 0; container-type: normal; gap: 0; }
+.dancer.video-first .dancer-video { flex: 1 1 0; width: 100%; height: 100%; min-height: 0; max-height: none; border-radius: 8px; }
+.video-controls { flex: none; padding: 0 2px 2px; }
+.video-dock { display: grid; grid-template-columns: minmax(70px, 1.35fr) minmax(44px, .8fr) minmax(62px, 1fr) minmax(44px, .8fr) minmax(44px, .8fr); gap: 5px; }
+.video-dock button { min-width: 0; min-height: 48px; padding: 4px; font-size: 12px; letter-spacing: 0; border-radius: 10px; white-space: nowrap; }
+.video-dock .play { color: #082b28; background: #64e1c2; border-color: #64e1c2; font-weight: 750; font-size: 15px; }
+.video-dock .video-tools-open { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.video-tools-open small { font-size: 10px; color: #8cebd3; }
+.video-practice-status { display: flex; align-items: center; min-width: 0; height: 44px; gap: 6px; padding: 0 3px; }
+.video-practice-status > span { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 2px; }
+.video-practice-status strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #8cebd3; }
+.video-practice-status small { font-size: 10px; color: #b9cbdc; }
+.video-practice-status button { flex: none; min-height: 44px; padding: 4px 9px; color: #ffe1a3; border-color: #9e8049; background: #302719; font-size: 12px; letter-spacing: 0; }
+.dancer.video-first .dancer-side[hidden] { display: none; }
+.dancer.video-first .dancer-side:not([hidden]) { display: flex; position: absolute; z-index: 6; left: 0; right: 0; bottom: 96px; flex-direction: column; gap: 8px; max-height: calc(100% - 120px); overflow-y: auto; overscroll-behavior: contain; padding: 10px; border: 1px solid #48657b; border-radius: 14px; background: #122236f7; box-shadow: 0 -10px 32px #0006; }
+.dancer.video-first.video-practicing .dancer-side:not([hidden]) { bottom: 140px; max-height: calc(100% - 164px); }
+.video-tray-heading { display: flex; justify-content: space-between; align-items: center; flex: none; min-height: 44px; }
+.video-tray-heading strong { font-size: 14px; }
+.video-tray-heading button { min-width: 44px; min-height: 44px; padding: 4px; }
+.dancer.video-first[data-video-panel=cues] .class-tempo-panel, .dancer.video-first[data-video-panel=tools] .cues { display: none; }
+.dancer.video-first[data-video-panel=tools] .class-tempo-panel { display: block; flex: none; padding: 0; border: 0; background: transparent; }
+.dancer.video-first .class-tools { display: flex; gap: 8px; }
+.dancer.video-first .class-tools > button { flex: 1; }
+.dancer.video-first .class-tools .practice-open, .dancer.video-first .class-tools .practice-end { display: none; }
+.dancer.video-first .video-extra-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.video-extra-tools > button { min-height: 44px; flex: 1; font-size: 13px; letter-spacing: 0; }
+.dancer.video-first .cues { flex: none; min-width: 0; }
+.dancer.video-first .cues-head { margin-bottom: 6px; }
+.dancer.video-first .cues-head h2 { display: none; }
+.dancer.video-first .pads { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 88px; gap: 6px; }
+.dancer.video-first .pad { min-width: 72px; min-height: 88px; height: 88px; max-height: none; padding: 18px 5px 5px; font-size: 12px; }
+.dancer.video-first .pad.editing { min-height: 118px; height: 118px; padding-bottom: 44px; }
+.dancer.video-first.editing .pads { grid-auto-rows: 118px; }
+.dancer.video-first .pad-time { font-size: 10px; }
+.dancer.video-first .dancer-toast-region { position: absolute; top: 32px; bottom: auto; padding: 0 8px; }
+.dancer.video-first .dancer-toast { border-radius: 10px; padding: 8px 12px; font-size: 12px; }
+@media (max-width: 420px) {
+  /* Two editing actions need 44 px each; let the tray scroll instead of shrinking their targets. */
+  .dancer.video-first.editing .pads { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (orientation: landscape) and (max-height: 499px) {
+  .dancer.video-first .dancer-side:not([hidden]) { left: auto; width: min(460px, 100%); bottom: 52px; max-height: calc(100% - 54px); }
+  .dancer.video-first.video-practicing .dancer-side:not([hidden]) { bottom: 96px; max-height: calc(100% - 98px); }
+  .dancer.video-first .video-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); align-items: center; column-gap: 8px; }
+  .dancer.video-first .dancer-track-info { display: none; }
+  .dancer.video-first .dancer-toast-region { top: 8px; }
+  .dancer.video-first .video-practice-status { grid-column: 1 / -1; }
+}

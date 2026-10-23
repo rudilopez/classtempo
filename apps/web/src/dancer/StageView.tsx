@@ -6,7 +6,9 @@ import type { CueSlots } from './cueStore';
 import { clampTempo, TEMPO_MAX, TEMPO_MIN } from './TempoControl';
 import { VideoTools } from './VideoTools';
 import { VideoView } from './VideoView';
+import { VideoTimeline } from './VideoTimeline';
 import './stageClassroom.css';
+import './stageVideo.css';
 
 interface Props {
   /** The VideoDeck's element when a video with a picture is loaded; it is moved in here while Stage is open. */
@@ -18,6 +20,10 @@ interface Props {
   playing: boolean;
   /** Elapsed seconds (the 10 Hz display position). */
   position: number;
+  duration?: number;
+  practiceRange?: { start: number; end: number };
+  onSeek?: (position: number) => void;
+  onOpenPractice?: () => void;
   cues: CueSlots;
   /** Name of the cue section the playhead is in; null before the first cue. */
   section: string | null;
@@ -87,10 +93,17 @@ function exitFullscreen(): void {
  */
 export function StageView({
   video, aspect, title, playing, position, cues, section, onTogglePlay, onRestart, onLaunch, onClose,
+  duration = 0, practiceRange, onSeek, onOpenPractice,
   tempo = 100, onTempoChange, mirrored = false, zoom = 1, onMirroredChange, onZoomChange,
   onRestartSection, practiceName, onEndPractice, pendingLabel, talking = false, onToggleTalk, onRetryVideo, onVideoDetails,
 }: Props) {
   const root = useRef<HTMLDivElement>(null);
+  const [tray, setTray] = useState<'cues' | 'tools' | null>(null);
+  const activeTray = useRef(tray);
+  activeTray.current = tray;
+  const cuesTrigger = useRef<HTMLButtonElement>(null);
+  const toolsTrigger = useRef<HTMLButtonElement>(null);
+  const trayRoot = useRef<HTMLDivElement>(null);
   const [videoFailed, setVideoFailed] = useState(!!video?.error);
   const close = useRef(onClose);
   useEffect(() => {
@@ -142,7 +155,13 @@ export function StageView({
       if (currentFullscreen() === el) entered = true;
       else if (entered) {
         entered = false;
-        close.current();
+        // Some browsers consume Escape for native fullscreen before sending a DOM key event. Dismiss
+        // an open tray first and keep Stage as a viewport overlay; a subsequent Exit/Escape closes it.
+        if (activeTray.current) {
+          const trigger = activeTray.current === 'cues' ? cuesTrigger.current : toolsTrigger.current;
+          setTray(null);
+          trigger?.focus({ preventScroll: true });
+        } else close.current();
       }
     };
     document.addEventListener('fullscreenchange', onChange);
@@ -162,13 +181,23 @@ export function StageView({
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      if (video || e.key !== 'Escape') return;
       e.preventDefault();
       close.current();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [video]);
+
+  useLayoutEffect(() => {
+    if (tray) trayRoot.current?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
+  }, [tray]);
+
+  const closeTray = () => {
+    const trigger = tray === 'cues' ? cuesTrigger.current : toolsTrigger.current;
+    setTray(null);
+    trigger?.focus({ preventScroll: true });
+  };
 
   const pads = cues.flatMap((cue, index) => (cue ? [{ cue, index }] : []));
 
@@ -181,6 +210,20 @@ export function StageView({
       aria-modal="true"
       aria-label="Stage view"
       tabIndex={-1}
+      onKeyDown={video ? (event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          if (tray) closeTray();
+          else onClose();
+        } else if (event.target instanceof Element && event.target.closest('button, input, select')) {
+          // Let the focused control handle Space and arrows instead of the global player shortcuts.
+          event.stopPropagation();
+        }
+      } : undefined}
+      onKeyUp={video ? (event) => {
+        if (event.target instanceof Element && event.target.closest('button, input, select')) event.stopPropagation();
+      } : undefined}
     >
       <div className="stage-screen">
         {video ? (
@@ -193,8 +236,51 @@ export function StageView({
           </div>
         )}
         {pendingLabel && <div className="stage-pending" role="status">{pendingLabel}</div>}
+        {video && tray && <div ref={trayRoot} id={`stage-${tray}-tray`} className="stage-video-tray" role="region" aria-label={tray === 'cues' ? 'Cue controls' : 'Video tools'}>
+          <div className="stage-video-tray-header">
+            <strong>{tray === 'cues' ? 'Cues' : 'Video tools'}</strong>
+            <button type="button" onClick={closeTray} aria-label={`Close ${tray === 'cues' ? 'cues' : 'tools'}`}>✕</button>
+          </div>
+          <div className="stage-video-tray-body">
+            {tray === 'cues' ? pads.length > 0 ? <div className="stage-pads">
+              {pads.map(({ cue, index }) => <button key={index} className="stage-pad" style={{ ['--pad' as string]: padColor(index) }} onClick={() => onLaunch(index)} disabled={videoFailed} title={`Launch ${cue.name} (key ${index + 1})`}>
+                <span className="stage-pad-key">{index + 1}</span>
+                <span className="stage-pad-name">{cue.name}</span>
+              </button>)}
+            </div> : <p className="stage-hint">No cues yet. Exit Stage, open Cues, then tap an empty pad to set one.</p> : <>
+              {onTempoChange && <div className="stage-video-tool-row">
+                <span>Tempo</span>
+                <div className="stage-tempo" role="group" aria-label="Tempo">
+                  <button onClick={() => onTempoChange(clampTempo(tempo - 1))} disabled={videoFailed || tempo <= TEMPO_MIN} aria-label="Decrease tempo by 1 percent">−</button>
+                  <button className="stage-tempo-value" onClick={() => onTempoChange(100)} disabled={videoFailed} aria-label={`Tempo ${tempo} percent. Reset to 100 percent`} title="Reset to original tempo">{tempo}%</button>
+                  <button onClick={() => onTempoChange(clampTempo(tempo + 1))} disabled={videoFailed || tempo >= TEMPO_MAX} aria-label="Increase tempo by 1 percent">+</button>
+                </div>
+              </div>}
+              <div className="stage-video-tool-actions">
+                <button onClick={onRestartSection ?? onRestart} disabled={videoFailed} aria-label={onRestartSection ? 'Restart section' : 'Restart video'}>⟲ {onRestartSection ? 'Section' : 'Restart'}</button>
+                {onToggleTalk && <button className={talking ? 'on' : ''} onClick={onToggleTalk} disabled={videoFailed} aria-pressed={talking} title="Pause video while you speak">Talk</button>}
+                {!videoFailed && onMirroredChange && onZoomChange && <VideoTools mirrored={mirrored} zoom={zoom} onMirroredChange={onMirroredChange} onZoomChange={onZoomChange} />}
+              </div>
+            </>}
+          </div>
+        </div>}
       </div>
-      <div className="stage-bar">
+      {video ? <div className="stage-video-controls">
+        {onEndPractice && <div className="stage-practice">
+          <span title={practiceName}>Practice · {practiceName}</span>
+          <button onClick={onEndPractice}>End practice</button>
+        </div>}
+        {onSeek && <VideoTimeline position={position} duration={duration} cues={cues} practiceRange={practiceRange} onSeek={onSeek} disabled={videoFailed} />}
+        <div className="stage-video-dock" aria-label="Video playback controls">
+          <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} disabled={videoFailed} aria-label={videoFailed ? 'Video unavailable' : pendingLabel ? 'Cancel playback countdown' : playing ? 'Pause' : 'Play'}>
+            {videoFailed ? 'Error' : pendingLabel ? 'Cancel' : playing ? '❚❚ Pause' : '▶ Play'}
+          </button>
+          <button ref={cuesTrigger} className={tray === 'cues' ? 'on' : ''} aria-expanded={tray === 'cues'} aria-controls="stage-cues-tray" onClick={() => tray === 'cues' ? closeTray() : setTray('cues')}>Cues</button>
+          <button onClick={onOpenPractice} disabled={!onOpenPractice || videoFailed}>Practice</button>
+          <button ref={toolsTrigger} className={`stage-tools-toggle ${tray === 'tools' ? 'on' : ''}`} aria-label="Tools" aria-expanded={tray === 'tools'} aria-controls="stage-tools-tray" onClick={() => tray === 'tools' ? closeTray() : setTray('tools')}><span>Tools</span><small>{tempo}%</small></button>
+          <button onClick={onClose} aria-label="Exit Stage view" title="Exit Stage (Esc)">Exit</button>
+        </div>
+      </div> : <div className="stage-bar">
         <div className="stage-controls">
           {onEndPractice && <div className="stage-practice">
             <span title={practiceName}>Practice · {practiceName}</span>
@@ -253,10 +339,10 @@ export function StageView({
         ) : (
           <p className="stage-hint">Set cues first</p>
         )}
-      </div>
-      <button className="stage-exit" onClick={onClose} aria-label="Exit Stage view" title="Exit (Esc)">
+      </div>}
+      {!video && <button className="stage-exit" onClick={onClose} aria-label="Exit Stage view" title="Exit (Esc)">
         ✕
-      </button>
+      </button>}
     </div>,
     document.body,
   );

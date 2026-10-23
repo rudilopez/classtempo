@@ -156,6 +156,13 @@ Cue sizes depend on the view, with compact Stage controls. The header shares spa
 Library and Keep awake. Titles live inside the media panel; the palm logo replaces the O in Now Playing and the
 final o in ClassTempo.
 
+Video uses a separate compact layout: a flexing picture, 44 px seek target and 48 px dock for Play, Cues,
+Practice, Tools and Stage. Cues and Tools are temporary overlays, not permanent rows beneath the video.
+Short landscape combines seeking and the dock in one row. The active practice name and End action remain
+visible while trays are closed. Stage uses the same pattern with Exit. Tray toggles do not remount the native
+video; keyboard events on their controls do not trigger global playback shortcuts. Narrow cue-edit trays use
+two columns so Clear/Rename retain 44 px targets, with internal scrolling. Audio layouts remain separate.
+
 The production service worker caches normal app assets, worklets and WASM. Updates install in the background
 without forcibly reloading an active class. Registration checks again after returning to the foreground, with
 an hourly throttle. Development unregisters an old preview worker to avoid stale source modules.

@@ -14,6 +14,8 @@ live site, separately from this checklist:
 - Compact phone header, media-panel title, inline speed percentage, supplied Now Playing logo and distinct controls.
 - Key-preserving audio speed at 50–150%; native-video speed/pitch preservation where supported.
 - Native video loading without a duplicate audio decode, explicit readiness/errors and same-element Stage transitions.
+- Video fills the available picture area above compact playback/seeking controls; Cues and Tools open on demand.
+  End practice remains visible. Stage retains the same pattern with Exit; audio keeps its existing layout.
 - Keep awake, Stage playback controls, video mirror/zoom and Talk (audio attenuates; native video pauses).
 - Media lists all saved songs/videos with type badges, recents, saved-media search, import-and-open, local-copy removal and honest save failures.
 - Classes opens to named cards, then an ordered exercise detail view; backup utilities stay collapsed.
@@ -68,6 +70,7 @@ Android before claiming those devices accepted:
 
 A desktop browser pass is useful regression evidence but cannot replace these checks. Keep the original video
 and existing cue data available when testing. Paused lock-screen scrubbing remains a known WebKit limitation.
+The owner confirmed the supplied 1080p derivative plays on the iPhone on 2026-10-23; original 4K acceptance remains open.
 
 ## Next gate: instructor music access
 
