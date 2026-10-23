@@ -12,6 +12,10 @@ interface Props {
   playing: boolean;
   /** Tapping the picture: play / pause. */
   onTap?: () => void;
+  /** A failed source can be reopened paused, without selecting the file again. */
+  onRetry?: () => void;
+  /** User-initiated local diagnostic copy; never uploads the video. */
+  onDetails?: () => void;
   className?: string;
   style?: CSSProperties;
   /** Presentation only: the same native video remains attached and playing. */
@@ -38,7 +42,7 @@ function readState(element: HTMLVideoElement | null, buffering = false): VideoSt
 }
 
 /** Native video plus its actual readiness: metadata alone is not a decoded frame, especially on iOS. */
-export function VideoView({ element, playing, onTap, className, style, mirrored = false, zoom = 1 }: Props) {
+export function VideoView({ element, playing, onTap, onRetry, onDetails, className, style, mirrored = false, zoom = 1 }: Props) {
   const slot = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<VideoState>(() => readState(element));
 
@@ -68,7 +72,7 @@ export function VideoView({ element, playing, onTap, className, style, mirrored 
     : state.errorCode === 4 ? 'Video format isn’t supported'
       : state.errorCode === 2 ? 'Video file couldn’t be read'
         : 'Video couldn’t play';
-  const errorHint = state.errorCode === 3 ? 'Try 1080p MP4 · H.264 video + AAC audio.'
+  const errorHint = state.errorCode === 3 ? 'Retry, or copy details to help diagnose it.'
     : state.errorCode === 4 ? 'Try MP4 · H.264 video + AAC audio.'
       : 'Import the file again.';
 
@@ -87,7 +91,13 @@ export function VideoView({ element, playing, onTap, className, style, mirrored 
       />
       {element && status && (
         <span className="video-status" role={state.error ? 'alert' : 'status'}>
-          {state.error ? <><strong>{errorTitle}</strong><span>{errorHint}</span></> : status}
+          {state.error ? <>
+            <strong>{errorTitle}</strong><span>{errorHint}</span>
+            {(onRetry || onDetails) && <span className="video-error-actions">
+              {onRetry && <button type="button" onClick={(event) => { event.stopPropagation(); onRetry(); }}>Retry video</button>}
+              {onDetails && <button type="button" onClick={(event) => { event.stopPropagation(); onDetails(); }}>Copy details</button>}
+            </span>}
+          </> : status}
         </span>
       )}
       {!playing && element && !status && (

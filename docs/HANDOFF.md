@@ -1,5 +1,24 @@
 # Handoff — open work, in priority order
 
+## Cue, Practice and video follow-up (2026-10-23)
+
+The owner reports the original 31-second video still crashes. The source file and whether this is a full-page
+reload, frozen picture or native decode error are still being requested. Do not mark that original failure fixed.
+The loading path now avoids a forced 0.001-second seek and uses metadata preloading. Native errors offer a
+user-initiated paused retry and a bounded diagnostic copy with no media bytes, filename or file path.
+
+Empty cue pads now set on one tap; Edit protects existing cues, with Undo available after creation. Practice
+supports start/end cue selection and commits the visible range directly from Start practice or Save & close.
+A new range defaults to Repeat until stopped. The main player identifies Repeat/Section, range and pass status.
+Launching a cue within the range retains practice; leaving the range explains its switch to full track.
+
+Verification: 200 tests plus typecheck/build pass. Fractional cue/track endpoints retain exact precision, so
+End of track cannot round past the actual duration and block Start/Save. Chromium and persistent WebKit verify cue-selected ranges,
+direct Start/Save, finite repeats, invalid bounds, Undo, Full track and focus restoration. Practice passed 28
+phone/tablet/safe-area cases; main-player audio/video/cue editing passed 21; video recovery passed 28, with four
+additional early-load-failure layouts. Actual desktop audio/native-video runs cover zero-gap, gap, file-end,
+infinite/manual-stop and inside/outside-cue behavior. These results do not replace the original-file/iPhone test.
+
 ## Current direction — ClassTempo (2026-10-22)
 
 The owner approved the classroom-focused redesign and publication. The working name is **ClassTempo**.

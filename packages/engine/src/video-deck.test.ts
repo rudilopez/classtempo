@@ -62,6 +62,8 @@ class FakeVideo extends EventTarget {
   paused = true;
   ended = false;
   readyState = 0;
+  networkState = 0;
+  seeking = false;
   videoWidth = 0;
   videoHeight = 0;
   currentTime = 0;
@@ -75,7 +77,7 @@ class FakeVideo extends EventTarget {
   controls = true;
   disableRemotePlayback = false;
   muted = true;
-  error: { code: number } | null = null;
+  error: { code: number; message?: string } | null = null;
   /** What play() does: start, or refuse like an autoplay block. */
   allowPlay = true;
   private readonly attrs = new Map<string, string>();
@@ -165,7 +167,7 @@ describe('VideoDeck', () => {
     expect(deck.kind).toBe('video');
     expect(deck.element).toBe(video);
     expect(video.playsInline).toBe(true);
-    expect(video.preload).toBe('auto');
+    expect(video.preload).toBe('metadata');
     expect(video.controls).toBe(false);
     expect(video.disableRemotePlayback).toBe(true);
     expect(video.muted).toBe(false);
@@ -179,6 +181,7 @@ describe('VideoDeck', () => {
     await loadVideo(60);
     expect(deck.track).toEqual({ name: 'dance.mp4', duration: 60 });
     expect(video.src.startsWith('blob:')).toBe(true);
+    expect(new URL(video.src).hash).toBe(''); // Opening must not request a preview seek/decode before Play.
     expect(deck.playing).toBe(false);
     expect(deck.position).toBe(0);
     expect(positions).toEqual([0]);
@@ -358,6 +361,59 @@ describe('VideoDeck', () => {
     expect(deck.playing).toBe(false);
     expect(events).toEqual([]);
     expect(deck.error).toContain('could not be decoded');
+  });
+
+  it('retains useful error diagnostics after a failed load clears the native source, without identifying it', async () => {
+    const file = new Blob(['video'], { type: 'video/mp4' });
+    const loaded = deck.load(file, 'private-class.m4v');
+    video.error = { code: 3, message: `Cannot decode private-class.m4v at ${video.src} /Users/private/source.mov C:\\Users\\private\\source.mov` };
+    video.fire('error');
+    await expect(loaded).rejects.toThrow(/decoded/);
+    expect(video.error).toBeNull(); // load() clears the native failure along with the source.
+    const diagnostic = deck.getDiagnostics();
+    expect(diagnostic.file).toEqual({ bytes: 5, type: 'video/mp4' });
+    expect(diagnostic.error).toEqual({ code: 3, message: 'Cannot decode [video] at [source] [source] [source]' });
+    expect(diagnostic.events.some((event) => event.event === 'error' && event.errorCode === 3)).toBe(true);
+    expect(diagnostic.events.some((event) => event.event === 'load-failed')).toBe(true);
+    expect(JSON.stringify(diagnostic)).not.toMatch(/private-class|blob:|file:\/\/|https?:\/\//);
+
+    await loadVideo(31, 'fresh.mp4');
+    expect(deck.getDiagnostics().error).toBeNull();
+    expect(deck.getDiagnostics().events.map((event) => event.event)).toEqual(['loadedmetadata']);
+  });
+
+  it('bounds diagnostic history, ignores frame updates, and returns copies', async () => {
+    await loadVideo(31);
+    const initial = deck.getDiagnostics().events;
+    for (let index = 0; index < 100; index++) video.fire('timeupdate');
+    expect(deck.getDiagnostics().events).toEqual(initial);
+    for (let index = 0; index < 100; index++) {
+      video.currentTime = index / 10;
+      video.fire('seeking');
+    }
+    const diagnostic = deck.getDiagnostics();
+    expect(diagnostic.events).toHaveLength(32);
+    expect(diagnostic.events[0]?.position).toBe(6.8);
+    diagnostic.events[0]!.event = 'mutated';
+    diagnostic.file!.bytes = 999;
+    expect(deck.getDiagnostics().events[0]?.event).toBe('seeking');
+    expect(deck.getDiagnostics().file?.bytes).toBe(1);
+    deck.unload();
+    expect(deck.getDiagnostics().file).toBeNull();
+    expect(deck.getDiagnostics().events).toEqual([]);
+  });
+
+  it('records a rejected native Play without treating a gesture refusal as a fatal decoder error', async () => {
+    await loadVideo(31);
+    video.allowPlay = false;
+    deck.play();
+    await tick();
+    expect(deck.getDiagnostics().error?.message).toContain('NotAllowedError');
+    expect(deck.getDiagnostics().events.some((event) => event.event === 'play-rejected')).toBe(true);
+    expect(deck.error).toBeNull();
+    video.allowPlay = true;
+    deck.play();
+    expect(deck.playing).toBe(true);
   });
 
   it('ignores a queued play event that a pause() overtook', async () => {

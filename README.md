@@ -17,10 +17,14 @@ original `mixdeck` name.
    its exercises. Class entries advance manually and can reuse a file with different practice settings.
 3. Adjust speed between **50% and 150%**, preserving pitch where the playback engine/browser supports it.
    The percentage sits between the minus and plus controls; **100%** restores original speed.
-4. Open **Practice** to name sections with start/end times. Play a section once and stop, or repeat it for a
-   chosen number of passes or until stopped. Set a pause between repetitions and a start delay in seconds.
-5. Use **Edit cues** to add, move, rename or clear the eight cue pads. Outside Edit, saved pads launch playback
-   and empty pads cannot be changed accidentally. Undo restores recent cue edits during the current load.
+4. Open **Practice**, choose a start cue (or exact time) and an end cue/time, then **Start practice**. Repeat is
+   the default for a new range. Choose Until stopped or a total number of plays, with an optional pause between.
+   **Save & close** prepares the range without playing; the main **Repeat / Section** button starts it and shows
+   pass progress. The Practice button displays the active range. Closing with ✕ discards unsaved changes.
+5. Tap an **empty cue pad** to save the current position immediately, even while playing. Tap a saved cue to
+   play from it. **Edit cues** moves, renames or clears existing cues; Undo restores recent changes. Launching a
+   cue inside the active practice range keeps repeating; a cue outside it switches to full-track playback with
+   visible feedback.
 6. **Stage** keeps playback and selected cues within reach. Video supports mirror and zoom in both views.
 
 When adding the currently loaded file to a class, its speed, sections, repeat/delay and video settings are
@@ -30,6 +34,9 @@ Entries without a captured snapshot use that file's saved practice settings. Cue
 **Talk** lowers audio to 20% of its normal app level and restores it when tapped again. For native video it
 pauses instead, then resumes if the video had been playing. **Keep awake** prevents automatic display sleep
 while the app is visible and the browser grants the wake lock; its active state reflects the lock actually held.
+
+Video opens with metadata preloading and no forced initial seek. Fatal errors offer **Retry video** and
+**Copy details**; details contain playback diagnostics, never media contents or a file path.
 
 The first video Play starts immediately to establish browser permission for sound. Start delays apply to later
 video starts. The delay is measured in seconds; a beat-aligned musical count-in is not implemented.

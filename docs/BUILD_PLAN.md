@@ -18,8 +18,8 @@ live site, separately from this checklist:
 - Media lists all saved songs/videos with type badges, recents, saved-media search, import-and-open, local-copy removal and honest save failures.
 - Classes opens to named cards, then an ordered exercise detail view; backup utilities stay collapsed.
 - Named ordered class sets, repeated titles, manual advancement and independent practice settings per exercise.
-- Named A–B practice sections, play once/stop, finite or unlimited repeats, gaps and seconds-based start delay.
-- Cue edit lock and Undo; stable saved-cue keys preserve existing users' work.
+- Cue-based A–B practice ranges, direct Start practice/Save actions, visible mode/range/pass progress, finite or unlimited repeats, gaps and seconds-based start delay.
+- One-tap empty cues with Undo; existing-cue changes require Edit. Stable saved-cue keys preserve existing work.
 - JSON export/restore for class sets, cue data and practice settings, excluding media files.
 - Existing lock-screen/headphone controls and interruption recovery retained.
 

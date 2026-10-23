@@ -29,6 +29,27 @@
   color: #ffe1a3;
   font-size: 13px;
 }
+.video-error-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+.video-error-actions button {
+  min-width: 100px;
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 12px;
+  pointer-events: auto;
+}
+.dancer-video.video-failed:has(.video-error-actions) {
+  min-height: 104px;
+  max-height: none;
+}
+/* Reclaim the disabled speed panel for readable failure information and recovery actions on phones. */
+.dancer.has-video-error .class-tempo-panel {
+  display: none;
+}
 /* These tools cannot help a failed decoder and must never cover its recovery message. */
 .dancer-media:has(> .video-failed) > .video-tools {
   display: none;

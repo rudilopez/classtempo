@@ -29,9 +29,10 @@ export function effectiveBpm(s: DeckUiState): number | null {
 }
 
 export function formatTime(seconds: number): string {
-  const s = Math.max(0, seconds);
-  const m = Math.floor(s / 60);
-  const r = Math.floor(s % 60);
-  const t = Math.floor((s % 1) * 10);
+  // Work in whole tenths so exact cue values such as 1.2 do not display as 1.1.
+  const tenths = Math.floor(Math.max(0, Number.isFinite(seconds) ? seconds : 0) * 10 + 1e-7);
+  const m = Math.floor(tenths / 600);
+  const r = Math.floor(tenths / 10) % 60;
+  const t = tenths % 10;
   return `${m}:${r.toString().padStart(2, '0')}.${t}`;
 }
