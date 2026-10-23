@@ -16,22 +16,24 @@ original `mixdeck` name.
    the first opens. **Classes** holds ordered lesson lists made from that media; choose a class to prepare or use
    its exercises. Class entries advance manually and can reuse a file with different practice settings.
 3. Adjust speed between **50% and 150%**, preserving pitch where the playback engine/browser supports it.
-   The percentage sits between the minus and plus controls; **100%** restores original speed. For video, open
-   **Tools** for speed, Restart, Talk, Mirror and Fit/zoom.
+   The percentage sits between the minus and plus controls; **100%** restores original speed. In video Stage,
+   open **Tools** for speed, Restart, Talk, Mirror and Fit/zoom.
 4. Open **Practice**, enter a **Practice name**, and choose a start cue/time and an end cue/time. **Save practice**
    keeps its range, tempo, repeats, gap, delay and video settings with this track; **Start practice** saves and
    starts it. Use **+ New practice** to save another, or **Saved practices** to reopen one. Repeat until stopped
    is the default. The player shows the active name and pass progress. **End practice**, available in the player,
    editor and Stage, pauses at the current position and returns to normal Play without deleting saved practices.
    Tap Play to continue the full track at the current tempo, without the practice delay. ✕ discards unsaved edits.
-5. Open **Cues** when watching a video. Tap an **empty cue pad** to save the current position immediately, even while playing. Tap a saved cue to
+5. Select **Cues** in the **Cues / Stems** header. Tap an **empty cue pad** to save the current position immediately, even while playing. Tap a saved cue to
    play from it. **Edit cues** moves, renames or clears existing cues; Undo restores recent changes. Launching a
    cue inside the active practice range keeps repeating; a cue outside it switches to full-track playback with
-   visible feedback.
-6. Video fills the space above a compact **Play · Cues · Practice · Tools · Stage** bar and seek line. Cue pads
-   and tools open over the picture, then close to give the space back. The full picture stays visible at Fit.
-   **Stage** expands it further and keeps the same controls, with **Exit** to return. An active practice always
-   exposes **End practice** without opening another panel. Stage cues launch previously saved positions.
+   visible feedback. **Stems** currently explains that separate vocal/instrument playback is unavailable;
+   selecting it does not change playback or download an engine.
+6. The regular player keeps its picture, tempo and cue pads visible together. Tap **Stage** to make video large,
+   above a compact **Play · Cues · Practice · Tools · Exit** bar and seek line. In Stage, **Cues** opens one
+   horizontally scrollable row of numbered buttons below the picture. Tap an empty number to save a cue, or a
+   saved number to play from it. Tools also opens below the picture. Close either panel to give that space back
+   to the video. Full-picture Fit stays the default, and **End practice** stays reachable.
 
 When adding the currently loaded file to a class, its speed, sections, repeat/delay and video settings are
 captured for that exercise. Use **Use current settings** in the class list to update a particular exercise.

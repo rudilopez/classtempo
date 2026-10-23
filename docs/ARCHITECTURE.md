@@ -81,7 +81,8 @@ Cue storage remains `mixdeck.dancer.cues.<name>|<duration.toFixed(2)>`. Existing
 product rename. Eight slots store `{ time, name }` or null. An empty pad sets a cue immediately without changing
 playback; editing an existing position/name or clearing it requires Edit. Undo is available after a one-tap
 creation as well. A cue launch within an active practice range starts a new run at that cue without disabling
-its mode; launches outside the range explicitly switch to full track. Stage is launch-only.
+its mode; launches outside the range explicitly switch to full track. Video Stage can set empty slots from
+its numbered strip and launch saved cues; audio Stage retains its launch-only pads.
 
 ## Library, class sets and backups
 
@@ -156,12 +157,15 @@ Cue sizes depend on the view, with compact Stage controls. The header shares spa
 Library and Keep awake. Titles live inside the media panel; the palm logo replaces the O in Now Playing and the
 final o in ClassTempo.
 
-Video uses a separate compact layout: a flexing picture, 44 px seek target and 48 px dock for Play, Cues,
-Practice, Tools and Stage. Cues and Tools are temporary overlays, not permanent rows beneath the video.
-Short landscape combines seeking and the dock in one row. The active practice name and End action remain
-visible while trays are closed. Stage uses the same pattern with Exit. Tray toggles do not remount the native
-video; keyboard events on their controls do not trigger global playback shortcuts. Narrow cue-edit trays use
-two columns so Clear/Rename retain 44 px targets, with internal scrolling. Audio layouts remain separate.
+The regular player retains its picture, full cue pads and tempo controls. Its Cues/Stems pill switches only
+the pad area's contents; Stems reports unavailable and never imports the research runtime or downloads a model.
+Selecting Stems exits cue editing while preserving the cue history, track and practice settings.
+
+Video Stage uses a flexing picture, 44 px seek target and 48 px dock for Play, Cues, Practice, Tools and Exit.
+Cues opens a horizontal strip of 44 px numbered buttons below the picture, including empty slots that set a cue
+when tapped. Tools also sits below the picture; neither panel obscures it. Short landscape combines seeking and
+the dock in one row. The active practice name and End action remain reachable. Panel toggles do not remount the
+native video; keyboard events on controls do not trigger global playback shortcuts. Audio Stage remains separate.
 
 The production service worker caches normal app assets, worklets and WASM. Updates install in the background
 without forcibly reloading an active class. Registration checks again after returning to the foreground, with

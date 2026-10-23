@@ -1,5 +1,22 @@
 # Handoff — open work, in priority order
 
+## Stage-only large video and Cues/Stems header (2026-10-23)
+
+The owner clarified that the large video layout belongs only in Stage. The regular player returns to the
+previous picture/tempo/full cue-pad layout, with a Cues/Stems pill replacing the Cues heading. Stems displays
+an unavailable message; switching the pill preserves playback and never loads the experimental engine.
+
+Video Stage's Cues panel is now a compact horizontal row of numbered buttons below the picture, including
+empty slots that save the current position. Saved slots launch cues. All eight existing slots and their keys
+remain intact. The row scrolls sideways on narrow phones. Tools also opens below the picture, not over it.
+The full picture, playback controls and End practice remain reachable. Audio Stage keeps its prior layout.
+
+Verification: typecheck, 206 tests and build pass. Chromium/WebKit cover 112 regular-player layout cases and
+147 Stage cases across the seven required phone/tablet sizes. The main video picture matches the pre-update
+baseline at all seven sizes. Browser flows cover cue creation while paused/playing, saved-cue launch, cue-row
+scrolling and focus, same-element video, named-practice repeat/End, and switching Cues/Stems without changing
+playback or downloading models. Physical iPhone acceptance of the new controls remains separate.
+
 ## Video picture and compact controls (2026-10-23)
 
 The owner confirmed the supplied 1080p test copy works on the iPhone. This is acceptance of that derivative,

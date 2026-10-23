@@ -36,8 +36,8 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
 
 - Phone first: check 360×780, 390×844, 430×932 portrait; 844×390 landscape; and iPad 768×1024, 1180×820,
   1366×1024. No horizontal overflow. The main portrait player fits without page scrolling; library/practice
-  dialogs scroll internally. Touch targets remain at least 44 px and cue pads at least 72 px, including compact
-  Stage layouts. Respect safe areas.
+  dialogs scroll internally. Touch targets remain at least 44 px and full cue pads at least 72 px. Video Stage
+  uses a compact horizontal row of 44 px numbered cue buttons, per the owner's requested layout. Respect safe areas.
 - One player only: Open accepts audio/video and detects the actual file type. Library Add saves the selection
   and opens its first file paused. Picker cancellation preserves the track; class advancement is manual.
 - Library has Media (all saved songs and videos) and Classes (ordered teaching plans). Search filters saved media, never music services. Failed saves may still
@@ -48,8 +48,8 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
 - iOS gesture rules: call `play()` / `engine.unlock()` / `keepAlive.start()` synchronously inside the gesture,
   before any `await`. A delayed first native-video start is not reliable; preserve the first-Play permission path.
 - Preserve one native video element through Stage. Do not decode the full video's audio for analysis or waveform.
-- Video prioritizes picture size: keep playback/seeking visible, secondary cues/tools in temporary trays, and
-  End practice reachable without opening a tray. Audio retains its separate layout. Tray buttons must keep
+- Stage prioritizes picture size: keep playback/seeking visible, secondary cues/tools below the picture, and
+  End practice reachable without opening a panel. The regular player keeps its full controls. Panel buttons must keep
   native keyboard activation without also firing global shortcuts; toggling trays never remounts the video.
 - Cancel pending practice work before loads, manual seeks, pauses, cue launches and teardown. Delayed callbacks
   must not revive an old track. Practice sections are rehearsal controls, not sample-accurate loops.
@@ -66,7 +66,8 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   position and disables the active delay/mode without deleting presets; returning to Play must not revive a pass.
   Dialogs contain focus, restore background inert state and prevent global player shortcuts while open.
 - Apple Music/Spotify are not integrated. Do not add a fake connection button or promise streaming feature parity.
-  Apple Music feasibility awaits credentials. Stems stay hidden research with existing weight/device gates;
+  Apple Music feasibility awaits credentials. The Cues/Stems header may show an honest unavailable state;
+  the stems engine stays hidden research with existing weight/device gates;
   no model auto-download or server fallback is authorized by the classroom feature scope.
 - Style: 2-space indent, single quotes, trailing commas, explicit exported API types, no `any`.
 - Do not add dependencies without a reason documented in the commit. Do not commit `test-media/`, `.claude/`,
