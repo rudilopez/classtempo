@@ -68,16 +68,16 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
 - Apple Music/Spotify are not integrated. Do not add a fake connection button or promise streaming feature parity.
   Apple Music feasibility awaits MusicKit credentials (the owner has enrolled in the Developer Program).
 - Stems uses opt-in local Spleeter separation for audio files only, with a 4:30/100 MB preparation limit.
-  Ordinary song/video playback has no duration cap. Keep Beta until physical iPhone preparation and playback
-  quality both pass; preparation now succeeds on the owner's phone, but All-at-100% warbling was reported.
+  Ordinary song/video playback has no duration cap. The owner confirmed preparation of the supplied song and
+  clear All-at-100% playback on the physical iPhone on 2026-10-23; Beta has been removed for this release.
   The pinned plain ORT bundle has a checked 256 MiB WASM cap; preserve its hash/version and build guards.
   Preserve the opt-in stem unity-playback adapter and test sample timing, queued transport changes and tempo
   transitions when changing it. Existing prepared stems must not need regeneration for playback-only fixes.
   Selecting the Stems pill never downloads models; Prepare explicitly downloads the pinned, hash-verified engine.
   Keep original playback available, preserve pending practice during source switches, and cancel stale jobs on loads.
   Store complete aligned results atomically; never call a failed save offline-ready. Low/High drums are frequency
-  filters, not independently separated instruments. No server upload/fallback is authorized. Physical iPhone
-  preparation and playback acceptance remain required; desktop results do not remove that boundary.
+  filters, not independently separated instruments. No server upload/fallback is authorized. Preserve that
+  device acceptance as the regression baseline; other media, tempos and device behaviors need their own evidence.
 - Style: 2-space indent, single quotes, trailing commas, explicit exported API types, no `any`.
 - Do not add dependencies without a reason documented in the commit. Do not commit `test-media/`, `.claude/`,
   credentials, user media or private backup files.

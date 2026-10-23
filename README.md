@@ -32,8 +32,8 @@ original `mixdeck` name.
    mute parts, or choose **Acapella**, **Instrumental** or **All**. **Original** returns to the original recording
    at the current position. Low/High drums focus frequency ranges, rather than isolating a kick or hi-hat.
    Stems preparation accepts songs up to **4:30** and 100 MB; ordinary song/video playback has no duration cap.
-   The Beta label remains pending clear stem playback on the physical iPhone. Keep the app visible while preparing; songs stay on
-   the device. Saved stems reopen without separating again. Video and subscription streams are not supported.
+   Keep the app visible while preparing; songs stay on the device. Saved stems reopen without separating
+   again. Video and subscription streams are not supported.
 6. The regular player keeps its picture, tempo and cue pads visible together. Tap **Stage** to make video large,
    above a compact **Play · Cues · Practice · Tools · Exit** bar and seek line. In Stage, **Cues** opens one
    horizontally scrollable row of numbered buttons below the picture. Tap an empty number to save a cue, or a
@@ -129,12 +129,14 @@ target without testing the actual worklet startup.
 The production app creates `Engine.create({ dj: false })`; it does not initialize DJ decks or their worklet
 processors. Some legacy mixer components and package scaffolds remain in the repository but are not product UI.
 
-The new [local stems beta](docs/STEMS_MODEL.md) uses Spleeter weights with explicit upstream licensing,
+The [local stems feature](docs/STEMS_MODEL.md) uses Spleeter weights with explicit upstream licensing,
 independently of the historical [HTDemucs benchmark](https://rudilopez.github.io/mixdeck/#stems-benchmark).
 It saves separated PCM in a separate 500 MiB cache, evicting least-recently-used stem results without removing
 original songs or classes. **Saved stems & details** offers removal for the current song. Browser storage can
-still be cleared or evicted. Stems are not included in settings backups. Physical iPhone preparation speed,
-memory stability and listening quality remain to be confirmed; no server fallback is enabled.
+still be cleared or evicted. Stems are not included in settings backups. On 2026-10-23, the owner confirmed
+preparation of the supplied song and clear All-at-100% playback on the physical iPhone, completing the gate
+for removing Beta. Preparation speed, other songs/devices, isolated-stem quality and changed-tempo listening
+are not covered by that confirmation; no server fallback is enabled.
 
 Further detail: [architecture](docs/ARCHITECTURE.md), [delivery plan](docs/BUILD_PLAN.md),
 [product scope](docs/VISION_AND_PARITY.md), [historical handoff](docs/HANDOFF.md),

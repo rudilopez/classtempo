@@ -27,7 +27,7 @@ the current release. The source repository and live `/mixdeck/` URL retain their
 | Speak to the class | Talk lowers audio to 20% of normal; native video pauses instead |
 | Review choreography | Video mirror and zoom, full-screen-style Stage controls |
 | Keep the phone usable nearby | Keep awake where granted; compact controls and safe-area layouts |
-| Hear individual musical parts | Local Spleeter stems beta, part mutes, Acapella/Instrumental shortcuts |
+| Hear individual musical parts | Local Spleeter stems, part mutes, Acapella/Instrumental shortcuts |
 | Recover prepared work | Settings export/restore; media originals kept separately |
 
 Media contains all saved songs and videos, with explicit type labels and a local search. Classes contains ordered
@@ -74,9 +74,10 @@ phone and speaker. Automatic music analysis is assistance, not authoritative dan
 ## Deferred and excluded work
 
 Musical count-in, finer cue/section nudging, exercise notes and a remote/watch workflow can follow verified class
-use. The requested local stems beta is now implemented with licensed Spleeter weights; physical iPhone
-performance, memory stability and listening quality remain unverified. No Stems FX, video separation or server
-separation fallback is enabled; see [the build plan](BUILD_PLAN.md).
+use. Local stems uses licensed Spleeter weights. The owner confirmed preparation of the supplied song and
+clear All-at-100% playback on the iPhone on 2026-10-23, completing its Beta exit gate. Other songs/devices,
+isolated-stem quality and changed-tempo listening remain separate checks. No Stems FX, video separation or
+server separation fallback is enabled; see [the build plan](BUILD_PLAN.md).
 
 Multi-deck mixing, crossfaders, EQ/FX racks, sync, automix, controller mappings, sampler banks and djay feature
 parity are outside the current product scope. Accounts, cloud sync, social features and new native wrappers are

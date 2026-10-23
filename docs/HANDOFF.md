@@ -1,5 +1,19 @@
 # Handoff — open work, in priority order
 
+## Stems release accepted on the owner's iPhone (2026-10-23)
+
+After the bounded-memory preparation fix and the normal-speed playback fix (merge `94f95de`, live asset
+`index-BeWvTOYo.js`), the owner confirmed: "Yes, All at 100% sounds clear." Preparation of the supplied song
+had already succeeded on that phone. This completes the agreed gate for removing Beta.
+
+The release removes the Beta label and its obsolete testing message. The **4:30/100 MB limit applies only
+to stems preparation**; ordinary song/video playback remains unrestricted by duration. Existing saved stems
+remain compatible and require no new separation. Other songs, isolated-stem quality, changed-tempo listening,
+Bluetooth and background/lock-screen behavior remain separate acceptance areas.
+
+The entries below preserve the earlier investigations and their acceptance status at the time; this entry
+supersedes their pending preparation and All-at-100% listening gates for the supplied song.
+
 ## Stems normal-speed playback correction (2026-10-23)
 
 The owner confirmed the bounded-memory release prepares the supplied song on the physical iPhone, but

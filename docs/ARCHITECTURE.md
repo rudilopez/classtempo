@@ -210,7 +210,7 @@ headers, and future cross-origin-isolated work must account for that difference.
 
 MusicKit and Spotify are not loaded or authenticated. See [Apple Music feasibility](APPLE_MUSIC_FEASIBILITY.md)
 for credential and device-test gates. The hidden historical Demucs page retains its research-only model; the
-production stems beta uses a separate licensed Spleeter model. Neither runtime nor model downloads occur during
+production stems feature uses a separate licensed Spleeter model. Neither runtime nor model downloads occur during
 normal playback. Physical phone preparation/playback validation remains separate. No server fallback is enabled.
 
 Tests cover pure data normalization, class ordering/backups, transport cancellation/repetition, engine creation,

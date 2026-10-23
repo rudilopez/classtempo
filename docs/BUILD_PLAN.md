@@ -99,7 +99,7 @@ Prioritize these from observed teaching friction rather than restoring the old D
 Do not promise cloud accounts, synchronization, external music integrations or automatic speaker routing as
 already implemented. Preserve the local workflow while those decisions remain open.
 
-## Local stems beta (2026-10-23)
+## Local stems release (2026-10-23)
 
 The owner requested working stems. The Cues/Stems panel now supports explicitly prepared local songs with
 four Spleeter stems: vocals, drums, bass and other instruments. Acapella/Instrumental/All shortcuts and
@@ -114,11 +114,10 @@ content-addressed 500 MiB LRU cache. A new source cancels work; failures leave t
 
 Preparation is capped at **4:30/100 MB** because completed PCM memory still grows with duration. This limit
 does not apply to ordinary song/video playback. The owner requested leaving beta after the supplied song works
-on the iPhone; keep that device result as the release gate. The plain runtime now reserves at most 256 MiB
+on the iPhone. That gate is complete: preparation succeeds, and the owner confirmed clear All-at-100% playback
+after the normal-speed correction on 2026-10-23. The plain runtime now reserves at most 256 MiB
 instead of 4 GiB, with a checked adapter for the exact pinned runtime and one cached model in JS memory at a time.
-The owner confirmed the supplied song now prepares and plays on the physical iPhone, but reported warbling
-even with All stems at 100% tempo. Clear playback remains a release gate; successful inference alone is not
-quality acceptance. Broader iPhone/iPad memory stability, listening quality, Bluetooth and lock-screen playback
-remain separate checks. The original roughly
+Beta is removed. Broader iPhone/iPad memory stability, isolated-stem and changed-tempo listening quality,
+Bluetooth and lock-screen playback remain separate checks. The original roughly
 two-minute target for separating a four-minute iPhone song remains the goal, not a measured guarantee.
 No automatic model download, song upload or server fallback is enabled.

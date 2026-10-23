@@ -79,12 +79,12 @@ export function StemsPanel({ kind, state, active, disabled, mix, focus, onPrepar
       </div>
       <details className="stem-details"><summary>Saved stems & details</summary>
         <p>{state.message} {state.seconds !== null && `Prepared in ${state.seconds.toFixed(1)}s.`}</p>
-        <p>Low / High drums are frequency filters. Separation may leave audible artifacts. Phone performance is still being tested.</p>
+        <p>Low / High drums are frequency filters. Separation may leave audible artifacts.</p>
         {state.report && <button onClick={saveReport}>Save preparation report</button>}
         {state.saved && <button onClick={onRemoveSaved}>Remove saved stems</button>}
       </details>
     </> : <div className="stems-intro">
-      <strong>Prepare stems <span className="stems-beta">Beta</span></strong>
+      <strong>Prepare stems</strong>
       {state.message && <p role={state.phase === 'error' ? 'alert' : 'status'}>{state.message}</p>}
       {state.failure && <button onClick={copyFailure}>{copied ? 'Details copied' : 'Copy details'}</button>}
       <p>Vocals, drums, bass and instruments. First use downloads an 80 MB engine plus its runtime. Best on Wi-Fi.</p>
