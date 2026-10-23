@@ -1,5 +1,24 @@
 # Handoff — open work, in priority order
 
+## iPhone stems startup correction (2026-10-23)
+
+The owner reported `no available backend found ... previous call to initWasm() failed` on a 3:49 song.
+The first release retried WASM inside the same JSEP runtime after GPU failure, hiding the original startup error.
+Apple browsers now select a separate plain-WASM runtime directly. Other browsers retain GPU preparation and
+transfer the original PCM into a fresh CPU worker if inference initialization fails. Both first and fallback
+errors are preserved through Copy details. Output allocation and temporary decoder references are reduced at
+startup; model identity, saved stems, audio controls and source playback remain compatible.
+
+Verification: typecheck, 247 tests and production build pass. Actual 12-second preparation passes in desktop
+WebKit and Chromium with iPhone/iPad identities, requesting only the plain runtime on Apple paths. Injected GPU
+startup failure recovers in a fresh CPU worker; injected CPU failure preserves its first diagnostic and succeeds
+on manual retry without reloading. Cancel and new-file replacement suppress stale results. A four-minute local
+fixture prepared with plain WASM in 50.7 seconds on the development Mac and reopened offline in 1.35 seconds.
+
+The upstream WebKit/JSEP compilation issue is evidence for the compatibility change, not proof of the exact
+phone cause. Physical iPhone preparation still requires the owner to retry the deployed correction. Do not
+clear site data as an update workaround; that would remove the user's saved media and settings.
+
 ## Local stems beta (2026-10-23)
 
 The owner requested stems. The Cues/Stems panel now prepares local audio with explicitly requested Spleeter

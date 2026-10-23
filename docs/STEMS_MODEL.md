@@ -52,13 +52,24 @@ are removed. Failed cache persistence permits current preparation but is reporte
   exactly one core; the Hann overlap remains continuous across model-window boundaries.
 - Output order: vocals L/R, drums L/R, bass L/R, other L/R. Eight arrays transfer to the owner with no clone.
 - A dedicated Worker runs one inference session at a time and disposes tensors and sessions between each
-  stem/chunk. Auto selection tries WebGPU and falls back to one-thread WASM on setup or inference failure.
+  stem/chunk. iPhone/iPad (including desktop identity), Safari, and browsers without WebGPU select a separate
+  `onnxruntime-web/wasm` entry with the 14.24 MB plain runtime. Other GPU-capable browsers use the JSEP entry.
+  GPU initialization/inference failure transfers original input ownership to a fresh, single-threaded plain
+  WASM Worker. It never retries in the aborted runtime. Worker/module loading errors surface for manual retry.
   The report identifies the selected execution path and observed GPU queue submissions (null if the browser
   prevents observation). Session selection alone does not prove operators executed on GPU; a positive queue
   count establishes some GPU work, not that every operator ran there. GitHub Pages does not need cross-origin
   isolation or SharedArrayBuffer.
 - Cancellation terminates the Worker, including active downloads or WASM calls. The owner must ignore stale
   messages after a track change. The Worker closes itself on completion or error.
+
+The first iPhone report showed `previous call to initWasm() failed`, a secondary error that hid the actual
+initialization failure. The [upstream Safari/JSEP report](https://github.com/microsoft/onnxruntime/issues/26827)
+documents compiler memory pressure with JSEP and successful plain-WASM operation. This supports routing around
+JSEP on Apple browsers, but does not prove that was the user's first failure. Failed preparation now offers
+Copy details with the first error, runtime/version and stage, including both causes if a GPU retry also fails.
+No song name, path or media contents are included. Full-song output is allocated after the first real chunk's
+inferences, and temporary source decoder references are dropped before worker startup to reduce initial pressure.
 
 ## Memory, quality and device acceptance
 

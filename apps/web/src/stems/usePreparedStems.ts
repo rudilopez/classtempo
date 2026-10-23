@@ -3,8 +3,9 @@ import type { Engine, StemDeck } from '@mixdeck/engine';
 import { loadStemCache, removeStemCache, saveStemCache, stemCacheKey } from './cache';
 import {
   MAX_SEPARATION_SECONDS, SEPARATION_MODEL_VERSION,
-  type SeparationInput, type SeparationMessage, type SeparationReport,
+  type SeparationReport,
 } from './separationModel';
+import { prepareStemWorker, selectSeparationRuntime, StemPreparationError, type StemFailureDetails } from './prepareWorker';
 
 export interface PreparedStemsState {
   phase: 'idle' | 'working' | 'ready' | 'error';
@@ -13,12 +14,24 @@ export interface PreparedStemsState {
   saved: boolean;
   seconds: number | null;
   report?: SeparationReport;
+  failure?: StemFailureDetails;
 }
 
 const idle = (): PreparedStemsState => ({ phase: 'idle', message: '', fraction: null, saved: false, seconds: null });
 const aborted = (signal: AbortSignal): void => {
   if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
 };
+
+/** Drop decoder/source-buffer references before the separate worker allocates its runtime and outputs. */
+async function readSong(file: File, signal: AbortSignal): Promise<[Float32Array, Float32Array]> {
+  const context = new OfflineAudioContext(2, 1, 44_100);
+  const bytes = await file.arrayBuffer();
+  aborted(signal);
+  const audio = await context.decodeAudioData(bytes);
+  aborted(signal);
+  if (audio.duration > MAX_SEPARATION_SECONDS || audio.length < 1) throw new Error('This song is too long for on-device stems.');
+  return [audio.getChannelData(0).slice(), audio.getChannelData(Math.min(1, audio.numberOfChannels - 1)).slice()];
+}
 
 /** Resample one stereo pair at a time, bounding the extra phone memory during rate conversion. */
 async function resample(channels: Float32Array[], sourceRate: number, targetRate: number, signal: AbortSignal): Promise<Float32Array[]> {
@@ -47,7 +60,6 @@ async function resample(channels: Float32Array[], sourceRate: number, targetRate
 export function usePreparedStems(engine: Engine, file: File | null, trackId: number | null, duration: number) {
   const [state, setState] = useState<PreparedStemsState>(idle);
   const deck = useRef<StemDeck | null>(null);
-  const worker = useRef<Worker | null>(null);
   const abort = useRef<AbortController | null>(null);
   const sequence = useRef(0);
   const cacheKey = useRef<string | null>(null);
@@ -56,8 +68,6 @@ export function usePreparedStems(engine: Engine, file: File | null, trackId: num
     sequence.current++;
     abort.current?.abort();
     abort.current = null;
-    worker.current?.terminate();
-    worker.current = null;
   };
   const reset = (): void => {
     stop();
@@ -106,32 +116,13 @@ export function usePreparedStems(engine: Engine, file: File | null, trackId: num
       let report: SeparationReport | undefined;
       if (!cached) {
         update('Reading the song on this device…');
-        const context = new OfflineAudioContext(2, 1, 44_100);
-        const sourceBytes = await file.arrayBuffer();
+        const channels = await readSong(file, signal);
         aborted(signal);
-        const audio = await context.decodeAudioData(sourceBytes);
-        aborted(signal);
-        if (audio.duration > MAX_SEPARATION_SECONDS || audio.length < 1) throw new Error('This song is too long for on-device stems.');
-        const channels: [Float32Array, Float32Array] = [
-          audio.getChannelData(0).slice(),
-          audio.getChannelData(Math.min(1, audio.numberOfChannels - 1)).slice(),
-        ];
-        const result = await new Promise<Extract<SeparationMessage, { type: 'complete' }>>((resolve, reject) => {
-          const next = new Worker(new URL('./separate.worker.ts', import.meta.url), { type: 'module' });
-          worker.current = next;
-          const finish = (): void => { next.terminate(); if (worker.current === next) worker.current = null; signal.removeEventListener('abort', onAbort); };
-          const onAbort = (): void => { finish(); reject(new DOMException('Cancelled', 'AbortError')); };
-          signal.addEventListener('abort', onAbort, { once: true });
-          next.onerror = (event) => { finish(); reject(new Error(event.message || 'Stem preparation stopped. Try a shorter song.')); };
-          next.onmessage = (event: MessageEvent<SeparationMessage>) => {
-            if (signal.aborted || sequence.current !== token) return;
-            const message = event.data;
-            if (message.type === 'progress') update(message.stage, message.fraction);
-            else if (message.type === 'error') { finish(); reject(new Error(message.message)); }
-            else { finish(); resolve(message); }
-          };
-          next.postMessage({ type: 'separate', channels, sampleRate: 44_100, provider: 'auto' } satisfies SeparationInput,
-            channels.map((channel) => channel.buffer));
+        const result = await prepareStemWorker({ type: 'separate', channels, sampleRate: 44_100 }, {
+          signal,
+          runtime: selectSeparationRuntime({ userAgent: navigator.userAgent, platform: navigator.platform,
+            maxTouchPoints: navigator.maxTouchPoints, gpuAvailable: 'gpu' in navigator }),
+          onProgress: update,
         });
         aborted(signal);
         report = result.report;
@@ -163,7 +154,8 @@ export function usePreparedStems(engine: Engine, file: File | null, trackId: num
       stop();
       deck.current?.unload();
       deck.current = null;
-      setState({ ...idle(), phase: 'error', message: error instanceof Error ? error.message : 'Could not prepare stems. The original song is available.' });
+      setState({ ...idle(), phase: 'error', message: error instanceof Error ? error.message : 'Could not prepare stems. The original song is available.',
+        failure: error instanceof StemPreparationError ? error.details : undefined });
     }
   };
 
