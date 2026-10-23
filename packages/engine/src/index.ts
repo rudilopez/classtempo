@@ -6,4 +6,5 @@ export { StemDeck, STEM_NAMES } from './stem-deck';
 export type { StemName, StereoChannels, StemBuffers, StemChannels, StemMix, StemLoadOptions, DrumFocus } from './stem-deck';
 export type { DancerPlayer } from './dancer-player';
 export { VideoDeck, mediaErrorMessage } from './video-deck';
+export type { VideoLoadOptions } from './video-deck';
 export { DECK_PROCESSOR_NAME, DECK_PROCESSOR_SOURCE } from './worklet-source';

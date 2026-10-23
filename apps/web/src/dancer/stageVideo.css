@@ -33,6 +33,7 @@
   border-top: 1px solid #30485b;
   background: #0b1722;
 }
+.stage-video-controls > .stage-class-controls { padding: 5px 0; }
 .stage-video-dock {
   display: grid;
   grid-template-columns: 1.2fr 1fr 1.15fr 1fr .8fr;

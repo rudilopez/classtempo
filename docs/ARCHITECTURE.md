@@ -74,8 +74,10 @@ applies to subsequent starts. A seconds-based countdown is implemented; a musica
 
 Practice settings use `mixdeck.practice.<name>|<duration.toFixed(2)>` in localStorage. Class entries may contain
 an independent validated snapshot, so two occurrences of the same song can run at different speeds. Loading a
-snapshot applies it to that session without replacing the file's default merely by selecting the exercise.
-Changing settings or explicitly capturing them updates the relevant saved data through the owning UI.
+snapshot applies it to that session without replacing the file's default. A class occurrence without a snapshot
+uses fresh practice defaults: full file, 100% tempo, no repeat or delay. Ordinary Media loading retains the saved
+track behavior. Named-practice additions activate that section's saved playback options and copy a normalized
+snapshot. Class settings change only through explicit editing/capture; session selection never rewrites them.
 
 Cue storage remains `mixdeck.dancer.cues.<name>|<duration.toFixed(2)>`. Existing users' cues therefore survive the
 product rename. Eight slots store `{ time, name }` or null. An empty pad sets a cue immediately without changing
@@ -87,7 +89,8 @@ its numbered strip and launch saved cues; audio Stage retains its launch-only pa
 ## Library, class sets and backups
 
 The dialog opens to **Media**, a single recent-first list of saved songs and videos with explicit type badges.
-**Classes** starts with a named-card overview; selecting a card opens its ordered exercises. Search appears only
+**Classes** starts with a named-card overview; selecting a card opens its ordered exercises with Teach class and
+Edit class actions. Edits are local drafts until Save class. Search appears only
 when media exists, filters saved filenames without case/accent sensitivity, and reports counts or a clear empty
 result. It is not a music-service search. Backup utilities are collapsed below the current view.
 
@@ -103,7 +106,7 @@ recency cannot turn a successful load into a reported failure.
 |---|---|
 | `media` | ID, filename, MIME type, size, modification time, media kind, added/opened timestamps, availability |
 | `files` | Original File/Blob by media ID |
-| `classes` | Named ordered sets, each occurrence ID referencing media plus optional practice snapshot/duration |
+| `classes` | Named ordered sets with optional Auto-next; occurrence IDs reference media plus optional name, note and practice snapshot/duration |
 
 File and metadata writes commit in the same transaction. A successful decode is not proof of a saved local copy;
 a failed save is surfaced while direct playback may remain usable. Listing metadata does not load all media
@@ -111,8 +114,27 @@ blobs. File identity uses filename, size, modification time and MIME type, avoid
 large video. It is metadata identity, not content verification. Restored placeholders can reconnect by matching
 filename, size and kind when a file picker changes modification time.
 
-Recent order uses last-opened then added time. Class advancement is manual: choosing an entry loads one item and
-waits for Play. Repeated media references are supported because each occurrence has its own ID and snapshot.
+Recent order uses last-opened then added time. `library/classPreparation.ts` discovers saved named practices for
+all saved media through the existing filename/duration keys, without decoding or opening those files. Each
+addition gets an independently normalized snapshot; full-file additions need no configuration. Repeated media
+references are supported because each occurrence has its own ID and snapshot.
+
+Teach class enters a live session in the existing player. `classes/ClassControls.tsx` shows the current step,
+next exercise and Next & play; its running order selects an exercise paused, moves to the previous one, toggles
+Auto-next or exits. Again restarts the current exercise. Video Stage keeps these controls below the picture.
+Auto-next defaults off and is an explicit class/session setting. With it enabled, advancement follows either
+the full-file end or the final finite practice pass. Endless repeat does not complete or advance on its own.
+Manual changes, cancellation, new loads and errors invalidate pending advancement; missing or failed files
+are never silently skipped. Browser-blocked video playback requires another explicit Play action.
+
+`classes/session.ts` preflights each distinct saved File by retrieving it and reading a byte, rather than trusting
+metadata availability. It checks sequentially without decoding or retaining every song, supports cancellation,
+and reports affected occurrences together. This proves current file access, not codec compatibility or permanent
+offline availability. A versioned localStorage resume record stores only class/entry identity, position,
+Auto-next and completion state. Restoring validates those references and the actual track duration, loads paused,
+and never revives a countdown or starts music. Exit preserves the paused resume location; finishing marks that
+session complete. Neither action deletes the saved class.
+
 Deleting a saved copy removes the Blob and leaves unavailable metadata/class references; the original external
 file, cues and practice settings are retained. Deleting a class does not delete its media.
 

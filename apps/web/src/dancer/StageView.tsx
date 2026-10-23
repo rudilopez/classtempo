@@ -7,6 +7,7 @@ import { clampTempo, TEMPO_MAX, TEMPO_MIN } from './TempoControl';
 import { VideoTools } from './VideoTools';
 import { VideoView } from './VideoView';
 import { VideoTimeline } from './VideoTimeline';
+import { ClassControls, type ClassControlsProps } from '../classes/ClassControls';
 import './stageClassroom.css';
 import './stageVideo.css';
 
@@ -48,6 +49,7 @@ interface Props {
   onToggleTalk?: () => void;
   onRetryVideo?: () => void;
   onVideoDetails?: () => void;
+  classControls?: ClassControlsProps;
 }
 
 /** Element and document full-screen API, unprefixed or with the older WebKit prefix (iPadOS before 16.4). */
@@ -98,14 +100,25 @@ export function StageView({
   duration = 0, practiceRange, onSeek, onOpenPractice,
   tempo = 100, onTempoChange, mirrored = false, zoom = 1, onMirroredChange, onZoomChange,
   onRestartSection, practiceName, onEndPractice, pendingLabel, talking = false, onToggleTalk, onRetryVideo, onVideoDetails,
+  classControls,
 }: Props) {
   const root = useRef<HTMLDivElement>(null);
-  const [tray, setTray] = useState<'cues' | 'tools' | null>(null);
+  const [tray, setTray] = useState<'cues' | 'tools' | 'class' | null>(null);
   const activeTray = useRef(tray);
   activeTray.current = tray;
   const cuesTrigger = useRef<HTMLButtonElement>(null);
   const toolsTrigger = useRef<HTMLButtonElement>(null);
   const trayRoot = useRef<HTMLDivElement>(null);
+  const classRoot = useRef<HTMLDivElement>(null);
+  const classOptions = useRef(classControls);
+  classOptions.current = classControls;
+  const trayTrigger = (name: typeof tray) => name === 'class'
+    ? classRoot.current?.querySelector<HTMLButtonElement>('.class-strip-toggle')
+    : name === 'cues' ? cuesTrigger.current : toolsTrigger.current;
+  const changeTray = (next: typeof tray) => {
+    if (activeTray.current === 'class' && next !== 'class') classOptions.current?.onOpenChange?.(false);
+    setTray(next);
+  };
   const [videoFailed, setVideoFailed] = useState(!!video?.error);
   const close = useRef(onClose);
   useEffect(() => {
@@ -163,8 +176,8 @@ export function StageView({
         // Some browsers consume Escape for native fullscreen before sending a DOM key event. Dismiss
         // an open tray first and keep Stage as a viewport overlay; a subsequent Exit/Escape closes it.
         if (activeTray.current) {
-          const trigger = activeTray.current === 'cues' ? cuesTrigger.current : toolsTrigger.current;
-          setTray(null);
+          const trigger = trayTrigger(activeTray.current);
+          changeTray(null);
           trigger?.focus({ preventScroll: true });
         } else close.current();
       }
@@ -184,38 +197,35 @@ export function StageView({
     };
   }, []);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (video || e.key !== 'Escape') return;
-      e.preventDefault();
-      close.current();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [video]);
-
   useLayoutEffect(() => {
-    if (tray) trayRoot.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({ preventScroll: true });
+    if (tray && tray !== 'class') trayRoot.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({ preventScroll: true });
   }, [tray]);
 
   const closeTray = () => {
-    const trigger = tray === 'cues' ? cuesTrigger.current : toolsTrigger.current;
-    setTray(null);
+    const trigger = trayTrigger(tray);
+    changeTray(null);
     trigger?.focus({ preventScroll: true });
   };
+
+  const classStrip = classControls && <div ref={classRoot} className="stage-class-controls">
+    <ClassControls {...classControls} variant="stage" open={tray === 'class'} onOpenChange={(expanded) => {
+      changeTray(expanded ? 'class' : null);
+      if (expanded) classOptions.current?.onOpenChange?.(true);
+    }} />
+  </div>;
 
   const pads = cues.flatMap((cue, index) => (cue ? [{ cue, index }] : []));
 
   return createPortal(
     <div
       ref={root}
-      className={`stage stage-classroom ${video ? 'stage-has-video' : 'stage-no-video'}`}
+      className={`stage stage-classroom ${video ? 'stage-has-video' : 'stage-no-video'} ${tray === 'class' ? 'stage-class-order-open' : ''}`}
       style={aspect ? { ['--video-ar' as string]: String(aspect) } : undefined}
       role="dialog"
       aria-modal="true"
       aria-label="Stage view"
       tabIndex={-1}
-      onKeyDown={video ? (event) => {
+      onKeyDown={(event) => {
         if (event.key === 'Escape') {
           event.preventDefault();
           event.stopPropagation();
@@ -225,10 +235,10 @@ export function StageView({
           // Let the focused control handle Space and arrows instead of the global player shortcuts.
           event.stopPropagation();
         }
-      } : undefined}
-      onKeyUp={video ? (event) => {
+      }}
+      onKeyUp={(event) => {
         if (event.target instanceof Element && event.target.closest('button, input, select')) event.stopPropagation();
-      } : undefined}
+      }}
     >
       <div className="stage-screen">
         {video ? (
@@ -243,7 +253,8 @@ export function StageView({
         {pendingLabel && <div className="stage-pending" role="status">{pendingLabel}</div>}
       </div>
       {video ? <div className="stage-video-controls">
-        {tray && <div ref={trayRoot} id={`stage-${tray}-tray`} className={`stage-video-panel stage-video-${tray}-panel`} role="region" aria-label={tray === 'cues' ? 'Cue controls' : 'Video tools'}>
+        {classStrip}
+        {tray && tray !== 'class' && <div ref={trayRoot} id={`stage-${tray}-tray`} className={`stage-video-panel stage-video-${tray}-panel`} role="region" aria-label={tray === 'cues' ? 'Cue controls' : 'Video tools'}>
           {tray === 'cues' ? <>
             <p className="stage-cue-help">Tap + to set · Tap a saved number to play</p>
             <div className="stage-cue-strip">
@@ -268,7 +279,7 @@ export function StageView({
                 </div>
               </div>}
               <div className="stage-video-tool-actions">
-                <button onClick={onRestartSection ?? onRestart} disabled={videoFailed} aria-label={onRestartSection ? 'Restart section' : 'Restart video'}>⟲ {onRestartSection ? 'Section' : 'Restart'}</button>
+                <button onClick={classControls ? onRestart : onRestartSection ?? onRestart} disabled={videoFailed} aria-label={classControls ? 'Play exercise again' : onRestartSection ? 'Restart section' : 'Restart video'}>⟲ {classControls ? 'Again' : onRestartSection ? 'Section' : 'Restart'}</button>
                 {onToggleTalk && <button className={talking ? 'on' : ''} onClick={onToggleTalk} disabled={videoFailed} aria-pressed={talking} title="Pause video while you speak">Talk</button>}
                 {!videoFailed && onMirroredChange && onZoomChange && <VideoTools mirrored={mirrored} zoom={zoom} onMirroredChange={onMirroredChange} onZoomChange={onZoomChange} />}
               </div>
@@ -284,12 +295,13 @@ export function StageView({
           <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} disabled={videoFailed} aria-label={videoFailed ? 'Video unavailable' : pendingLabel ? 'Cancel playback countdown' : playing ? 'Pause' : 'Play'}>
             {videoFailed ? 'Error' : pendingLabel ? 'Cancel' : playing ? '❚❚ Pause' : '▶ Play'}
           </button>
-          <button ref={cuesTrigger} className={tray === 'cues' ? 'on' : ''} aria-expanded={tray === 'cues'} aria-controls="stage-cues-tray" onClick={() => tray === 'cues' ? closeTray() : setTray('cues')}>Cues</button>
+          <button ref={cuesTrigger} className={tray === 'cues' ? 'on' : ''} aria-expanded={tray === 'cues'} aria-controls="stage-cues-tray" onClick={() => tray === 'cues' ? closeTray() : changeTray('cues')}>Cues</button>
           <button onClick={onOpenPractice} disabled={!onOpenPractice || videoFailed}>Practice</button>
-          <button ref={toolsTrigger} className={`stage-tools-toggle ${tray === 'tools' ? 'on' : ''}`} aria-label="Tools" aria-expanded={tray === 'tools'} aria-controls="stage-tools-tray" onClick={() => tray === 'tools' ? closeTray() : setTray('tools')}><span>Tools</span><small>{tempo}%</small></button>
+          <button ref={toolsTrigger} className={`stage-tools-toggle ${tray === 'tools' ? 'on' : ''}`} aria-label="Tools" aria-expanded={tray === 'tools'} aria-controls="stage-tools-tray" onClick={() => tray === 'tools' ? closeTray() : changeTray('tools')}><span>Tools</span><small>{tempo}%</small></button>
           <button onClick={onClose} aria-label="Exit Stage view" title="Exit Stage (Esc)">Exit</button>
         </div>
       </div> : <div className="stage-bar">
+        {classStrip}
         <div className="stage-controls">
           {onEndPractice && <div className="stage-practice">
             <span title={practiceName}>Practice · {practiceName}</span>
@@ -301,12 +313,12 @@ export function StageView({
             </button>
             <button
               className="stage-restart"
-              onClick={onRestartSection ?? onRestart}
+              onClick={classControls ? onRestart : onRestartSection ?? onRestart}
               title="Home"
-              aria-label={onRestartSection ? 'Restart section' : 'Restart song'}
+              aria-label={classControls ? 'Play exercise again' : onRestartSection ? 'Restart section' : 'Restart song'}
               disabled={videoFailed}
             >
-              ⟲ {onRestartSection ? 'Section' : 'Restart'}
+              ⟲ {classControls ? 'Again' : onRestartSection ? 'Section' : 'Restart'}
             </button>
             {onToggleTalk && (
               <button className={`stage-talk ${talking ? 'on' : ''}`} onClick={onToggleTalk} disabled={videoFailed} aria-pressed={talking} title="Lower music while you speak">

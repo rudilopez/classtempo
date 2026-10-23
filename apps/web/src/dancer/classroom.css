@@ -1,4 +1,6 @@
 /* Classroom controls share the former tempo footprint; detail stays in focused panels. */
+.dancer .class-resume { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 5px 8px; font-size: 12px; letter-spacing: 0; text-align: left; }
+.class-resume small { margin-left: auto; color: var(--dim); font-size: 10px; white-space: nowrap; }
 .dancer .class-tempo-panel {
   grid-area: tempo;
   min-width: 0;
@@ -77,6 +79,22 @@
   .dancer .dancer-track-title { -webkit-line-clamp: 1; }
 }
 @media (orientation: landscape) and (max-height: 499px) {
+  /* Give the class strip and waveform the same room as video in phone landscape. */
+  .dancer.dancer.has-live-class {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'clock cues' 'wave cues' 'transport cues';
+  }
+  .dancer.has-live-class .dancer-side {
+    grid-area: cues;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    min-height: 0;
+  }
+  .dancer.has-live-class .class-tempo-panel { flex: none; }
+  .dancer.has-live-class .dancer-side .cues { flex: 1 1 auto; gap: 6px; }
+  .dancer.has-live-class.editing .class-tempo-panel { display: none; }
   .dancer.has-video .class-tempo-panel { flex: none; }
   .dancer .class-tempo-panel { padding: 3px 6px; }
   .class-tempo-panel .tempo-slider { padding: 0; }
