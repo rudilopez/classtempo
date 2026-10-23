@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Engine, StemDeck } from '@mixdeck/engine';
 import { loadStemCache, removeStemCache, saveStemCache, stemCacheKey } from './cache';
 import {
-  MAX_SEPARATION_SECONDS, SEPARATION_MODEL_VERSION,
+  MAX_SEPARATION_SECONDS, MAX_SEPARATION_DURATION, SEPARATION_MODEL_VERSION,
   type SeparationReport,
 } from './separationModel';
 import { prepareStemWorker, selectSeparationRuntime, StemPreparationError, type StemFailureDetails } from './prepareWorker';
@@ -29,7 +29,7 @@ async function readSong(file: File, signal: AbortSignal): Promise<[Float32Array,
   aborted(signal);
   const audio = await context.decodeAudioData(bytes);
   aborted(signal);
-  if (audio.duration > MAX_SEPARATION_SECONDS || audio.length < 1) throw new Error('This song is too long for on-device stems.');
+  if (audio.duration > MAX_SEPARATION_SECONDS || audio.length < 1) throw new Error(`Choose a song up to ${MAX_SEPARATION_DURATION} long for stems.`);
   return [audio.getChannelData(0).slice(), audio.getChannelData(Math.min(1, audio.numberOfChannels - 1)).slice()];
 }
 
@@ -99,7 +99,7 @@ export function usePreparedStems(engine: Engine, file: File | null, trackId: num
     };
     try {
       if (duration > MAX_SEPARATION_SECONDS || file.size > 100 * 1024 * 1024) {
-        throw new Error(`Choose a song up to ${MAX_SEPARATION_SECONDS / 60} minutes and 100 MB for stems.`);
+        throw new Error(`Choose a song up to ${MAX_SEPARATION_DURATION} long and 100 MB for stems.`);
       }
       update('Checking saved stems…');
       const key = await stemCacheKey(file, SEPARATION_MODEL_VERSION, signal);

@@ -112,7 +112,10 @@ pretrained models under MIT; the pinned ONNX conversion, checksums and notices a
 A cancellable Worker performs chunked inference; full aligned PCM is saved atomically in a separate,
 content-addressed 500 MiB LRU cache. A new source cancels work; failures leave the original available.
 
-The beta caps preparation at four minutes/100 MB because completed PCM memory still grows with duration.
+Preparation is capped at **4:30/100 MB** because completed PCM memory still grows with duration. This limit
+does not apply to ordinary song/video playback. The owner requested leaving beta after the supplied song works
+on the iPhone; keep that device result as the release gate. The plain runtime now reserves at most 256 MiB
+instead of 4 GiB, with a checked adapter for the exact pinned runtime and one cached model in JS memory at a time.
 Physical iPhone/iPad speed, memory stability, listening quality, Bluetooth and lock-screen playback are still
 acceptance gates. Desktop tests and the beta label do not establish those results. The original roughly
 two-minute target for separating a four-minute iPhone song remains the goal, not a measured guarantee.

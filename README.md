@@ -31,7 +31,8 @@ original `mixdeck` name.
    Preparation is optional; the first run downloads about 80 MB of model weights plus the runtime. Tap **Use stems**,
    mute parts, or choose **Acapella**, **Instrumental** or **All**. **Original** returns to the original recording
    at the current position. Low/High drums focus frequency ranges, rather than isolating a kick or hi-hat.
-   This beta accepts songs up to four minutes and 100 MB. Keep the app visible while preparing; songs stay on
+   Stems preparation accepts songs up to **4:30** and 100 MB; ordinary song/video playback has no duration cap.
+   The Beta label remains pending physical iPhone confirmation. Keep the app visible while preparing; songs stay on
    the device. Saved stems reopen without separating again. Video and subscription streams are not supported.
 6. The regular player keeps its picture, tempo and cue pads visible together. Tap **Stage** to make video large,
    above a compact **Play · Cues · Practice · Tools · Exit** bar and seek line. In Stage, **Cues** opens one

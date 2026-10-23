@@ -67,7 +67,9 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Dialogs contain focus, restore background inert state and prevent global player shortcuts while open.
 - Apple Music/Spotify are not integrated. Do not add a fake connection button or promise streaming feature parity.
   Apple Music feasibility awaits MusicKit credentials (the owner has enrolled in the Developer Program).
-- Stems uses opt-in local Spleeter separation for audio files only, with a four-minute/100 MB beta limit.
+- Stems uses opt-in local Spleeter separation for audio files only, with a 4:30/100 MB preparation limit.
+  Ordinary song/video playback has no duration cap. Keep Beta until physical iPhone preparation succeeds.
+  The pinned plain ORT bundle has a checked 256 MiB WASM cap; preserve its hash/version and build guards.
   Selecting the Stems pill never downloads models; Prepare explicitly downloads the pinned, hash-verified engine.
   Keep original playback available, preserve pending practice during source switches, and cancel stale jobs on loads.
   Store complete aligned results atomically; never call a failed save offline-ready. Low/High drums are frequency

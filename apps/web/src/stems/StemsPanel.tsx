@@ -1,7 +1,7 @@
 import type { DrumFocus, StemMix } from '@mixdeck/engine';
 import { useEffect, useState } from 'react';
 import type { PreparedStemsState } from './usePreparedStems';
-import { MAX_SEPARATION_SECONDS } from './separationModel';
+import { MAX_SEPARATION_DURATION } from './separationModel';
 import './panel.css';
 
 export const ALL_STEMS: StemMix = { vocals: 1, drums: 1, bass: 1, other: 1 };
@@ -30,7 +30,7 @@ export function StemsPanel({ kind, state, active, disabled, mix, focus, onPrepar
   useEffect(() => { setCopied(false); }, [state.failure]);
   const pads = [['vocals', 'Vocal'], ['other', 'Instruments'], ['bass', 'Bass'], ['drums', 'Drums']] as const;
   const copyFailure = (): void => {
-    const details = JSON.stringify({ app: 'ClassTempo', startupFix: 'plain-wasm-v1', browser: navigator.userAgent,
+    const details = JSON.stringify({ app: 'ClassTempo', startupFix: 'bounded-wasm-v2', browser: navigator.userAgent,
       crossOriginIsolated: globalThis.crossOriginIsolated, ...state.failure }, null, 2);
     const manual = (): void => { window.prompt('Copy these stems details', details); };
     if (!navigator.clipboard?.writeText) { manual(); return; }
@@ -89,7 +89,7 @@ export function StemsPanel({ kind, state, active, disabled, mix, focus, onPrepar
       {state.failure && <button onClick={copyFailure}>{copied ? 'Details copied' : 'Copy details'}</button>}
       <p>Vocals, drums, bass and instruments. First use downloads an 80 MB engine plus its runtime. Best on Wi-Fi.</p>
       <button className="stems-prepare" disabled={disabled} onClick={onPrepare}>{state.phase === 'error' ? 'Try preparing again' : 'Prepare stems'}</button>
-      <small>Start with a short song · Up to {MAX_SEPARATION_SECONDS / 60} minutes · Keep app open</small>
+      <small>Stems limit: {MAX_SEPARATION_DURATION} per song · Keep app open</small>
       <a href={`${import.meta.env.BASE_URL}licenses/spleeter-stems.txt`} target="_blank" rel="noreferrer">Engine credits</a>
     </div>}
   </div>;

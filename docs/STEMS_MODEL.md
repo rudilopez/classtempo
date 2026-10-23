@@ -40,7 +40,8 @@ are removed. Failed cache persistence permits current preparation but is reporte
 
 ## Signal and worker contract
 
-- Input: 44.1 kHz stereo Float32 PCM, up to four minutes in this beta. Longer songs fail before downloading the model.
+- Input: 44.1 kHz stereo Float32 PCM, up to **4:30**, with a 100 MB source-file guard. Longer songs fail before
+  downloading the model. These limits apply only to stems preparation, not ordinary song/video playback.
 - Each independent graph takes `x float32 [2,1,512,1024]` and returns `y` with the same dimensions.
   These are magnitude spectrogram estimates; neither input nor output is waveform PCM.
 - STFT: FFT 4096, hop 1024, periodic Hann window. 3072 samples of implicit front padding preserve the first
@@ -73,8 +74,27 @@ inferences, and temporary source decoder references are dropped before worker st
 
 ## Memory, quality and device acceptance
 
-Spectral work is bounded to one chunk; input and completed output still grow with song duration. Four minutes
-of eight output Float32 channels alone is 339 MB, before source PCM, models and runtime. The limit is a guard,
+The owner's next iPhone report exposed the first plain-WASM failure: `RangeError: Out of memory` during the
+first vocal section. The pinned runtime creates a shared WASM memory with a 4 GiB maximum even with one thread.
+Our checked Vite adapter changes that maximum and the three JS growth ceilings to **256 MiB**, preserving the
+WASM binary and GPU runtime. It verifies the exact 1.30.0 bundle SHA-256
+`11e64bd8ffe11bd1a2a2f0d6275fdfbbba7262f0b76b99b53d228a8a22ef3d90`, version and replacement counts, and fails the
+build if the worker resolves around it. Installed dependencies are not modified. Copy details identifies
+`bounded-wasm-v2` and includes reserved maximum/observed heap without any media data.
+
+WebKit reports [255103](https://bugs.webkit.org/show_bug.cgi?id=255103) and
+[250569](https://bugs.webkit.org/show_bug.cgi?id=250569) document failures from large shared-memory maximums.
+In a controlled desktop reproduction, rejecting the old worker's 4 GiB reservation produces the same first
+vocal-section error reported by the phone. The corrected worker completes with a constructor guard rejecting
+reservations above 256 MiB. This supports the fix but is not a measurement from the owner's iPhone.
+
+Only one verified cached model is retained in JS memory at a time. If a cache write fails, that model stays
+in memory for this job to avoid repeated network downloads. The report's `downloadMs` includes model reads
+and integrity checks on every section; `separationMs` excludes those reads.
+
+Spectral work is bounded to one chunk; input and completed output still grow with song duration. At 4:30,
+eight output Float32 channels alone use 381 MB, before source PCM, models and runtime. The 256 MiB WASM cap is
+not a whole-app memory cap. The duration limit is a guard,
 not proof that every iPhone can process that length. Preparation can fail due to browser memory pressure;
 do not advertise a universal time or memory guarantee. Never run inference automatically during playback.
 
@@ -100,6 +120,15 @@ the original complex spectrum is zero, so the inverse remains exactly silent. Ex
 approach an even split; the masks do not synthesize new content or amplify the spectrum.
 
 ## Integrated desktop verification
+
+The bounded plain runtime prepared the owner's supplied 3:49 stereo AAC in 56.9 seconds, using 206.8125 MiB
+of WASM heap throughout 23 sections; its saved result reopened offline in 1.38 seconds. A 270.000000-second
+version completed 26 sections in 61.0 seconds with the same heap peak and reopened offline in 2.05 seconds.
+Both passed source switching, mute, tempo and playback controls with a constructor guard rejecting WASM
+maximums above 256 MiB. A 270.000998-second file plays normally but stems preparation rejects it before any
+inference requests. Actual desktop WebKit also passed real inference and phone layouts without cross-origin
+isolation. These tests use the pinned real models; local fixture serving excludes publisher download latency.
+The Beta label remains until the physical iPhone succeeds with the supplied song.
 
 The production browser build downloaded the four real publisher artifacts and separated a 240-second local
 fixture with 24 chunks: 23.41 seconds separation, 26.94 seconds worker total, 32.19 seconds through cached PCM

@@ -69,6 +69,15 @@ describe('isolated stems worker fallback', () => {
     await rejection;
     expect(run.factory).toHaveBeenCalledOnce();
   });
+  it('preserves the bounded-memory diagnostic and gives memory-specific recovery advice', async () => {
+    const run = setup('wasm');
+    const rejection = expect(run.promise).rejects.toMatchObject({ message: expect.stringContaining('Not enough memory'),
+      details: { reservedMaxMiB: 256, observedHeapMiB: 16, message: 'RangeError: Out of memory' } });
+    run.workers[0]!.send({ type: 'error', message: 'RangeError: Out of memory', runtime: 'wasm', runtimeVersion: '1.30.0',
+      reservedMaxMiB: 256, observedHeapMiB: 16 });
+    await rejection;
+    expect(run.factory).toHaveBeenCalledOnce();
+  });
   it('cancels the fallback and ignores already queued completion', async () => {
     const run = setup();
     const source = input();
