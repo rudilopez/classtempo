@@ -19,8 +19,10 @@ live site, separately from this checklist:
   below the picture for setting/launching cues; Tools also opens below it. End practice remains reachable.
 - Keep awake, Stage playback controls, video mirror/zoom and Talk (audio attenuates; native video pauses).
 - Media lists all saved songs/videos with type badges, recents, saved-media search, import-and-open, local-copy removal and honest save failures.
-- Classes opens to named cards, then an ordered exercise detail view; backup utilities stay collapsed.
-- Named ordered class sets, repeated titles, manual advancement and independent practice settings per exercise.
+- Classes separates Edit class preparation from Teach class playback; backup utilities stay collapsed.
+- Live class strip and running order, Next & play, Again, optional Auto-next (off by default) and paused resume.
+  Exercise names/notes, repeated media and independent named-practice snapshots survive explicit saves/backups.
+  Full-file exercises use fresh 100%/no-practice defaults. Actual-file checks run before entering a class.
 - Named cue-based A–B practices with independent saved tempo/repeat/delay/video options, direct Start/Save actions,
   active-name/pass progress, and End practice in the player/editor/Stage to restore normal Play without losing presets.
 - One-tap empty cues with Undo; existing-cue changes require Edit. Stable saved-cue keys preserve existing work.
@@ -39,8 +41,12 @@ in Chromium and WebKit as appropriate, recording the build tested:
 1. Import an audio file, adjust tempo, edit/undo cues, reload and restore settings.
 2. Save and reopen media from IndexedDB. Confirm an unavailable/quota-failed store produces an explicit message
    and never claims that the file is saved offline.
-3. Create/reorder a class set. Add the same song twice with different practice settings, load each manually and
-   verify it remains paused until Play. No class song should start automatically.
+3. Create/reorder a class set, add full songs/videos and named practices from media that is not currently loaded,
+   and save exercise names/notes. Repeat one file with different snapshots. Confirm full-file entries do not inherit
+   old repeats/delays, and class edits never rewrite track defaults. Teach a class, use Next & play and Again,
+   select an entry paused, and restore a session paused. Check manual/default and opted-in Auto-next at full-track
+   end and final finite practice pass; endless repeats must stay put. Cancel pending transitions with Pause, Exit,
+   another entry or a new file. Missing actual Blobs, decode errors and blocked video autoplay must stop honestly.
 4. Set A/B, play once, repeat a finite number of passes and use a gap/start delay. Cancel each waiting state via
    Pause, seek, cue launch or new load; stale timers must not start another track.
 5. Export metadata, restore into fresh storage and reconnect missing original files. Existing data survives merge;
@@ -67,7 +73,8 @@ Android before claiming those devices accepted:
 - Call/voice-assistant interruptions, returning from the background and Tap to resume audio when required.
 - Bluetooth class-speaker playback and recovery if the route changes.
 - Keep awake granted/refused/released states, safe areas and offline access after a prior online launch.
-- Reopen a prepared class and recover its selected exercise settings without unexpected playback.
+- Reopen a prepared class and recover its selected exercise settings without unexpected playback. Verify Next &
+  play, Again, manual versus opted-in automatic progression, finite practice completion and mixed audio/video classes.
 
 A desktop browser pass is useful regression evidence but cannot replace these checks. Keep the original video
 and existing cue data available when testing. Paused lock-screen scrubbing remains a known WebKit limitation.
@@ -91,7 +98,7 @@ permitted classroom music use are independent of whether a technical integration
 Prioritize these from observed teaching friction rather than restoring the old DJ backlog:
 
 - Musical count-in with manually aligned first beat and clear tempo interpretation.
-- Finer section/cue nudging, editing feedback and optional per-exercise notes.
+- Finer section/cue nudging and editing feedback.
 - A simple remote/watch path for repeating the current section; keep song advancement explicit.
 - Video frame stepping if mirror/zoom and repeat do not meet choreography review needs.
 - Storage usage/management and stronger media identity/relinking if library size or restore behavior requires it.

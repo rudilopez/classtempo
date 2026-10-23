@@ -204,6 +204,157 @@ describe('VideoDeck', () => {
     expect(play).toHaveBeenCalledOnce();
   });
 
+  it('issues requested native play synchronously after source/load and after applying exercise start and tempo', async () => {
+    const order: string[] = [];
+    const load = video.load.bind(video);
+    vi.spyOn(video, 'load').mockImplementation(() => { order.push('load'); load(); });
+    const play = video.play.bind(video);
+    const nativePlay = vi.spyOn(video, 'play').mockImplementation(() => {
+      order.push('play');
+      expect(video.src).toMatch(/^blob:/);
+      expect(video.currentTime).toBe(7.5);
+      expect(video.playbackRate).toBe(0.75);
+      expect(video.defaultPlaybackRate).toBe(0.75);
+      expect(video.preservesPitch).toBe(true);
+      return play();
+    });
+    const element = deck.element;
+    const loaded = deck.load(new Blob(['x']), 'exercise.mp4', { play: true, startTime: 7.5, tempo: 0.75 });
+    order.push('returned');
+    expect(order).toEqual(['load', 'play', 'returned']);
+    expect(deck.track).toBeNull();
+    video.duration = 31;
+    video.fire('loadedmetadata');
+    await loaded;
+    await tick();
+    expect(deck.element).toBe(element);
+    expect(deck.position).toBe(7.5);
+    expect(deck.tempo).toBe(0.75);
+    expect(deck.playing).toBe(true);
+    expect(nativePlay).toHaveBeenCalledOnce();
+  });
+
+  it('loads an explicit resume position paused and bounds it to the actual duration', async () => {
+    const play = vi.spyOn(video, 'play');
+    const loaded = deck.load(new Blob(['x']), 'resume.mp4', { startTime: 500, tempo: 0.1 });
+    expect(video.currentTime).toBe(500);
+    video.duration = 31;
+    video.fire('loadedmetadata');
+    await loaded;
+    expect(deck.position).toBe(31);
+    expect(deck.tempo).toBe(STRETCH_MIN_TEMPO);
+    expect(deck.playing).toBe(false);
+    expect(play).not.toHaveBeenCalled();
+  });
+
+  it.each(['rejection', 'throw'] as const)('keeps metadata load successful and paused after an opt-in native play %s', async (failure) => {
+    if (failure === 'rejection') video.allowPlay = false;
+    else vi.spyOn(video, 'play').mockImplementation(() => { throw new DOMException('blocked', 'NotAllowedError'); });
+    const loaded = deck.load(new Blob(['x']), 'blocked.mp4', { play: true, startTime: 4 });
+    video.duration = 31;
+    video.fire('loadedmetadata');
+    await expect(loaded).resolves.toBeUndefined();
+    await tick();
+    expect(deck.track?.duration).toBe(31);
+    expect(deck.position).toBe(4);
+    expect(deck.playing).toBe(false);
+    expect(video.paused).toBe(true);
+    expect(deck.error).toBeNull();
+    expect(deck.getDiagnostics().error?.message).toContain('NotAllowedError');
+    expect(events).not.toContain('playing');
+  });
+
+  it('does not revive cancelled load-and-play from late metadata, play events or a resolved play promise', async () => {
+    let resolvePlay: (() => void) | undefined;
+    vi.spyOn(video, 'play').mockImplementation(() => {
+      video.paused = false;
+      return new Promise<void>((resolve) => { resolvePlay = resolve; });
+    });
+    const loaded = deck.load(new Blob(['x']), 'cancelled.mp4', { play: true, startTime: 5 });
+    deck.pause();
+    video.paused = false; // A late native event must not defeat the explicit pause.
+    video.fire('play');
+    expect(video.paused).toBe(true);
+    video.duration = 31;
+    video.fire('loadedmetadata');
+    await loaded;
+    resolvePlay?.();
+    await tick();
+    expect(deck.position).toBe(5);
+    expect(deck.playing).toBe(false);
+    expect(events).not.toContain('playing');
+  });
+
+  it('ignores stale load-and-play completions after unload or a newer source starts', async () => {
+    let resolvePlay: (() => void) | undefined;
+    const nativePlay = video.play.bind(video);
+    vi.spyOn(video, 'play').mockImplementationOnce(() => new Promise<void>((resolve) => { resolvePlay = resolve; }));
+    const first = deck.load(new Blob(['a']), 'old.mp4', { play: true });
+    deck.unload();
+    await first;
+    resolvePlay?.();
+    await tick();
+    expect(deck.track).toBeNull();
+    expect(deck.playing).toBe(false);
+    let rejectOld: ((error: Error) => void) | undefined;
+    vi.spyOn(video, 'play').mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectOld = reject; }));
+    const old = deck.load(new Blob(['b']), 'older.mp4', { play: true });
+    vi.spyOn(video, 'play').mockImplementation(nativePlay);
+    const current = deck.load(new Blob(['c']), 'current.mp4', { play: true, startTime: 2 });
+    video.duration = 31;
+    video.fire('loadedmetadata');
+    await Promise.all([old, current]);
+    rejectOld?.(new DOMException('old request', 'AbortError'));
+    await tick();
+    expect(deck.track?.name).toBe('current.mp4');
+    expect(deck.position).toBe(2);
+    expect(deck.playing).toBe(true);
+    expect(deck.getDiagnostics().events.some((event) => event.event === 'play-rejected')).toBe(false);
+  });
+
+  it('lets a later explicit Play win over a cancelled pending load-and-play on the same source', async () => {
+    let resolveOldPlay: (() => void) | undefined;
+    const nativePlay = video.play.bind(video);
+    vi.spyOn(video, 'play').mockImplementationOnce(() => {
+      video.paused = false;
+      return new Promise<void>((resolve) => { resolveOldPlay = resolve; });
+    });
+    const loaded = deck.load(new Blob(['x']), 'same.mp4', { play: true });
+    video.duration = 31;
+    video.fire('loadedmetadata');
+    await loaded;
+    deck.pause();
+    vi.spyOn(video, 'play').mockImplementation(nativePlay);
+    deck.play();
+    resolveOldPlay?.();
+    await tick();
+    expect(deck.playing).toBe(true);
+    expect(video.paused).toBe(false);
+  });
+
+  it('does not retry opt-in play after probing an unknown duration or clamping its start to the end', async () => {
+    const play = vi.spyOn(video, 'play');
+    const loaded = deck.load(new Blob(['x']), 'probe.webm', { play: true, startTime: 4 });
+    video.duration = Infinity;
+    video.fire('loadedmetadata');
+    expect(video.paused).toBe(true);
+    video.duration = 12;
+    video.fire('durationchange');
+    await loaded;
+    await tick();
+    expect(deck.position).toBe(4);
+    expect(deck.playing).toBe(false);
+    expect(play).toHaveBeenCalledOnce();
+    const pastEnd = deck.load(new Blob(['x']), 'end.mp4', { play: true, startTime: 100 });
+    video.duration = 31;
+    video.fire('loadedmetadata');
+    await pastEnd;
+    await tick();
+    expect(deck.position).toBe(31);
+    expect(deck.playing).toBe(false);
+    expect(play).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects a file the browser cannot play with a readable message and drops it', async () => {
     const revoke = vi.spyOn(URL, 'revokeObjectURL');
     const loaded = deck.load(new Blob(['x']), 'clip.mkv');

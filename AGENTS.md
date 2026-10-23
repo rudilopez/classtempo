@@ -26,6 +26,7 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
 - `apps/web/src/dancer` — the single player, cues, native video and Stage; the directory name is historical.
 - `apps/web/src/practice` — section repeat/delay controller, settings normalization/persistence and editor.
 - `apps/web/src/library` — IndexedDB file library, recents, ordered class sets and settings backup/restore.
+- `apps/web/src/classes` — live running order, actual-file preflight and paused session restoration.
 - `apps/web/src/platform` — audio session recovery, keep-alive, Media Session and wake lock helpers/tests.
 - `packages/engine` — shared AudioContext, `StretchDeck`, `VideoDeck`, `DancerPlayer`; legacy DJ code also remains.
 - `packages/analysis` — pure audio BPM/beat-grid/waveform analysis, executed in a Worker.
@@ -39,7 +40,8 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   dialogs scroll internally. Touch targets remain at least 44 px and full cue pads at least 72 px. Video Stage
   uses a compact horizontal row of 44 px numbered cue buttons, per the owner's requested layout. Respect safe areas.
 - One player only: Open accepts audio/video and detects the actual file type. Library Add saves the selection
-  and opens its first file paused. Picker cancellation preserves the track; class advancement is manual.
+  and opens its first file paused. Picker cancellation preserves the track. Class Auto-next is off by default;
+  Next & play is an explicit advance/start action, and Again restarts the current exercise.
 - Library has Media (all saved songs and videos) and Classes (ordered teaching plans). Search filters saved media, never music services. Failed saves may still
   open directly, with explicit unsaved feedback; Save current must preserve playback and practice settings.
 - Production uses `Engine.create({ dj: false })`. Do not initialize hidden DJ decks/processors as a side effect.
@@ -57,6 +59,16 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   `mixdeck.practice.<name>|<duration.toFixed(2)>`. The product rename must not erase existing saved work.
 - Preserve independent per-exercise snapshots and repeated entries in class sets. Selecting a snapshot does not
   overwrite a file's default merely by loading it. Validate imported settings against actual track duration.
+- Classes have separate preparation and live teaching views. Edit class uses an explicit Save; names, notes,
+  order, snapshots and the default Auto-next setting survive backups. Add full media without inherited practice:
+  a class entry without a snapshot starts at 100%, with no repeat or delay. Ordinary Media still restores its
+  saved track settings. Add named practices from any saved media without requiring a player/library roundtrip.
+- Before teaching, check the actual saved class files; an availability flag or metadata backup is not proof.
+  Keep the running order and Next & play reachable in the player and below Stage's picture. Class completion
+  follows the full-file end or final finite practice pass; endless practices never automatically advance.
+  Pause, manual navigation, new media, errors and Exit class must cancel stale class transitions as well as
+  practice timers. Missing/failed files stop advancement rather than being silently skipped. Restoring a class
+  session loads paused and never resumes a countdown or starts playback without a new action.
 - Save File/Blob and library metadata atomically. A successful load is not a successful offline save. Report
   failures; a metadata backup never proves the media exists. Browser storage may be evicted or cleared.
 - Empty cue pads set the current position with one tap; changing an existing cue requires Edit. Preserve Undo.

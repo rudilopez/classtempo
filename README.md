@@ -13,8 +13,9 @@ original `mixdeck` name.
    the picker keeps the current track. Nothing starts until Play.
 2. Open **Library → Media** for all saved songs and videos together, with clear type labels and a local search.
    **Add media** saves your selection and opens it automatically, paused. With multiple files, all are saved and
-   the first opens. **Classes** holds ordered lesson lists made from that media; choose a class to prepare or use
-   its exercises. Class entries advance manually and can reuse a file with different practice settings.
+   the first opens. **Classes** holds your teaching plans. **Edit class** adds full songs/videos or saved named
+   practices, with optional exercise names and notes. **Teach class** keeps the running order in the player;
+   use **Next & play** to move on and **Again** to restart the current exercise.
 3. Adjust speed between **50% and 150%**, preserving pitch where the playback engine/browser supports it.
    The percentage sits between the minus and plus controls; **100%** restores original speed. In video Stage,
    open **Tools** for speed, Restart, Talk, Mirror and Fit/zoom.
@@ -40,9 +41,19 @@ original `mixdeck` name.
    saved number to play from it. Tools also opens below the picture. Close either panel to give that space back
    to the video. Full-picture Fit stays the default, and **End practice** stays reachable.
 
-When adding the currently loaded file to a class, its speed, sections, repeat/delay and video settings are
-captured for that exercise. Use **Use current settings** in the class list to update a particular exercise.
-Entries without a captured snapshot use that file's saved practice settings. Cues remain shared per file.
+Full songs/videos added to a class start at 100%, without a repeat or delay inherited from earlier practice.
+Adding a saved named practice copies its range, tempo, repeats, gap, delay and video settings into that exercise.
+The same file can appear several times with different settings. In **Edit class**, open an exercise's details
+to rename it, add a teaching note or explicitly **Use current player settings**, then **Save class**. These
+changes do not silently overwrite the song's saved practice. Cues remain shared per file.
+
+The class strip shows your current exercise and what comes next. Open its **Running order** to jump to an
+exercise paused, go to the previous exercise or exit the class. **Auto-next** is off by default. When enabled,
+it advances after a full track or the final pass of a finite practice; a practice repeating until stopped
+stays put until you choose Next. Missing files and playback errors stop progression. Before teaching, the app
+checks access to the actual saved files; that check does not guarantee every video codec will play.
+Returning to saved class progress opens paused, without restarting a delay or music. Class controls remain
+below the picture in video Stage.
 
 **Talk** lowers audio to 20% of its normal app level and restores it when tapped again. For native video it
 pauses instead, then resumes if the video had been playing. **Keep awake** prevents automatic display sleep
@@ -74,7 +85,7 @@ Successful imports save a local media copy in IndexedDB. Library failures are re
 open a file directly, but a failed save does not make it available offline. Removing a saved copy leaves the
 original file and class entries intact; reimport the original to reconnect the entry.
 
-Library → **Backup & device storage** exports class sets, per-exercise settings, cues and per-track practice
+Library → **Backup & device storage** exports class sets, exercise names/notes, per-exercise settings, cues and per-track practice
 settings as JSON. **The backup does not contain songs or videos.** Keep the originals separately. Restore adds
 missing items without overwriting existing settings, then import missing media and reload the current track.
 

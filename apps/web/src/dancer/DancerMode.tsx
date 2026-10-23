@@ -6,7 +6,9 @@ import { analysis } from '../analysisClient';
 import nowPlayingLogo from '../assets/itda-logo-white.png';
 import { Waveform, type WaveformMarker } from '../components/Waveform';
 import { LibraryModal } from '../library/LibraryModal';
-import { markOpened, saveMedia } from '../library/store';
+import { getMediaFile, listClasses, listMedia, markOpened, saveMedia, type ClassSet, type LibraryMedia } from '../library/store';
+import { ClassControls, type ClassControlsProps } from '../classes/ClassControls';
+import { findNextClassEntry, getClassEntryLabel, loadClassResume, preflightClassFiles, saveClassResume, type ClassResume } from '../classes/session';
 import { createPracticeController, type PracticeController, type PracticeState } from '../practice/controller';
 import { PracticePanel } from '../practice/PracticePanel';
 import { defaultPracticeSettings, loadPracticeSettings, normalizePracticeSettings, savePracticeSettings, selectedPracticeSection, type PracticeSettings } from '../practice/settings';
@@ -61,6 +63,19 @@ interface Song {
   aspect: number | null;
 }
 
+interface LiveClass {
+  plan: ClassSet;
+  media: LibraryMedia[];
+  entryId: string;
+  autoNext: boolean;
+  finished: boolean;
+}
+
+interface FileLoadOptions {
+  inClass?: boolean;
+  video?: { play?: boolean; startTime?: number; tempo?: number };
+}
+
 const NO_CUES: CueSlots = emptyCues();
 
 /** Lock-screen scrubber refresh while playing, ms (the OS extrapolates in between). */
@@ -110,13 +125,37 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   const [pendingVideo, setPendingVideo] = useState<HTMLVideoElement | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
-  const [failedVideoFile, setFailedVideoFile] = useState<File | null>(null);
+  const [failedVideoFile, setFailedVideoFileState] = useState<File | null>(null);
+  const failedVideoFileRef = useRef<File | null>(null);
+  const setFailedVideoFile = (file: File | null) => { failedVideoFileRef.current = file; setFailedVideoFileState(file); };
   const failedVideoLibraryId = useRef<string | null | undefined>(undefined);
   const [playing, setPlaying] = useState(false);
   /** percent */
   const [tempo, setTempo] = useState(100);
   const [editing, setEditing] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [liveClass, setLiveClassState] = useState<LiveClass | null>(null);
+  const liveClassRef = useRef<LiveClass | null>(null);
+  const setLiveClass = (value: LiveClass | null) => { liveClassRef.current = value; setLiveClassState(value); };
+  const [classBusy, setClassBusyState] = useState(false);
+  const classBusyRef = useRef(false);
+  const setClassBusy = (value: boolean) => { classBusyRef.current = value; setClassBusyState(value); };
+  const [classDrawerOpen, setClassDrawerOpen] = useState(false);
+  const [classStatus, setClassStatus] = useState('');
+  const [resumeResult] = useState(loadClassResume);
+  const [classResume, setClassResume] = useState<ClassResume | null>(resumeResult.resume);
+  const classResumeRef = useRef(classResume);
+  const [resumeName, setResumeName] = useState('your class');
+  const classGeneration = useRef(0);
+  const classPreflight = useRef<AbortController | null>(null);
+  const classRun = useRef(0);
+  const classStartPermit = useRef(0);
+  const classArmed = useRef(false);
+  const classCompleted = useRef<() => void>(() => {});
+  const [nextFileBusy, setNextFileBusy] = useState(false);
+  const nextClassFile = useRef<{ classId: string; entryId: string; file: File } | null>(null);
+  const classSaveFailed = useRef(false);
+  const loadedClassMedia = useRef<string | null>(null);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const preparedStems = usePreparedStems(engine, currentFile, song?.id ?? null, song?.track.duration ?? 0);
   const [stemMix, setStemMix] = useState<StemMix>({ ...ALL_STEMS });
@@ -152,7 +191,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     activeRef.current = active;
     songRef.current = song;
     practiceRef.current = practice;
-    modalOpen.current = libraryOpen || practiceOpen;
+    modalOpen.current = libraryOpen || practiceOpen || classDrawerOpen;
   });
 
   // one of each per mount; nothing is built until first use. The keep-alive re-takes WebKit's "started last"
@@ -202,7 +241,10 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
         pause: () => commands.current.pause(),
         seek: (seconds) => commands.current.seek(seconds),
       },
-      onState: setPracticeState,
+      onState: (state) => {
+        setPracticeState(state);
+        if (state.phase === 'complete') classCompleted.current();
+      },
       onError: () => showToast('Playback could not resume. Tap Play to try again.'),
     });
     practiceController.current = controller;
@@ -292,6 +334,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       const error = player instanceof VideoDeck ? player.error : null;
       setVideoError(error);
       if (error) {
+        classRun.current++; classStartPermit.current++; classArmed.current = false;
         practiceController.current?.cancel();
         keepAlive.stop();
         setPlaying(false);
@@ -314,6 +357,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
         return;
       }
       setPlaying(isPlaying);
+      if (isPlaying && liveClassRef.current && !classBusyRef.current) classArmed.current = true;
       const phase = practiceController.current?.getState().phase;
       if (!isPlaying && phase === 'playing' && player.position < (player.track?.duration ?? 0) - 0.03) {
         practiceController.current?.cancel(); // OS interruption or a refused delayed native play
@@ -330,6 +374,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       const phase = practiceController.current?.getState().phase;
       if (!player.playing && phase === 'playing') practiceController.current?.cancel();
       if (!player.playing && phase !== 'gap') keepAlive.stop();
+      if (practiceRef.current.mode === 'off') classCompleted.current();
       syncMedia();
     };
     return () => {
@@ -438,6 +483,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       announceCues(cues);
       syncMedia(); // the Now Playing effect below only re-runs when the song changes
     } catch (e) {
+      if (id !== nextLoadId.current) return false;
       // the deck dropped its buffers before failing, so the previous song is gone too: back to the empty state
       console.error(e);
       positionRef.current = 0;
@@ -448,7 +494,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       showToast(`“${name}” could not be loaded.`);
       return false;
     } finally {
-      setLoading(false);
+      if (id === nextLoadId.current) setLoading(false);
     }
     // analysis runs on after loading has finished; a failure just leaves the track un-analysed
     void (async () => { try {
@@ -470,7 +516,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
    * avoiding a second full-file decode competing with the native video decoder on phones). Video uses a seekable
    * timeline and percent tempo; waveform/BPM analysis is reserved for audio files.
    */
-  const loadVideo = async (file: File) => {
+  const loadVideo = async (file: File, options?: FileLoadOptions['video']) => {
     const id = ++nextLoadId.current;
     setLoading(true);
     keepAlive.stop();
@@ -481,8 +527,9 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     // Mount before metadata resolves: WebKit may defer picture loading for a detached media element.
     setPendingVideo(video.element);
     try {
-      await video.load(file, file.name);
+      await video.load(file, file.name, options);
     } catch (e) {
+      if (id !== nextLoadId.current) return false;
       console.error(e);
       const message = errorText(e, `“${file.name}” could not be opened.`);
       setLoadError(message);
@@ -499,6 +546,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       setLoading(false);
       return false;
     }
+    if (id !== nextLoadId.current) return false;
     setPendingVideo(null);
     const track = video.track;
     if (!track || id !== nextLoadId.current) {
@@ -507,10 +555,16 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     }
     if (previous && previous !== video) previous.unload(); // the audio song: silence it and free its buffers
     if (stretch && previous !== stretch) stretch.unload();
-    video.setTempo(1);
     selectPlayer(video);
     keepAlive.setTrack(null); // never started for a video: the video element is the page's media element
     resetTransport(track.name, track.duration);
+    if (options) {
+      video.setTempo(options.tempo ?? 1);
+      positionRef.current = video.position;
+      setDisplayPos(video.position);
+      setPlaying(video.playing);
+      videoStarted.current = video.playing;
+    }
     const { videoWidth, videoHeight } = video.element;
     const cues = loadCues(track.name, track.duration);
     setSong({
@@ -527,8 +581,16 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   };
 
   /** Loads one file: videos on the VideoDeck, audio decoded for the StretchDeck. Ignored while another load runs. */
-  const loadFile = async (file: File, libraryId?: string | null): Promise<boolean> => {
+  const loadFile = async (file: File, libraryId?: string | null, options: FileLoadOptions = {}): Promise<boolean> => {
     if (loadingRef.current) return false;
+    if (!options.inClass) {
+      if (liveClassRef.current) leaveClass(false);
+      else { classGeneration.current++; classPreflight.current?.abort(); setClassBusy(false); }
+      classStartPermit.current++;
+    }
+    classRun.current++;
+    classArmed.current = false;
+    loadedClassMedia.current = null;
     setFailedVideoFile(null);
     const request = ++loadRequest.current;
     practiceController.current?.cancel();
@@ -545,7 +607,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     let loaded = false;
     if (isVideoFile(file)) {
       failedVideoLibraryId.current = libraryId;
-      loaded = await loadVideo(file);
+      loaded = await loadVideo(file, options.video);
     } else if (!stretch) {
       showToast(deckError ? 'The key-locked player failed to start.' : 'The player is still starting — try again in a moment.');
       return false;
@@ -556,6 +618,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       try {
         buffer = await engine.decode(file);
       } catch (e) {
+        if (request !== loadRequest.current) return false;
         console.error(e);
         setLoading(false);
         const message = `“${file.name}” could not be decoded. Try MP3, M4A or WAV.`;
@@ -563,6 +626,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
         showToast(message);
         return false;
       }
+      if (request !== loadRequest.current) return false;
       loaded = (await loadBuffer(buffer, file.name)) === true;
     }
     if (!loaded || request !== loadRequest.current) return false;
@@ -582,11 +646,15 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   const seek = (seconds: number) => {
     if (failedVideoFile) return;
+    classStartPermit.current++;
+    if (classBusyRef.current) videoRef.current?.pause();
     practiceController.current?.cancel();
     talkResume.current = false;
     const p = playerRef.current;
     if (!p?.track || (p instanceof VideoDeck && p.error)) return;
     const wasPlaying = p.playing;
+    classRun.current++;
+    classArmed.current = wasPlaying;
     // A delay or repeat gap has a running keep-alive but an already-paused player.
     // Its seek emits no pause event, so cancel the silent media session explicitly.
     if (!wasPlaying) keepAlive.stop();
@@ -614,7 +682,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
    */
   const startPlayback = (run: (p: DancerPlayer) => void) => {
     const p = playerRef.current;
-    if (!p?.track || !activeRef.current || loadingRef.current || failedVideoFile || (p instanceof VideoDeck && p.error)) return;
+    if (!p?.track || !activeRef.current || loadingRef.current || classBusyRef.current || failedVideoFileRef.current || (p instanceof VideoDeck && p.error)) return;
     if (setPlaybackState('playing')) keepAlive.claim();
     run(p);
     if (p.kind === 'audio') {
@@ -650,8 +718,14 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   const play = () => {
     const p = playerRef.current;
-    if (!p?.track || loadingRef.current || failedVideoFile || p.playing || (p instanceof VideoDeck && p.error)) return;
+    if (!p?.track || loadingRef.current || classBusyRef.current || failedVideoFile || p.playing || (p instanceof VideoDeck && p.error)) return;
     if (['delay', 'gap', 'preparing'].includes(practiceController.current?.getState().phase ?? '')) return;
+    classRun.current++;
+    classArmed.current = true;
+    if (liveClassRef.current) {
+      setLiveClass({ ...liveClassRef.current, finished: false });
+      setClassStatus(liveClassRef.current.autoNext ? 'Auto-next on' : 'Next & play when you are ready');
+    }
     if (p.kind === 'video' && talking) { setTalking(false); talkResume.current = false; }
     let settings = practiceRef.current;
     if (p.kind === 'video' && !videoStarted.current && settings.delaySeconds > 0) {
@@ -664,7 +738,16 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     } });
   };
 
-  const pause = () => { talkResume.current = false; practiceController.current?.cancel(); pauseNow(); };
+  const pause = () => {
+    classStartPermit.current++;
+    if (classBusyRef.current) videoRef.current?.pause();
+    classRun.current++;
+    classArmed.current = false;
+    talkResume.current = false;
+    practiceController.current?.cancel();
+    pauseNow();
+    rememberClass();
+  };
   const waiting = ['preparing', 'delay', 'gap'].includes(practiceState.phase);
   const togglePlay = () => (playerRef.current?.playing || waiting ? pause() : play());
 
@@ -716,15 +799,32 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     useStems();
   };
 
-  const restart = () => seek(practiceRef.current.mode !== 'off' ? selectedPracticeSection(practiceRef.current)?.start ?? 0 : 0);
+  const restart = () => {
+    const live = liveClassRef.current;
+    const p = playerRef.current;
+    if (!live) { seek(practiceRef.current.mode !== 'off' ? selectedPracticeSection(practiceRef.current)?.start ?? 0 : 0); return; }
+    if (!p?.track || classBusyRef.current || loadingRef.current || (p instanceof VideoDeck && p.error)) return;
+    const entry = live.plan.entries.find((item) => item.id === live.entryId);
+    if (!entry) return;
+    pause();
+    const settings = normalizePracticeSettings(entry.practice ?? defaultPracticeSettings(), p.track.duration);
+    settings.tempo = p.tempo;
+    settings.delaySeconds = 0;
+    practiceRef.current = settings; setPractice(settings);
+    p.seek(settings.mode !== 'off' ? selectedPracticeSection(settings)?.start ?? 0 : 0);
+    positionRef.current = p.position; setDisplayPos(p.position);
+    play();
+  };
 
   /** Jump to `seconds` and play: cue launch, and lock-screen / headphone previous and next. */
   const launch = (seconds: number) => {
-    if (failedVideoFile) return;
+    if (failedVideoFile || classBusyRef.current || loadingRef.current) return;
     practiceController.current?.cancel();
     talkResume.current = false;
     if (playerRef.current?.kind === 'video' && talking) { setTalking(false); talkResume.current = false; }
     const p = playerRef.current;
+    classRun.current++;
+    classArmed.current = true;
     const settings = practiceRef.current;
     const section = selectedPracticeSection(settings);
     if (settings.mode !== 'off' && section && p?.track) {
@@ -774,16 +874,16 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     syncMedia();
   };
 
-  const updatePractice = (value: PracticeSettings, cancel = true) => {
+  const updatePractice = (value: PracticeSettings, cancel = true, persist = !liveClassRef.current) => {
     const s = songRef.current;
     if (!s) return;
-    if (cancel) { practiceController.current?.cancel(); pauseNow(); }
+    if (cancel) { classRun.current++; classStartPermit.current++; classArmed.current = false; practiceController.current?.cancel(); pauseNow(); }
     const next = normalizePracticeSettings(value, s.track.duration);
     practiceRef.current = next;
     setPractice(next);
     playerRef.current?.setTempo(next.tempo);
     setTempo(Math.round(next.tempo * 100));
-    const saved = savePracticeSettings(s.track.name, s.track.duration, next);
+    const saved = !persist || savePracticeSettings(s.track.name, s.track.duration, next);
     if (!saved) showToast('Practice settings could not be saved on this device.');
     return saved;
   };
@@ -799,7 +899,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   };
 
   const savePractice = (value: PracticeSettings) => {
-    if (updatePractice(value)) {
+    if (updatePractice(value, true, true)) {
       const selected = selectedPracticeSection(value);
       showToast(selected ? `Saved “${selected.name}” for this track.` : 'Saved practice changes.');
     }
@@ -807,7 +907,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   /** Commit the panel's visible range and start at A within this same user gesture. */
   const startPractice = (value: PracticeSettings) => {
-    updatePractice(value);
+    updatePractice(value, true, true);
     const p = playerRef.current;
     if (!p?.track || (p instanceof VideoDeck && p.error)) return;
     const section = value.mode !== 'off' ? selectedPracticeSection(value) : null;
@@ -817,6 +917,201 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     setPracticeOpen(false);
     play();
   };
+
+  const rememberClass = () => {
+    const live = liveClassRef.current;
+    if (!live || classBusyRef.current) return;
+    const value: ClassResume = { classId: live.plan.id, entryId: live.entryId,
+      position: playerRef.current?.position ?? 0, autoNext: live.autoNext, finished: live.finished };
+    const result = saveClassResume(value);
+    classResumeRef.current = value; setClassResume(value); setResumeName(live.plan.name);
+    if (!result.saved && !classSaveFailed.current) {
+      classSaveFailed.current = true;
+      showToast(result.error ?? 'Class progress could not be saved on this device.');
+    }
+  };
+
+  const leaveClass = (finished: boolean) => {
+    const live = liveClassRef.current;
+    if (live && finished) setLiveClass({ ...live, finished: true });
+    rememberClass();
+    classGeneration.current++; classRun.current++; classStartPermit.current++; classArmed.current = false;
+    classPreflight.current?.abort();
+    practiceController.current?.cancel(); pauseNow();
+    videoRef.current?.pause(); // Also invalidate a native play pending during metadata loading.
+    if (loadingRef.current) {
+      loadRequest.current++; nextLoadId.current++;
+      playerRef.current?.unload(); videoRef.current?.unload();
+      setSong(null); songRef.current = null; setCurrentFile(null); setPendingVideo(null);
+      setLoading(false); setLoadError(null); setFailedVideoFile(null);
+      keepAlive.setTrack(null);
+    }
+    setLiveClass(null); setClassBusy(false); setClassDrawerOpen(false); setClassStatus('');
+    nextClassFile.current = null; setNextFileBusy(false); loadedClassMedia.current = null;
+    const settings = { ...practiceRef.current, mode: 'off' as const, delaySeconds: 0 };
+    practiceRef.current = settings; setPractice(settings);
+    if (!classSaveFailed.current) showToast(finished ? 'Class finished.' : 'Class exited.');
+  };
+
+  /** Files are prefetched, not decoded: one player and one native video element remain in use. */
+  const activateClassEntry = async (live: LiveClass, entryId: string, shouldPlay: boolean, resumePosition?: number): Promise<void> => {
+    const entry = live.plan.entries.find((item) => item.id === entryId);
+    if (!entry) throw new Error('This exercise is no longer in the class. Edit the class to choose another.');
+    const generation = classGeneration.current;
+    const permit = classStartPermit.current;
+    rememberClass();
+    setClassBusy(true); classRun.current++; classArmed.current = false;
+    practiceController.current?.cancel(); pauseNow();
+    if (shouldPlay) { engine.unlock(); void keepAlive.start(); }
+    setClassStatus('Opening exercise…');
+    try {
+      const sameFile = loadedClassMedia.current === entry.mediaId && !!playerRef.current?.track
+        && !failedVideoFileRef.current && !(playerRef.current instanceof VideoDeck && playerRef.current.error);
+      if (!sameFile) {
+        const prefetched = nextClassFile.current;
+        const file = prefetched?.classId === live.plan.id && prefetched.entryId === entryId
+          ? prefetched.file : await getMediaFile(entry.mediaId);
+        if (generation !== classGeneration.current) return;
+        // With a prefetched video this call reaches native play before the first await in this gesture.
+        const requested = entry.practice ?? defaultPracticeSettings();
+        const startTime = resumePosition ?? (requested.mode !== 'off' ? selectedPracticeSection(requested)?.start ?? 0 : 0);
+        const loaded = await loadFile(file, entry.mediaId, { inClass: true,
+          video: { play: shouldPlay && permit === classStartPermit.current && requested.delaySeconds === 0, startTime, tempo: requested.tempo } });
+        if (generation !== classGeneration.current) return;
+        if (!loaded) throw new Error('This exercise could not be opened. Retry it from the running order or open another file.');
+      }
+      const p = playerRef.current;
+      if (!p?.track) throw new Error('The exercise could not be loaded.');
+      if (p instanceof VideoDeck && p.error) throw new Error('Video could not play. Retry it or choose another exercise.');
+      shouldPlay = shouldPlay && permit === classStartPermit.current;
+      loadedClassMedia.current = entry.mediaId;
+      const settings = normalizePracticeSettings(entry.practice ?? defaultPracticeSettings(), p.track.duration);
+      const start = settings.mode !== 'off' ? selectedPracticeSection(settings)?.start ?? 0 : 0;
+      const position = Math.max(0, Math.min(p.track.duration, resumePosition ?? start));
+      practiceRef.current = settings; setPractice(settings); p.setTempo(settings.tempo);
+      setTempo(Math.round(settings.tempo * 100));
+      // Do not reset a native video that already began within the initiating tap.
+      if (!p.playing || Math.abs(p.position - position) > 0.5) p.seek(position);
+      positionRef.current = p.position; setDisplayPos(p.position);
+      setTalking(false); talkResume.current = false; engine.setDancerGain(1);
+      setLiveClass({ ...live, entryId, finished: false }); setClassBusy(false);
+      setClassStatus(shouldPlay ? (live.autoNext ? 'Auto-next on' : 'Next when ready') : 'Ready · tap Play');
+      if (shouldPlay) {
+        classArmed.current = true;
+        const firstVideo = p.kind === 'video' && !videoStarted.current;
+        const playback = firstVideo ? { ...settings, delaySeconds: 0 } : settings;
+        if (firstVideo && settings.delaySeconds > 0) showToast('Tap Play if needed to enable video sound. Delay applies after its first start.');
+        practiceController.current?.start({ settings: playback, duration: p.track.duration, position: p.position,
+          prepare: () => { engine.unlock(); if (p.kind === 'audio') void keepAlive.start(); } });
+        if (p.kind === 'video' && !p.playing) setClassStatus('Ready · tap Play if video is paused');
+      } else { p.pause(); setPlaying(false); }
+      rememberClass(); syncMedia();
+    } catch (error) {
+      if (generation === classGeneration.current) {
+        classArmed.current = false; pauseNow(); setClassBusy(false);
+        setClassStatus(errorText(error, 'Exercise unavailable. Open the running order to retry.'));
+      }
+      throw error;
+    } finally {
+      if (generation === classGeneration.current) setClassBusy(false);
+    }
+  };
+
+  const teachClass = async (plan: ClassSet, entryId?: string, resume?: ClassResume) => {
+    if (classBusyRef.current || loadingRef.current) throw new Error('Wait for the current file to finish opening.');
+    pause();
+    const generation = ++classGeneration.current;
+    classPreflight.current?.abort();
+    const abort = new AbortController(); classPreflight.current = abort;
+    setClassBusy(true);
+    try {
+      const media = await listMedia();
+      const check = await preflightClassFiles(plan, media, { signal: abort.signal });
+      if (!check.ready) throw new Error(check.missing.length
+        ? `Import these files again before teaching: ${check.missing.map((item) => item.label).join(', ')}.`
+        : 'Add at least one exercise before teaching this class.');
+      if (generation !== classGeneration.current) return;
+      const chosen = entryId ?? plan.entries[0]!.id;
+      await activateClassEntry({ plan, media, entryId: chosen, autoNext: resume?.autoNext ?? plan.autoNext ?? false, finished: false }, chosen, false, resume?.position);
+      if (generation === classGeneration.current) { setLibraryOpen(false); setClassDrawerOpen(false); }
+    } finally { if (generation === classGeneration.current) setClassBusy(false); }
+  };
+
+  const chooseClassEntry = (entryId: string, shouldPlay: boolean) => {
+    const live = liveClassRef.current;
+    if (!live || classBusyRef.current || loadingRef.current) return;
+    void activateClassEntry(live, entryId, shouldPlay).catch((error: unknown) => showToast(errorText(error, 'Exercise could not open.')));
+  };
+
+  const nextClassEntry = () => {
+    const live = liveClassRef.current;
+    if (!live || classBusyRef.current) return;
+    const next = findNextClassEntry(live.plan.entries, live.entryId);
+    if (next) chooseClassEntry(next.id, true);
+    else leaveClass(true);
+  };
+
+  const resumeClass = async () => {
+    const saved = classResumeRef.current;
+    if (!saved || saved.finished) return;
+    const generation = classGeneration.current;
+    try {
+      const plan = (await listClasses()).find((item) => item.id === saved.classId);
+      if (generation !== classGeneration.current) return;
+      if (!plan) throw new Error('This saved class was removed. Choose a class in Library.');
+      await teachClass(plan, saved.entryId, saved);
+    } catch (error) { showToast(errorText(error, 'Class could not resume.')); }
+  };
+
+  // Completion is deferred until the practice controller has parked at B and finished its pause/seek.
+  useLayoutEffect(() => {
+    classCompleted.current = () => {
+      const live = liveClassRef.current;
+      if (!live || !classArmed.current || classBusyRef.current) return;
+      classArmed.current = false;
+      const run = classRun.current; const generation = classGeneration.current;
+      queueMicrotask(() => {
+        if (run !== classRun.current || generation !== classGeneration.current || liveClassRef.current?.entryId !== live.entryId) return;
+        const next = findNextClassEntry(live.plan.entries, live.entryId);
+        if (!next) { setLiveClass({ ...live, finished: true }); setClassStatus('Class complete'); rememberClass(); }
+        else if (live.autoNext) chooseClassEntry(next.id, true);
+        else { setClassStatus('Complete · Next when ready'); rememberClass(); }
+      });
+    };
+  });
+
+  useEffect(() => {
+    if (!classResume) return;
+    let cancelled = false;
+    void listClasses().then((plans) => {
+      if (!cancelled) setResumeName(plans.find((item) => item.id === classResume.classId)?.name ?? 'your class');
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [classResume?.classId]);
+
+  useEffect(() => {
+    if (!liveClass || classBusy) return;
+    const next = findNextClassEntry(liveClass.plan.entries, liveClass.entryId);
+    nextClassFile.current = null;
+    if (!next) { setNextFileBusy(false); return; }
+    let cancelled = false; setNextFileBusy(true);
+    void getMediaFile(next.mediaId).then((file) => {
+      if (!cancelled) nextClassFile.current = { classId: liveClass.plan.id, entryId: next.id, file };
+    }).catch(() => {
+      if (!cancelled) setClassStatus('Next file unavailable · open running order to retry');
+    }).finally(() => { if (!cancelled) setNextFileBusy(false); });
+    return () => { cancelled = true; };
+  }, [liveClass?.plan.id, liveClass?.entryId, classBusy]);
+
+  const persistClass = useRef(rememberClass);
+  useLayoutEffect(() => { persistClass.current = rememberClass; });
+  useEffect(() => {
+    const save = () => persistClass.current();
+    const timer = window.setInterval(save, 2000);
+    window.addEventListener('pagehide', save); document.addEventListener('visibilitychange', save);
+    return () => { save(); clearInterval(timer); window.removeEventListener('pagehide', save); document.removeEventListener('visibilitychange', save);
+      classGeneration.current++; classPreflight.current?.abort(); };
+  }, []);
 
   const retryVideo = () => {
     const file = failedVideoFile ?? currentFile;
@@ -1001,7 +1296,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
   const track = song?.track ?? null;
   const bpm = track?.bpm ? track.bpm * (tempo / 100) : null;
-  const ready = player !== null && song !== null && !loading && !videoError && !failedVideoFile;
+  const ready = player !== null && song !== null && !loading && !classBusy && !videoError && !failedVideoFile;
   const selectedSection = selectedPracticeSection(practice);
   const practiceActive = practice.mode !== 'off' && selectedSection !== null;
   const practiceConfigured = practiceActive || practice.delaySeconds > 0;
@@ -1041,10 +1336,27 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     markers,
     scrub: true,
   };
+  const classControls: ClassControlsProps | undefined = liveClass ? {
+    className: liveClass.plan.name,
+    items: liveClass.plan.entries.map((entry) => {
+      const media = liveClass.media.find((item) => item.id === entry.mediaId);
+      const section = entry.practice && selectedPracticeSection(entry.practice);
+      return { id: entry.id, name: getClassEntryLabel(entry, media), note: entry.note,
+        detail: section ? `${formatTime(section.start)}–${formatTime(section.end)} · ${Math.round((entry.practice?.tempo ?? 1) * 100)}% · ${entry.practice?.mode === 'repeat' ? entry.practice.repetitions === null ? 'Repeat until stopped' : `${entry.practice.repetitions} passes` : 'Once'}` : 'Full track · 100%',
+        available: media?.available !== false };
+    }),
+    currentEntryId: liveClass.entryId, autoNext: liveClass.autoNext, busy: classBusy || loading,
+    nextBusy: nextFileBusy, status: classStatus,
+    onNext: nextClassEntry,
+    onSelect: (id) => chooseClassEntry(id, false),
+    onAutoNext: (enabled) => { const live = liveClassRef.current; if (live) { setLiveClass({ ...live, autoNext: enabled }); setClassStatus(enabled ? 'Auto-next on' : 'Next when ready'); rememberClass(); } },
+    onExit: () => leaveClass(false),
+    onOpenChange: setClassDrawerOpen,
+  } : undefined;
 
   return (
     <section
-      className={`dancer ${dragOver ? 'drag' : ''} ${videoElement ? 'has-video' : ''} ${videoError || failedVideoFile ? 'has-video-error' : ''} ${editing ? 'editing' : ''}`}
+      className={`dancer ${dragOver ? 'drag' : ''} ${videoElement ? 'has-video' : ''} ${liveClass ? 'has-live-class' : ''} ${videoError || failedVideoFile ? 'has-video-error' : ''} ${editing ? 'editing' : ''}`}
       onDragOver={(e) => {
         e.preventDefault();
         if (stageOpen || !active) return;
@@ -1054,9 +1366,9 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       onDrop={onDrop}
     >
       {actionsContainer && createPortal(<div className="dancer-actions" onKeyDown={(e) => e.stopPropagation()} onKeyUp={(e) => e.stopPropagation()}>
-        <button onClick={() => fileInput.current?.click()} disabled={loading}
+        <button onClick={() => fileInput.current?.click()} disabled={loading || classBusy}
           title="Open a song or video from Files or Photos">Open</button>
-        <button onClick={() => setLibraryOpen(true)} disabled={loading} title="Saved songs, videos and class sets">
+        <button onClick={() => setLibraryOpen(true)} disabled={loading || classBusy} title="Saved songs, videos and classes">
           Library
         </button>
         {wakeLock.supported && (
@@ -1119,10 +1431,14 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
       </div>
 
       <div className="dancer-media-panel">
+        {classControls && !stageOpen && <ClassControls {...classControls} />}
+        {!liveClass && classResume && !classResume.finished && <button className="class-resume" disabled={loading || classBusy}
+          onKeyDown={(event) => event.stopPropagation()} onKeyUp={(event) => event.stopPropagation()}
+          onClick={() => { void resumeClass(); }}>Resume {resumeName} <small>Opens paused</small></button>}
         <div className="dancer-track-info">
-          <span className="dancer-track-kicker" role="img" aria-label="Now Playing">
+          {!liveClass && <span className="dancer-track-kicker" role="img" aria-label="Now Playing">
             <span aria-hidden="true">N</span><img className="now-playing-logo" src={nowPlayingLogo} alt="" aria-hidden="true" /><span aria-hidden="true">W PLAYING</span>
-          </span>
+          </span>}
           <div className="dancer-track-title" title={track?.name}>
             {loading ? 'Opening video or song…' : loadError ? loadError : track?.name ?? (deckError ? `Player failed to start: ${deckError}` : 'Tap Open to choose a song or video')}
           </div>
@@ -1154,7 +1470,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
           {practiceActive && !videoError && !failedVideoFile && <small>{waiting ? (practiceState.phase === 'gap' ? 'Between passes' : 'Starting soon') : practiceProgress}</small>}
         </button>
         <button onClick={restart} disabled={!ready} title="Home">
-          ⟲ {practiceActive ? 'Section' : 'Restart'}
+          ⟲ {liveClass ? 'Again' : practiceActive ? 'Section' : 'Restart'}
         </button>
         <button
           ref={stageButton}
@@ -1226,6 +1542,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
       <LibraryModal open={libraryOpen} onClose={() => setLibraryOpen(false)}
         onNotice={showToast}
+        onTeachClass={teachClass} activeClassId={liveClass?.plan.id}
         currentFile={currentFile} currentTitle={track?.name ?? null}
         currentPractice={practice} currentDuration={track?.duration}
         onLoad={async (file, id, exercise) => {
@@ -1254,6 +1571,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
       {stageOpen && song && (
         <StageView
+          classControls={classControls}
           video={videoElement}
           aspect={song.aspect}
           title={song.track.name}

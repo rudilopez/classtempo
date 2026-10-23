@@ -19,6 +19,9 @@ export interface ClassEntry {
   /** Each occurrence has its own ID so a song may appear twice in one class. */
   id: string;
   mediaId: string;
+  /** Optional teaching label and reminder, independent of the original filename. */
+  name?: string;
+  note?: string;
   /** Optional exercise-specific snapshot; the same media can have a different tempo in another entry. */
   practice?: PracticeSettings;
   practiceDuration?: number;
@@ -28,6 +31,8 @@ export interface ClassSet {
   id: string;
   name: string;
   entries: ClassEntry[];
+  /** Continue after a completed exercise; missing/false waits for the teacher. */
+  autoNext?: boolean;
   updatedAt: number;
 }
 
@@ -199,13 +204,16 @@ export function normalizeClass(value: unknown): ClassSet | null {
     if (!value || typeof value !== 'object' || typeof value.id !== 'string' || !value.id || value.id.length > 200 || seen.has(value.id) || typeof value.mediaId !== 'string' || !value.mediaId || value.mediaId.length > 3000) continue;
     seen.add(value.id);
     const entry: ClassEntry = { id: value.id, mediaId: value.mediaId };
+    if (typeof value.name === 'string' && value.name.trim()) entry.name = value.name.trim().slice(0, 100);
+    if (typeof value.note === 'string' && value.note.trim()) entry.note = value.note.trim().slice(0, 500);
     if (value.practice && typeof value.practice === 'object' && typeof value.practiceDuration === 'number' && Number.isFinite(value.practiceDuration) && value.practiceDuration > 0 && value.practiceDuration <= 86_400) {
       entry.practiceDuration = value.practiceDuration;
       entry.practice = normalizePracticeSettings(value.practice, value.practiceDuration);
     }
     entries.push(entry);
   }
-  return { id: item.id, name: item.name.trim().slice(0, 100), entries, updatedAt: typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt) ? Math.max(0, item.updatedAt) : 0 };
+  return { id: item.id, name: item.name.trim().slice(0, 100), entries, autoNext: item.autoNext === true,
+    updatedAt: typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt) ? Math.max(0, item.updatedAt) : 0 };
 }
 
 export function moveClassEntry(entries: readonly ClassEntry[], id: string, offset: -1 | 1): ClassEntry[] {

@@ -18,7 +18,7 @@ describe('class library data', () => {
     const item = normalizeClass({ id: 'class', name: '  Tuesday  ', updatedAt: NaN, entries: [
       { id: 'first', mediaId: 'song' }, { id: 'second', mediaId: 'song' }, { id: 'first', mediaId: 'different' }, null, { id: 'bad' },
     ] });
-    expect(item).toEqual({ id: 'class', name: 'Tuesday', updatedAt: 0, entries: [{ id: 'first', mediaId: 'song' }, { id: 'second', mediaId: 'song' }] });
+    expect(item).toEqual({ id: 'class', name: 'Tuesday', updatedAt: 0, autoNext: false, entries: [{ id: 'first', mediaId: 'song' }, { id: 'second', mediaId: 'song' }] });
     expect(normalizeClass({ id: 'empty', name: '  ', entries: [] })).toBeNull();
   });
 
@@ -43,6 +43,28 @@ describe('class library data', () => {
     expect(restored.classes[0]?.entries[0]?.practice?.sections).toEqual(practice.sections);
     const moved = moveClassEntry(restored.classes[0]!.entries, 'normal', -1);
     expect(moved.map((entry) => entry.practice?.tempo)).toEqual([1, 0.7]);
+  });
+
+  it('preserves teaching names, reminders and explicit continuous playback through a backup', () => {
+    const value = backup();
+    value.classes[0]!.autoNext = true;
+    value.classes[0]!.entries[0] = { id: 'first', mediaId: 'song-a', name: ' Footwork slowly ', note: ' Count the first eight. ' };
+    const restored = parseBackup(JSON.stringify(value));
+    expect(restored.classes[0]?.autoNext).toBe(true);
+    expect(restored.classes[0]?.entries[0]).toEqual({ id: 'first', mediaId: 'song-a', name: 'Footwork slowly', note: 'Count the first eight.' });
+    expect(restored.media[0]?.available).toBe(false);
+    expect(moveClassEntry(restored.classes[0]!.entries, 'first', 1)[1]?.note).toBe('Count the first eight.');
+  });
+
+  it('requires a boolean opt-in to automatic advance and bounds optional teaching text', () => {
+    const normalized = normalizeClass({ id: 'class', name: 'Safe', autoNext: 'true', entries: [
+      { id: 'first', mediaId: 'song-a', name: 'x'.repeat(150), note: 'y'.repeat(700) },
+      { id: 'second', mediaId: 'song-a', name: { unsafe: true }, note: '  ' },
+    ] });
+    expect(normalized?.autoNext).toBe(false);
+    expect(normalized?.entries[0]?.name).toHaveLength(100);
+    expect(normalized?.entries[0]?.note).toHaveLength(500);
+    expect(normalized?.entries[1]).toEqual({ id: 'second', mediaId: 'song-a' });
   });
 
   it('normalizes imported exercise settings before they can schedule playback', () => {

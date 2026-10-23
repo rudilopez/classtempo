@@ -44,6 +44,15 @@ export interface VideoDiagnostics {
   events: VideoDiagnosticEvent[];
 }
 
+export interface VideoLoadOptions {
+  /** Calls native play in this load() call. The caller must already have the file inside its gesture. */
+  play?: boolean;
+  /** Requested before play, then bounded by actual metadata before decoded playback. */
+  startTime?: number;
+  /** Key-locked rate, using the same limits as setTempo(). Omission preserves the current rate. */
+  tempo?: number;
+}
+
 /** Tempo for a requested rate: clamped to the key-locked range, or null for a non-finite rate (ignored). */
 export function clampTempo(rate: number): number | null {
   if (!Number.isFinite(rate)) return null;
@@ -123,6 +132,8 @@ export class VideoDeck implements DancerPlayer {
   private loadSeq = 0;
   /** Invalidates rejected play promises when a pause, unload or newer play overtakes them. */
   private playSeq = 0;
+  /** False blocks a cancelled/refused load-and-play from reviving through a late native play event. */
+  private loadPlayIntent: boolean | null = null;
   /** Settles the in-flight load quietly when a newer load / unload supersedes it. */
   private cancelLoad: (() => void) | null = null;
   private frameHandle: number | null = null;
@@ -200,16 +211,21 @@ export class VideoDeck implements DancerPlayer {
   }
 
   /**
-   * Opens `file` (paused, at 0, tempo kept). Resolves once its metadata is in with a usable duration, rejects
+   * Opens `file` (paused, at 0, tempo kept by default). Resolves once its metadata has a usable duration, rejects
    * with a readable message when the browser cannot play it; a load superseded by a newer `load` / `unload`
-   * resolves without a track. Revokes the previous file's object URL.
+   * resolves without a track. Revokes the previous file's object URL. Explicit play uses the same element and
+   * calls its play() synchronously, before waiting for metadata. A refused play still resolves the loaded track
+   * paused so the caller can offer Play; metadata resolution is not proof of autoplay or decoded frames.
    */
-  load(file: Blob, name: string): Promise<void> {
+  load(file: Blob, name: string, options: VideoLoadOptions = {}): Promise<void> {
     if (this.disposed) return Promise.reject(new Error('VideoDeck is disposed'));
     this.cancelLoad?.();
     const seq = ++this.loadSeq;
     const v = this.element;
     this.playSeq++;
+    this.loadPlayIntent = options.play ? true : null;
+    const startTime = options.startTime === undefined ? null :
+      Number.isFinite(options.startTime) ? Math.max(0, options.startTime) : 0;
     this.playbackError = null;
     this.diagnosticFile = { bytes: file.size, type: file.type };
     this.diagnosticError = null;
@@ -218,6 +234,7 @@ export class VideoDeck implements DancerPlayer {
     this._track = null;
     if (!v.paused) v.pause();
     this.setPlaying(false);
+    if (options.tempo !== undefined) this.setTempo(options.tempo);
     this.revokeUrl();
     const url = URL.createObjectURL(file);
     this.url = url;
@@ -251,17 +268,31 @@ export class VideoDeck implements DancerPlayer {
       };
       const finish = (duration: number): void => {
         if (settled || seq !== this.loadSeq) return;
+        try {
+          if (startTime !== null) {
+            const position = clampTime(startTime, duration);
+            if (v.currentTime !== position) v.currentTime = position;
+          }
+          else if (probing) v.currentTime = 0;
+          applyRate(v, this._tempo);
+        } catch {
+          fail(`“${name}” could not start at the requested position.`);
+          return;
+        }
         settled = true;
         done();
-        if (probing) v.currentTime = 0;
-        applyRate(v, this._tempo);
         this._track = { name, duration };
-        this.onPosition?.(0);
+        if (options.play && startTime !== null && startTime >= duration) this.pause();
+        if (this.loadPlayIntent === false && !v.paused) v.pause();
+        this.setPlaying(!v.paused);
+        this.onPosition?.(this.position);
         resolve();
       };
       const onMetadata = (): void => {
         if (isUsableDuration(v.duration)) finish(v.duration);
         else if (v.duration === Infinity) {
+          // Probing jumps far beyond the real end. Keep it silent and let a later Play gesture resume.
+          if (options.play) this.pause();
           probing = true;
           v.currentTime = Number.MAX_SAFE_INTEGER; // reading to the end makes the browser work the duration out
         } else fail(`“${name}” has no playable length.`);
@@ -282,6 +313,11 @@ export class VideoDeck implements DancerPlayer {
       this.cancelLoad = cancel;
       v.src = url;
       v.load(); // explicit, for iOS Safari, which may otherwise wait for a play before reading metadata
+      applyRate(v, this._tempo);
+      if (startTime !== null) {
+        try { v.currentTime = startTime; } catch { /* Metadata will apply the bounded start before decoded playback. */ }
+      }
+      if (options.play && seq === this.loadSeq && this.loadPlayIntent === true && !this.error) this.playDuringLoad(seq);
     });
   }
 
@@ -290,6 +326,7 @@ export class VideoDeck implements DancerPlayer {
     this.cancelLoad?.();
     this.loadSeq++;
     this.playSeq++;
+    this.loadPlayIntent = null;
     this.playbackError = null;
     this.diagnosticFile = null;
     this.diagnosticError = null;
@@ -335,6 +372,7 @@ export class VideoDeck implements DancerPlayer {
     if (!this._track || this._playing) return;
     const v = this.element;
     const seq = ++this.playSeq;
+    this.loadPlayIntent = null;
     applyRate(v, this._tempo);
     let started: Promise<void> | undefined;
     try {
@@ -359,6 +397,7 @@ export class VideoDeck implements DancerPlayer {
 
   pause(): void {
     this.playSeq++;
+    if (this.loadPlayIntent !== null) this.loadPlayIntent = false;
     const v = this.element;
     if (!this._playing && v.paused) return;
     v.pause();
@@ -402,6 +441,33 @@ export class VideoDeck implements DancerPlayer {
 
   // ---- internals ---------------------------------------------------------------------------
 
+  /** Directly issued by load(), never from a metadata/canplay callback that would lose the gesture. */
+  private playDuringLoad(loadSeq: number): void {
+    const v = this.element;
+    const playSeq = ++this.playSeq;
+    const refused = (error: unknown): void => {
+      if (loadSeq !== this.loadSeq || playSeq !== this.playSeq) return;
+      this.loadPlayIntent = false;
+      this.recordPlayFailure(error);
+      if (!v.paused) v.pause();
+      this.setPlaying(false);
+    };
+    try {
+      const started = v.play();
+      started?.then(() => {
+        if (loadSeq !== this.loadSeq) return;
+        if (playSeq !== this.playSeq) {
+          // A pause invalidated this request. A newer explicit play resets intent and must remain intact.
+          if (this.loadPlayIntent === false && !v.paused) v.pause();
+          return;
+        }
+        this.syncPlaying();
+      }, refused);
+    } catch (error) {
+      refused(error);
+    }
+  }
+
   private setPlaying(playing: boolean): void {
     if (playing && this.error) playing = false;
     if (playing) {
@@ -419,6 +485,7 @@ export class VideoDeck implements DancerPlayer {
   /** The element's play/pause events: whatever it says now wins (a queued 'play' may arrive after a pause()). */
   private syncPlaying(): void {
     if (this.error) { this.handleError(); return; }
+    if (this.loadPlayIntent === false && !this.element.paused) this.element.pause();
     const playing = this._track !== null && !this.element.paused;
     this.setPlaying(playing);
     if (!playing) this.report(true);
@@ -441,6 +508,7 @@ export class VideoDeck implements DancerPlayer {
     this.diagnosticError = { code: nativeError?.code ?? this.diagnosticError?.code ?? null, message: this.diagnosticMessage(nativeError?.message || error) };
     this.playbackError = error;
     this.playSeq++;
+    if (this.loadPlayIntent !== null) this.loadPlayIntent = false;
     try { if (!this.element.paused) this.element.pause(); } catch { /* Native decoder already stopped. */ }
     this.setPlaying(false);
   }

@@ -6,6 +6,11 @@
 .stage.stage-classroom .stage-screen {
   position: relative;
 }
+.stage-class-controls { grid-column: 1 / -1; min-width: 0; }
+/* The running order takes the cue area while open; playback controls stay reachable. */
+.stage-class-order-open.stage-no-video .stage-pads,
+.stage-class-order-open.stage-no-video .stage-hint { display: none; }
+.stage-class-order-open.stage-no-video .stage-now { overflow: hidden; }
 .stage.stage-classroom .stage-bar {
   gap: 10px;
   padding: 10px;
@@ -146,6 +151,16 @@
   }
 }
 @media (orientation: landscape) and (max-height: 499px) {
+  .stage-class-order-open.stage-no-video .stage-controls {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .stage-class-order-open.stage-no-video .stage-controls > .stage-practice { grid-column: 1 / -1; }
+  .stage-class-order-open.stage-no-video .stage-now { display: flex; justify-content: center; align-items: center; gap: 12px; }
+  .stage-class-order-open.stage-no-video .stage-title { display: none; }
+  .stage-class-order-open.stage-no-video .stage-section { min-width: 0; font-size: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stage-class-order-open.stage-no-video .stage-time { flex: none; font-size: 24px; }
   .stage.stage-classroom .stage-bar {
     gap: 8px;
     padding: 8px;
