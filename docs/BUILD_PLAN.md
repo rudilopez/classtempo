@@ -131,6 +131,11 @@ Bluetooth and lock-screen playback remain separate checks. The original roughly
 two-minute target for separating a four-minute iPhone song remains the goal, not a measured guarantee.
 No automatic model download, song upload or server fallback is enabled.
 
+Before preparation, an inline memory notice explains that preparing and playing stems use extra memory and
+low-memory devices may stop playback or close ClassTempo. It advises preparing before class and closing unused
+apps. The **256 MiB WASM reservation**, **4:30/100 MB source limits** and **500 MiB cache limit** remain in place.
+The WASM cap does not cover total app memory; these safeguards cannot guarantee that the browser never closes the app.
+
 ### Numerical preparation correction (2026-10-24)
 
 The owner's iPad failed on the first section of a second supplied song. The exact file reproduced the failure

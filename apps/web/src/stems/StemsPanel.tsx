@@ -1,5 +1,5 @@
 import type { DrumFocus, StemMix } from '@mixdeck/engine';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { PreparedStemsState } from './usePreparedStems';
 import { MAX_SEPARATION_DURATION, SEPARATION_COMPUTE_VERSION } from './separationModel';
 import './panel.css';
@@ -27,6 +27,7 @@ interface Props {
 export function StemsPanel({ kind, state, active, disabled, mix, focus, onPrepare, onCancel,
   onActivate, onOriginal, onMix, onFocus, onRemoveSaved, onOpen }: Props) {
   const [copied, setCopied] = useState(false);
+  const memoryNoticeId = useId();
   useEffect(() => { setCopied(false); }, [state.failure]);
   const pads = [['vocals', 'Vocal'], ['other', 'Instruments'], ['bass', 'Bass'], ['drums', 'Drums']] as const;
   const copyFailure = (): void => {
@@ -88,7 +89,12 @@ export function StemsPanel({ kind, state, active, disabled, mix, focus, onPrepar
       {state.message && <p role={state.phase === 'error' ? 'alert' : 'status'}>{state.message}</p>}
       {state.failure && <button onClick={copyFailure}>{copied ? 'Details copied' : 'Copy details'}</button>}
       <p>Vocals, drums, bass and instruments. First use downloads an 80 MB engine plus its runtime. Best on Wi-Fi.</p>
-      <button className="stems-prepare" disabled={disabled} onClick={onPrepare}>{state.phase === 'error' ? 'Try preparing again' : 'Prepare stems'}</button>
+      <div className="stems-memory-notice" id={memoryNoticeId}>
+        <strong>Before using stems</strong>
+        <p>Preparing and playing stems use extra memory. Low-memory devices may stop playback or close ClassTempo.
+          Prepare before class and close unused apps.</p>
+      </div>
+      <button className="stems-prepare" aria-describedby={memoryNoticeId} disabled={disabled} onClick={onPrepare}>{state.phase === 'error' ? 'Try preparing again' : 'Prepare stems'}</button>
       <small>Stems limit: {MAX_SEPARATION_DURATION} per song · Keep app open</small>
       <a href={`${import.meta.env.BASE_URL}licenses/spleeter-stems.txt`} target="_blank" rel="noreferrer">Engine credits</a>
     </div>}

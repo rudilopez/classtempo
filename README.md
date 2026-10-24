@@ -37,6 +37,8 @@ classes, Stage, stems, offline use and backups. The guide opens in a separate ta
    mute parts, or choose **Acapella**, **Instrumental** or **All**. **Original** returns to the original recording
    at the current position. Low/High drums focus frequency ranges, rather than isolating a kick or hi-hat.
    Stems preparation accepts songs up to **4:30** and 100 MB; ordinary song/video playback has no duration cap.
+   Preparing and playing stems use extra memory. Low-memory devices may stop playback or close ClassTempo;
+   prepare before class and close unused apps. These limits reduce memory pressure but cannot prevent every crash.
    Keep the app visible while preparing; songs stay on the device. Saved stems reopen without separating
    again. Video and subscription streams are not supported.
 6. The regular player keeps its picture, tempo and cue pads visible together. Tap **Stage** to make video large,
