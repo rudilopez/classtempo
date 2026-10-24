@@ -5,9 +5,9 @@ right phrase, adjust its speed, and repeat an exercise. It runs as an installabl
 Android, with desktop browsers supported for preparation. The GitHub repository and hosting path retain the
 original `mixdeck` name.
 
-**App:** https://rudilopez.github.io/mixdeck/
+**App:** https://rudilopez.github.io/classtempo/
 
-**Visual user guide:** https://rudilopez.github.io/mixdeck/guide.html — also available in **Library → User guide**.
+**Visual user guide:** https://rudilopez.github.io/classtempo/guide.html — also available in **Library → User guide**.
 Simple instructions, real app screenshots, topic search cover playback, cues, practices,
 classes, Stage, stems, offline use and backups. The guide opens in a separate tab to preserve the player session.
 
