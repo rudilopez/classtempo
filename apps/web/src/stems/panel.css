@@ -6,6 +6,9 @@
 .stems-intro small { color: #a8bdce; font-size: 10px; }
 .stems-intro a { display: inline-flex; align-items: center; min-height: 44px; font-size: 11px; }
 .stems-intro progress { width: min(280px, 100%); accent-color: #64e1c2; }
+.stems-memory-notice { width: min(100%, 42ch); padding: 8px 10px; border: 1px solid #79613b; border-radius: 8px; background: #25231d; text-align: left; }
+.stems-memory-notice strong { display: block; margin-bottom: 3px; color: #ffda95; font-size: 12px; }
+.stems-memory-notice p { color: #e0d8c8; font-size: 11px; line-height: 1.4; }
 .dancer .stems-prepare { color: #082b28; background: #64e1c2; font-weight: 800; }
 .stem-source { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 11px; padding: 0 5px 4px; }
 .stem-source span { color: #bad0df; }

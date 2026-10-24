@@ -141,9 +141,12 @@ and integrity checks on every section; `separationMs` excludes those reads.
 
 Spectral work is bounded to one chunk; input and completed output still grow with song duration. At 4:30,
 eight output Float32 channels alone use 381 MB, before source PCM, models and runtime. The 256 MiB WASM cap is
-not a whole-app memory cap. The duration limit is a guard,
-not proof that every iPhone can process that length. Preparation can fail due to browser memory pressure;
-do not advertise a universal time or memory guarantee. Never run inference automatically during playback.
+not a whole-app memory cap. The 4:30/100 MB source limits and 500 MiB saved-stem cache limit remain in place.
+These safeguards reduce memory pressure but cannot guarantee that every device can prepare or play stems
+without interruption. The notice before **Prepare stems** explains that preparation and playback use extra
+memory, and that low-memory devices may stop playback or close ClassTempo. It advises preparing before class
+and closing unused apps. Do not advertise a universal time or memory guarantee. Never run inference
+automatically during playback.
 
 The four spectral tests verify FFT inversion, finite complementary masks, silent/one-sample behavior and
 complete stereo reconstruction across both endpoints and a model-chunk seam. The checksum-verified vocals model also
