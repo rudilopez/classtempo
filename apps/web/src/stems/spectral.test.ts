@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addMaskedChunk, analyzeChunk, CONTEXT_FRAMES, CORE_FRAMES, FFT_SIZE, fft, frameCount,
+  addMaskedChunk, analyzeChunk, assertFiniteEstimate, CONTEXT_FRAMES, CORE_FRAMES, FFT_SIZE, fft, frameCount,
   MODEL_BINS, MODEL_FRAMES, ratioMasks,
 } from './spectral';
 
 describe('Spleeter spectral reconstruction', () => {
+  it('identifies the actual failed model and never replaces invalid estimates with audio', () => {
+    const estimate = new Float32Array([0, 2, NaN, Infinity, -Infinity, 65504]);
+    expect(() => assertFiniteEstimate(estimate, 'bass')).toThrow('bass separation model returned invalid audio: 3 non-finite estimates; first index 2');
+    expect(Number.isNaN(estimate[2])).toBe(true);
+    expect(estimate[3]).toBe(Infinity);
+    expect(estimate[4]).toBe(-Infinity);
+    expect(() => assertFiniteEstimate(new Float32Array([0, 1, -1, 100000]), 'vocals')).not.toThrow();
+  });
+
   it('inverts the FFT including DC and Nyquist content', () => {
     const original = Float64Array.from({ length: FFT_SIZE }, (_, i) => 0.3 + (i % 2 ? 0.2 : -0.2) + Math.sin(i * 0.03));
     const real = original.slice();

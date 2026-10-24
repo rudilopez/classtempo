@@ -1,10 +1,12 @@
-import type { SeparationInput, SeparationMessage, SeparationRuntime } from './separationModel';
+import type { SeparationInput, SeparationMessage, SeparationRuntime, SeparationPrecision } from './separationModel';
 
 type Completed = Extract<SeparationMessage, { type: 'complete' }>;
 type WorkerHandle = Pick<Worker, 'postMessage' | 'terminate' | 'onerror' | 'onmessage'>;
 type WorkerFactory = (runtime: SeparationRuntime) => WorkerHandle;
 
 export interface StemFailureDetails {
+  computeVersion?: string;
+  computePrecision?: SeparationPrecision;
   runtime: SeparationRuntime;
   runtimeVersion: string;
   stage: string;
@@ -64,9 +66,9 @@ export function prepareStemWorker(input: SeparationInput, options: {
       signal.removeEventListener('abort', onAbort);
     };
     const onAbort = (): void => { finish(); reject(new DOMException('Cancelled', 'AbortError')); };
-    const fail = (message: string, runtimeVersion = '1.30.0', memory: { reservedMaxMiB?: number; observedHeapMiB?: number | null } = {}): void => {
+    const fail = (message: string, runtimeVersion = '1.30.0', diagnostics: Pick<StemFailureDetails, 'reservedMaxMiB' | 'observedHeapMiB' | 'computeVersion' | 'computePrecision'> = {}): void => {
       finish();
-      reject(new StemPreparationError({ runtime, runtimeVersion, stage, message: message.slice(0, 4000), gpuFailure, ...memory }));
+      reject(new StemPreparationError({ runtime, runtimeVersion, stage, message: message.slice(0, 4000), gpuFailure, ...diagnostics }));
     };
     const start = (request: SeparationInput): void => {
       if (signal.aborted) { onAbort(); return; }
@@ -90,7 +92,8 @@ export function prepareStemWorker(input: SeparationInput, options: {
             onProgress(stage, null);
             start({ ...input, channels: message.channels, sampleRate: message.sampleRate, provider: 'wasm', fallbackReason: gpuFailure });
           } else if (message.type === 'error') fail(message.message, message.runtimeVersion,
-            { reservedMaxMiB: message.reservedMaxMiB, observedHeapMiB: message.observedHeapMiB });
+            { reservedMaxMiB: message.reservedMaxMiB, observedHeapMiB: message.observedHeapMiB,
+              computeVersion: message.computeVersion, computePrecision: message.computePrecision });
           else { finish(); resolve(message); }
         };
         worker.postMessage(request, [...new Set(request.channels.map((channel) => channel.buffer))]);

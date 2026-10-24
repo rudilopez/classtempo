@@ -193,6 +193,14 @@ dependencies are unchanged. Reports include the configured maximum and observed 
 hash-verified one at a time, with session teardown between runs; only failed cache writes retain weights for
 the current job. Stems preparation alone has a 4:30/100 MB limit; ordinary media playback remains unrestricted.
 
+After original model integrity checks, `modelPrecision.ts` derives an FP32-compute graph for WASM. The pinned
+FP16 weight bytes remain unchanged; weight Cast nodes and FP32 intermediates prevent half-precision activation
+overflow without changing stereo, context, gain or operators. Its strict graph contract uses the protobuf
+schema bundled inside pinned ORT 1.30.0; dependency upgrades must revalidate that private import and adapter.
+Each model output is checked immediately, so numeric errors identify the actual stem and also trigger fresh
+CPU recovery from WebGPU. Reports distinguish compute version/precision from the model/cache format version.
+Existing finite saved stems keep their cache key; this correction does not force accepted results to regenerate.
+
 The four stereo stems use one lazily created eight-channel transport (`StemDeck`) so tempo,
 seeks and cues remain synchronized. An opt-in, checked Signalsmith wrapper adapter plays the already-owned
 PCM directly at unity tempo/zero pitch and returns silence when paused, avoiding phase processing and its

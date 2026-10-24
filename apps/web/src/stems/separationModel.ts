@@ -1,5 +1,8 @@
 /** Spleeter weights and export are pinned independently of the historical Demucs benchmark. */
 export const SEPARATION_MODEL_VERSION = 'spleeter4-4866430-ratio2-ola-v1';
+/** Existing finite cached stems stay playable; new inference reports record this numerical correction. */
+export const SEPARATION_COMPUTE_VERSION = 'fp32-compute-v1';
+export type SeparationPrecision = 'float32' | 'float16';
 export const SEPARATION_MODEL_REVISION = '486643021f18a4d057d282fff1d11b89a30e9887';
 export const SEPARATION_SAMPLE_RATE = 44_100;
 export const MAX_SEPARATION_SECONDS = 270;
@@ -28,6 +31,8 @@ export interface SeparationInput {
 }
 
 export interface SeparationReport {
+  computeVersion: string;
+  computePrecision: SeparationPrecision;
   reservedMaxMiB?: number;
   observedHeapMiB?: number | null;
   runtime: SeparationRuntime;
@@ -52,4 +57,4 @@ export type SeparationMessage =
   | { type: 'progress'; stage: string; fraction: number | null }
   | { type: 'complete'; stems: Float32Array[]; sampleRate: number; report: SeparationReport }
   | { type: 'retry-wasm'; channels: [Float32Array, Float32Array]; sampleRate: number; cause: string; runtime: 'webgpu-jsep'; runtimeVersion: string }
-  | { type: 'error'; message: string; runtime: SeparationRuntime; runtimeVersion: string; reservedMaxMiB?: number; observedHeapMiB?: number | null };
+  | { type: 'error'; message: string; runtime: SeparationRuntime; runtimeVersion: string; computeVersion?: string; computePrecision?: SeparationPrecision; reservedMaxMiB?: number; observedHeapMiB?: number | null };

@@ -62,6 +62,31 @@ describe('isolated stems worker fallback', () => {
     await rejection;
     expect(run.factory).toHaveBeenCalledTimes(2);
   });
+  it('recovers a numerical GPU failure in a fresh CPU worker and preserves precision diagnostics', async () => {
+    const run = setup();
+    const returned = input();
+    run.workers[0]!.send({ type: 'retry-wasm', channels: returned.channels, sampleRate: returned.sampleRate,
+      cause: 'The bass separation model returned invalid audio: 3 non-finite estimates; first index 2.',
+      runtime: 'webgpu-jsep', runtimeVersion: '1.30.0' });
+    expect(run.workers[0]!.terminate).toHaveBeenCalledOnce();
+    expect(run.workers[1]!.postMessage.mock.calls[0]![0].channels).toBe(returned.channels);
+    const result = complete();
+    result.report.computeVersion = 'fp32-compute-v1';
+    result.report.computePrecision = 'float32';
+    run.workers[1]!.send(result);
+    await expect(run.promise).resolves.toMatchObject({ report: { computePrecision: 'float32', computeVersion: 'fp32-compute-v1' } });
+  });
+  it('keeps the failed stem and compute version in copyable error details', async () => {
+    const run = setup('wasm');
+    const rejection = expect(run.promise).rejects.toMatchObject({ details: {
+      computeVersion: 'fp32-compute-v1', computePrecision: 'float32',
+      stage: 'Separating bass · section 1 of 17…', message: expect.stringContaining('bass separation model'),
+    } });
+    run.workers[0]!.send({ type: 'progress', stage: 'Separating bass · section 1 of 17…', fraction: 0 });
+    run.workers[0]!.send({ type: 'error', message: 'The bass separation model returned invalid audio: 1 non-finite estimate.',
+      runtime: 'wasm', runtimeVersion: '1.30.0', computeVersion: 'fp32-compute-v1', computePrecision: 'float32' });
+    await rejection;
+  });
   it('reports plain-runtime failure without attempting another backend in the same worker', async () => {
     const run = setup('wasm');
     const rejection = expect(run.promise).rejects.toBeInstanceOf(StemPreparationError);

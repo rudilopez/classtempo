@@ -1,7 +1,7 @@
 import type { DrumFocus, StemMix } from '@mixdeck/engine';
 import { useEffect, useState } from 'react';
 import type { PreparedStemsState } from './usePreparedStems';
-import { MAX_SEPARATION_DURATION } from './separationModel';
+import { MAX_SEPARATION_DURATION, SEPARATION_COMPUTE_VERSION } from './separationModel';
 import './panel.css';
 
 export const ALL_STEMS: StemMix = { vocals: 1, drums: 1, bass: 1, other: 1 };
@@ -31,7 +31,7 @@ export function StemsPanel({ kind, state, active, disabled, mix, focus, onPrepar
   const pads = [['vocals', 'Vocal'], ['other', 'Instruments'], ['bass', 'Bass'], ['drums', 'Drums']] as const;
   const copyFailure = (): void => {
     const details = JSON.stringify({ app: 'ClassTempo', startupFix: 'bounded-wasm-v2', browser: navigator.userAgent,
-      crossOriginIsolated: globalThis.crossOriginIsolated, ...state.failure }, null, 2);
+      separationFix: SEPARATION_COMPUTE_VERSION, crossOriginIsolated: globalThis.crossOriginIsolated, ...state.failure }, null, 2);
     const manual = (): void => { window.prompt('Copy these stems details', details); };
     if (!navigator.clipboard?.writeText) { manual(); return; }
     void navigator.clipboard.writeText(details).then(() => setCopied(true), manual);

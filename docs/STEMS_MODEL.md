@@ -70,7 +70,38 @@ documents compiler memory pressure with JSEP and successful plain-WASM operation
 JSEP on Apple browsers, but does not prove that was the user's first failure. Failed preparation now offers
 Copy details with the first error, runtime/version and stage, including both causes if a GPU retry also fails.
 No song name, path or media contents are included. Full-song output is allocated after the first real chunk's
-inferences, and temporary source decoder references are dropped before worker startup to reduce initial pressure.
+inferences and finite-mask validation, and temporary source decoder references are dropped before worker startup
+to reduce initial pressure.
+
+## FP32 computation correction (2026-10-24)
+
+The owner's iPad report for a second supplied song showed `invalid audio` in section 1 of 17, with 206.8125 MiB
+of WASM heap. The exact source reproduced this error in the production build on desktop WebKit, both with and
+without cross-origin isolation. Instrumented inference found 53,304 nonfinite estimates in the **bass** output.
+The first failing operation was the third decoder ConvTranspose (`convolution_2`): its output approached the
+FP16 finite limit, 65,504, and contained 101 nonfinite activations. Source PCM and the other three model outputs
+were finite. The old error's `other` stage was misleading because validation ran after all four models.
+
+WASM now uses `fp32-compute-v1`: after the original size/SHA checks, a strict adapter derives a graph that
+casts the 60 stored FP16 weight tensors to FP32 and keeps activations in FP32 through every operator. The
+download, weight bits, licensing, learned values, input gain, stereo channels, 512-frame context and spectral
+pipeline are unchanged. Stereo is a learned two-channel input, not an independent batch that can be split.
+This avoids half-precision overflow; it does not attenuate the song, clamp estimates, or replace NaNs with zeros.
+
+The adapter verifies the exact pinned graph contract, metadata, types, bindings and operator inventory before
+conversion and fails on drift. It uses the protobuf schema shipped inside `onnxruntime-web@1.30.0`, a deliberate
+private dependency that must be rechecked on any runtime upgrade. Derived graph bytes are temporary; cached
+publisher artifacts still retain their original hashes. Parser code stays in the opt-in workers, outside the
+normal app shell and startup precache. The WASM runtime binary and checked 256 MiB reservation cap are unchanged.
+
+Every raw model estimate is now checked immediately, before full-song output allocation. An error names the
+actual part and gives the invalid count/index; WebGPU numeric failure triggers the existing fresh WASM worker
+recovery. Preparation reports record `computeVersion` and `computePrecision`, and Copy details also carries
+`separationFix`, while retaining `startupFix: bounded-wasm-v2` for the separate memory correction.
+
+The model/cache format version deliberately stays stable: previously completed, finite cached stems remain
+usable without re-preparation. A failed nonfinite result was never saved. The new computation applies to new
+preparation; it does not rewrite existing PCM. Removing saved stems explicitly allows regeneration if wanted.
 
 ## Memory, quality and device acceptance
 
@@ -136,6 +167,27 @@ the original complex spectrum is zero, so the inverse remains exactly silent. Ex
 approach an even split; the masks do not synthesize new content or amplify the spectrum.
 
 ## Integrated desktop verification
+
+For the FP32 correction, full-file numerical regressions using the production adapter, spectral code and
+PCM16 codec passed all 68 model runs for the new 171-second song, all 92 for the prior 229-second song, and all
+104 for a stereo 270-second boundary fixture derived from the prior source. Every estimate was finite. Peak
+bounded WASM heap was **143.5 MiB**, with the unchanged 256 MiB reservation cap. Summed-stem residuals were about
+-148 dB before caching and -83.16/-80.28/-80.15 dB respectively after PCM16 storage. These are Mac numerical
+measurements, not physical iPad speed or isolated-stem listening acceptance.
+
+On the failing first chunk, all 4,194,304 output values across the four graphs were bit-identical between the
+production adapter and a comparison graph that directly stored the same FP16-rounded weights as FP32. This
+checks conversion fidelity, not equivalence to the upstream model before its original FP16 weight rounding.
+
+The production browser build also prepared the complete new song in non-isolated desktop WebKit and Chromium
+using the actual pinned models. Both saved the stems and passed All-at-100%, mute, pause/resume and Original
+switching. Chromium reloaded the complete app offline and reused saved stems in 0.85 seconds without inference
+requests. Desktop WebKit's automated offline-navigation attempt returned an internal browser error, so that
+attempt does not establish offline app-start acceptance. A fresh WebKit browser launch reused the saved stems
+in 0.81 seconds without model requests, then played them with networking disabled. Physical iPad confirmation
+remains pending.
+
+The following measurements predate the FP32 correction and preserve the earlier regression baseline:
 
 The bounded plain runtime prepared the owner's supplied 3:49 stereo AAC in 56.9 seconds, using 206.8125 MiB
 of WASM heap throughout 23 sections; its saved result reopened offline in 1.38 seconds. A 270.000000-second

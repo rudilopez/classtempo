@@ -1,13 +1,14 @@
 import type * as Ort from 'onnxruntime-web';
 import {
   MAX_SEPARATION_SECONDS, MAX_SEPARATION_DURATION, SEPARATION_MODEL_BYTES, SEPARATION_MODEL_CACHE, SEPARATION_MODEL_VERSION,
-  SEPARATION_MODELS, SEPARATION_SAMPLE_RATE,
+  SEPARATION_MODELS, SEPARATION_SAMPLE_RATE, SEPARATION_COMPUTE_VERSION,
   type SeparationInput, type SeparationMessage, type SeparationReport, type SeparationRuntime,
 } from './separationModel';
 import {
-  analyzeChunk, addMaskedChunk, CONTEXT_FRAMES, CORE_FRAMES, frameCount, MODEL_BINS, MODEL_FRAMES, ratioMasks,
+  analyzeChunk, addMaskedChunk, assertFiniteEstimate, CONTEXT_FRAMES, CORE_FRAMES, frameCount, MODEL_BINS, MODEL_FRAMES, ratioMasks,
 } from './spectral';
 import { getStemsWasmMemoryStats } from './wasmMemory';
+import { prepareFloat32Model } from './modelPrecision';
 
 type OrtApi = typeof Ort;
 
@@ -20,6 +21,7 @@ export function installSeparationWorker(
   runtime: SeparationRuntime,
 ): void {
   const provider = runtime === 'webgpu-jsep' ? 'webgpu' : 'wasm';
+  const computePrecision = runtime === 'wasm' ? 'float32' : 'float16';
   const runtimeVersion = ort.env.versions.web ?? 'unknown';
   const progress = (stage: string, fraction: number | null = null): void => {
     scope.postMessage({ type: 'progress', stage, fraction } satisfies SeparationMessage);
@@ -67,13 +69,15 @@ export function installSeparationWorker(
     return { bytes, fromCache: !!saved, cached };
   }
 
-  async function infer(bytes: Uint8Array, input: Float32Array, executionProvider: 'webgpu' | 'wasm'): Promise<Float32Array> {
+  async function infer(bytes: Uint8Array, input: Float32Array, executionProvider: 'webgpu' | 'wasm', stem: string): Promise<Float32Array> {
     let session: Ort.InferenceSession | null = null;
     let tensor: Ort.Tensor | null = null;
     let outputs: Ort.InferenceSession.ReturnType | null = null;
     let failed = false;
     try {
-      session = await ort.InferenceSession.create(bytes, {
+      // Preserve the verified FP16 weight storage/download, but prevent FP16 activation overflow on CPU.
+      // Stereo and the complete 512-frame context stay intact; no gain reduction or sample substitution.
+      session = await ort.InferenceSession.create(executionProvider === 'wasm' ? prepareFloat32Model(bytes) : bytes, {
         // One backend preserves the actual first initialization error. Recovery gets a new CPU-only Worker.
         executionProviders: [executionProvider],
         graphOptimizationLevel: 'disabled',
@@ -96,7 +100,9 @@ export function installSeparationWorker(
       if (!output || output.type !== 'float32' || output.dims.join(',') !== `2,1,${MODEL_FRAMES},${MODEL_BINS}`) {
         throw new Error('The stems engine returned an unexpected output shape.');
       }
-      return new Float32Array(output.data as Float32Array);
+      const estimate = new Float32Array(output.data as Float32Array);
+      assertFiniteEstimate(estimate, stem);
+      return estimate;
     } catch (error) {
       failed = true;
       throw error;
@@ -158,15 +164,15 @@ export function installSeparationWorker(
         progress(`Separating ${SEPARATION_MODELS[stem]!.name} · section ${index + 1} of ${chunks}…`, (index + stem / 4) / chunks);
         let estimate: Float32Array;
         try {
-          estimate = await infer(bytes, chunk.magnitudes, provider);
+          estimate = await infer(bytes, chunk.magnitudes, provider, SEPARATION_MODELS[stem]!.name);
         } catch (error) {
           if (provider === 'wasm') throw error;
           throw new RetryWasmError(error instanceof Error ? error.message : String(error));
         }
         estimates.push(estimate);
       }
-      stems ??= Array.from({ length: 8 }, () => new Float32Array(total));
       ratioMasks(estimates);
+      stems ??= Array.from({ length: 8 }, () => new Float32Array(total));
       const coreEnd = CONTEXT_FRAMES + Math.min(CORE_FRAMES, frames - coreFirst);
       for (let stem = 0; stem < 4; stem++) {
         addMaskedChunk(chunk, estimates[stem]!, [stems[stem * 2]!, stems[stem * 2 + 1]!], CONTEXT_FRAMES, coreEnd);
@@ -174,6 +180,7 @@ export function installSeparationWorker(
     }
     if (!stems) throw new Error('This song has no audio sections to separate.');
     const report: SeparationReport = {
+      computeVersion: SEPARATION_COMPUTE_VERSION, computePrecision,
       modelVersion: SEPARATION_MODEL_VERSION, modelBytes: SEPARATION_MODEL_BYTES,
       modelFromCache, modelCached,
       provider, runtime, runtimeVersion,
@@ -203,6 +210,7 @@ export function installSeparationWorker(
         } satisfies SeparationMessage, [...new Set(event.data.channels.map((channel) => channel.buffer as ArrayBuffer))]);
       } else {
         scope.postMessage({ type: 'error', message, runtime, runtimeVersion,
+          computeVersion: SEPARATION_COMPUTE_VERSION, computePrecision,
           ...(runtime === 'wasm' ? getStemsWasmMemoryStats() : {}) } satisfies SeparationMessage);
       }
     }).finally(() => { scope.close(); });

@@ -130,3 +130,14 @@ Beta is removed. Broader iPhone/iPad memory stability, isolated-stem and changed
 Bluetooth and lock-screen playback remain separate checks. The original roughly
 two-minute target for separating a four-minute iPhone song remains the goal, not a measured guarantee.
 No automatic model download, song upload or server fallback is enabled.
+
+### Numerical preparation correction (2026-10-24)
+
+The owner's iPad failed on the first section of a second supplied song. The exact file reproduced the failure
+in desktop WebKit without cross-origin isolation: bass-model FP16 activations overflowed, although the old
+late validation incorrectly named the final `other` stage. The WASM path now computes in FP32 using unchanged
+verified FP16 weights, with immediate per-model finite checks and the same 256 MiB reservation cap. GPU numeric
+failures also retry in a fresh corrected CPU worker. Existing finite saved stems and the accepted unity-tempo
+playback path remain unchanged. Full-file and 4:30 numerical regressions are recorded in
+[STEMS_MODEL.md](STEMS_MODEL.md). Physical iPad preparation/listening acceptance for this correction is pending;
+the earlier iPhone confirmation covers its original song, not this newly supplied file.

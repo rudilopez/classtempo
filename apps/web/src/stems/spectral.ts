@@ -89,6 +89,20 @@ export function analyzeChunk(channels: [Float32Array, Float32Array], firstFrame:
   return chunk;
 }
 
+/** Reject a failed graph before allocating full-song output or hiding the stem behind a later progress label. */
+export function assertFiniteEstimate(estimate: Float32Array, stem: string): void {
+  let invalidCount = 0;
+  let firstInvalid = -1;
+  for (let i = 0; i < estimate.length; i++) {
+    if (Number.isFinite(estimate[i])) continue;
+    invalidCount++;
+    if (firstInvalid < 0) firstInvalid = i;
+  }
+  if (invalidCount) {
+    throw new Error(`The ${stem} separation model returned invalid audio: ${invalidCount} non-finite estimates; first index ${firstInvalid}.`);
+  }
+}
+
 /** Convert estimates to complementary masks in place; every frequency sums to one. */
 export function ratioMasks(estimates: Float32Array[]): void {
   if (estimates.length !== 4 || estimates.some((stem) => stem.length !== estimates[0]!.length)) {
