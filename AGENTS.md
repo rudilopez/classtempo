@@ -83,6 +83,8 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Ordinary song/video playback has no duration cap. The owner confirmed preparation of the supplied song and
   clear All-at-100% playback on the physical iPhone on 2026-10-23; Beta has been removed for this release.
   The pinned plain ORT bundle has a checked 256 MiB WASM cap; preserve its hash/version and build guards.
+  WASM uses FP32 activations with unchanged verified FP16 stored weights; preserve the checked model adapter
+  and per-stem finite-output validation. Never hide numeric failure by zeroing/clamping invalid estimates.
   Preserve the opt-in stem unity-playback adapter and test sample timing, queued transport changes and tempo
   transitions when changing it. Existing prepared stems must not need regeneration for playback-only fixes.
   Selecting the Stems pill never downloads models; Prepare explicitly downloads the pinned, hash-verified engine.

@@ -1,4 +1,4 @@
-/** The pinned Spleeter graph uses about 207 MiB; avoid reserving ORT's default 4 GiB on iOS. */
+/** Bound ORT's reservation on iOS. FP32 computation with FP16-stored weights measures about 144 MiB. */
 export const STEMS_WASM_MAX_MIB = 256;
 export const STEMS_WASM_MAX_BYTES = STEMS_WASM_MAX_MIB * 1024 * 1024;
 export const STEMS_ORT_VERSION = '1.30.0';
