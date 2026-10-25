@@ -87,7 +87,10 @@ The owner confirmed the supplied 1080p derivative plays on the iPhone on 2026-10
 The intended users primarily obtain music from Apple Music or Spotify. The current file player therefore does
 not yet satisfy that source workflow. Apple Music is a feasibility project, not an enabled feature. The owner
 has enrolled in the Apple Developer Program; the MusicKit media identifier/key and developer token remain
-needed for authenticated testing. Follow [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
+needed for authenticated testing. As of 2026-10-25, the signed-in Apple account still says Pending and denies
+identifier/key access. A separate `#apple-music` connection test and secure deployment signer are prepared;
+the Library link stays hidden until credentials are configured. Follow
+[APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 Once credentials and a suitable test account are available, prove playback, pitch-preserving speed, seeking,
 sections, lock-screen behavior and phone output on the actual target platform. Decide from that evidence whether

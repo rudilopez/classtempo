@@ -1,8 +1,8 @@
 # AGENTS.md — working on ClassTempo
 
 ClassTempo is the working name for a **phone- and iPad-first dance teaching player**, installed as a PWA.
-One song or video plays at a time. The former DJ/mixing roadmap is retired. The repository/package names and
-live URL remain `mixdeck`: https://rudilopez.github.io/mixdeck/.
+One song or video plays at a time. The former DJ/mixing roadmap is retired. The repository and live URL are
+now `classtempo`: https://rudilopez.github.io/classtempo/. Existing package names/storage keys retain `mixdeck`.
 
 Read README.md, docs/BUILD_PLAN.md and docs/ARCHITECTURE.md for current behavior. docs/HANDOFF.md and
 its linked reports preserve historical requests and acceptance evidence; historical DJ tasks are not current scope.
@@ -77,8 +77,12 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Named practices retain independent playback snapshots. End practice cancels timers, pauses at the current
   position and disables the active delay/mode without deleting presets; returning to Play must not revive a pass.
   Dialogs contain focus, restore background inert state and prevent global player shortcuts while open.
-- Apple Music/Spotify are not integrated. Do not add a fake connection button or promise streaming feature parity.
-  Apple Music feasibility awaits MusicKit credentials (the owner has enrolled in the Developer Program).
+- Apple Music has an isolated `#apple-music` connection test; the Library entry is enabled only in a configured
+  build. It is not part of the class player and has no authenticated/device acceptance yet. The owner's Apple
+  Developer account still shows Pending (2026-10-25); credentials cannot be created until Apple activates it.
+  Keep signing keys in deployment secrets, public configuration network-only, and sign-in/Play gesture-driven.
+  Never promise streaming tempo, phrase repetition, stems or offline parity without actual device evidence.
+  Spotify is not integrated. See docs/APPLE_MUSIC_SETUP.md and docs/APPLE_MUSIC_FEASIBILITY.md.
 - Stems uses opt-in local Spleeter separation for audio files only, with a 4:30/100 MB preparation limit.
   Ordinary song/video playback has no duration cap. The owner confirmed preparation of the supplied song and
   clear All-at-100% playback on the physical iPhone on 2026-10-23; Beta has been removed for this release.

@@ -1,20 +1,44 @@
 # Apple Music feasibility — ClassTempo
 
-Status, 2026-10-23: **not enabled or verified**. The owner has enrolled in the Apple Developer Program.
-MusicKit media identifier/key and developer token setup remain pending.
-ClassTempo currently plays imported local songs and videos. No streaming button or subscription promise is exposed.
+Status, 2026-10-25: **connection-test implementation prepared; authenticated playback not verified**.
+The owner reports payment/enrollment, but the signed-in Developer website still labels membership Pending and
+denies Certificates, Identifiers & Profiles access. MusicKit media identifier/key and token setup remain blocked
+on Apple account activation. Do not purchase another membership to work around this state.
+ClassTempo's teaching player continues to use imported local songs and videos.
 
 ## What is established
 
 - Apple documents authorized catalog/library playback in apps and websites through [MusicKit](https://developer.apple.com/musickit/).
 - Apple's native MusicKit provides a [playbackRate property](https://developer.apple.com/documentation/musickit/musicplayer/state-swift.class/playbackrate).
+- MusicKit Web v3 also documents writable `playbackRate`, forwarded to the browser media element, and
+  `seekToTime(seconds)`. This establishes an API surface, not preserved pitch or reliable iPhone repetition.
+  See the [web instance reference](https://js-cdn.music.apple.com/musickit/v3/docs/index.html?path=/story/reference-javascript-musickit-instance--page).
 - The native iPhone app [Grooves](https://apps.apple.com/us/app/grooves-song-speed-changer/id592398757) advertises Apple Music tempo changes with pitch preserved and section repetition. This is evidence of a native path, not proof of equivalent behavior in Safari or this PWA.
 - The current local audio engine receives decoded file samples. Streaming playback must use its authorized provider player; do not assume stream access to decoded samples, waveform/BPM analysis, stems, or provider downloads.
 
 ## Prerequisite
 
 Set up the owner's Apple Developer account, enable the appropriate MusicKit identifier/key, and create a developer token according to [Apple's instructions](https://developer.apple.com/documentation/applemusicapi/generating-developer-tokens).
-Never commit the signing private key or a user's music token. Keep signing material in a secure service or deployment secret. A developer token's lifecycle and allowed web origin need a deliberate deployment setup; this repository remains a static Pages site today.
+Never commit the signing private key or a user's music token. The prepared build signer uses repository secrets,
+30-day ES256 developer tokens restricted to `https://rudilopez.github.io`, and a weekly Pages refresh. Public
+configuration bypasses the service worker cache. See [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md).
+
+## Prepared connection screen
+
+`#apple-music` loads in a fresh document so the local engine and provider player cannot overlap. A configured
+build exposes **Library → Apple Music · Connection test**. Without credentials, that entry is absent and the
+direct route explains the missing setup. Apple's SDK loads only inside this route after valid config arrives.
+Connect invokes `authorize()` directly in a tap; cancellation is not treated as authorization. Catalog search,
+library songs, playlists and playlist tracks are read-only and limited visibly to their first 25 items. Selecting
+a song queues it paused; Play is a second explicit gesture. No local file identity, practice or class record is
+created for the stream. Disconnect clears visible account lists; stale requests cannot restore them.
+
+Play/Pause, Restart and seeking use MusicKit directly. A collapsed test panel requests 75%, 100% or 110% and
+can compare source-time progress with ten seconds of wall time. It explicitly requires listening for pitch and
+clarity. Timings do not establish audible quality, full-track entitlement or a physical-iPhone pass. Phrase
+repetition, native speaker routing and integration into local class sets are not implemented in this spike.
+Expired config stops the test and requires reloading fresh configuration. Raw SDK failures and tokens are not
+copied into UI diagnostics. A cancelled/stuck account attempt can be abandoned by reloading the connection.
 
 ## Bounded iPhone spike
 
@@ -38,4 +62,6 @@ Technical playback and permitted classroom use are separate checks. [Apple's con
 
 ## Remaining evidence
 
-There is no authenticated MusicKit run, physical-iPhone streaming result, or streaming deployment in this release. The setup and device test remain an external prerequisite; local class tools can ship independently.
+There is no authenticated MusicKit run or physical-iPhone streaming result. Unit checks and a simulated-SDK
+browser flow verify plumbing only. Account activation, credentials and the device test remain external
+prerequisites; local class tools can ship independently.

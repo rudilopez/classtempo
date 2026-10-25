@@ -391,6 +391,9 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
           </div>
         </div>
         <footer className="library-help">
+          {import.meta.env.VITE_APPLE_MUSIC_ENABLED === 'true' && <a href={`${import.meta.env.BASE_URL}#apple-music`}>
+            <span>Apple Music · Connection test</span><span aria-hidden="true">↗</span>
+          </a>}
           <a href={`${import.meta.env.BASE_URL}guide.html`} target="_blank" rel="noopener noreferrer" aria-label="ClassTempo User guide (opens in a new tab)">
             <span>User guide</span><span aria-hidden="true">↗</span>
           </a>

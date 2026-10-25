@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    # Refresh the 30-day Apple Music developer token weekly (Monday, 07:23 UTC).
+    - cron: '23 7 * * 1'
 
 permissions:
   contents: read
@@ -26,7 +29,22 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - name: Generate Apple Music public configuration
+        id: apple-music
+        run: |
+          node scripts/apple-music-token.mjs
+          if test -f apps/web/public/apple-music-config.json; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          APPLE_MUSIC_TEAM_ID: ${{ secrets.APPLE_MUSIC_TEAM_ID }}
+          APPLE_MUSIC_KEY_ID: ${{ secrets.APPLE_MUSIC_KEY_ID }}
+          APPLE_MUSIC_PRIVATE_KEY: ${{ secrets.APPLE_MUSIC_PRIVATE_KEY }}
       - run: npm run build
+        env:
+          VITE_APPLE_MUSIC_ENABLED: ${{ steps.apple-music.outputs.enabled }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
