@@ -5,3 +5,6 @@ dist/
 .vite/
 .claude/
 test-media/
+.env*
+*.p8
+/apps/web/public/apple-music-config.json

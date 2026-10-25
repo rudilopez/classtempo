@@ -1,8 +1,26 @@
 # ClassTempo architecture
 
 ClassTempo is a static React/TypeScript PWA for one-track dance instruction. Vite builds `apps/web/dist`,
-including a generated service worker. GitHub Pages serves the app under `/mixdeck/`; relative asset paths keep
+including a generated service worker. GitHub Pages serves the app under `/classtempo/`; relative asset paths keep
 it portable to other static hosts. No account, media upload or application server is involved in current playback.
+
+## Optional Apple Music connection test
+
+`#apple-music` is a separate lazy screen. Switching between it, the stems benchmark and the local player reloads
+the document, releasing the previous playback engine. Normal player startup does not load MusicKit. The
+connection screen fetches public `apple-music-config.json` with no cache; the service worker neither precaches
+nor intercepts that endpoint. The Library link requires the configured build flag. No credentials means no link.
+
+The deployment runner signs an origin-restricted, 30-day developer JWT using Node crypto and three repository
+secrets. The private key never enters Vite environment variables or assets. A weekly deployment refreshes the
+token; stale/expired setup is reported, never silently treated as available. MusicKit owns user authorization and
+protected media playback. The test's read-only lists are first-page/25-item views. Songs queue paused and start
+only from a tap; SDK events/progress drive the display. Generation guards discard stale account/list results,
+and SDK configure/queue operations cannot overlap retries while their underlying promises remain pending.
+No provider samples enter the local engine, stems, IndexedDB media store, class plans or backup format.
+
+Account activation and authenticated iPhone tests remain outstanding. See
+[APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 ## Application and playback
 

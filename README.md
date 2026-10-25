@@ -2,8 +2,8 @@
 
 ClassTempo is the working name for a **phone-first dance teaching player**. Load one song or video, find the
 right phrase, adjust its speed, and repeat an exercise. It runs as an installable web app on iPhone, iPad and
-Android, with desktop browsers supported for preparation. The GitHub repository and hosting path retain the
-original `mixdeck` name.
+Android, with desktop browsers supported for preparation. The GitHub repository and hosting path are now
+`classtempo`; existing package names and storage keys retain `mixdeck` for compatibility.
 
 **App:** https://rudilopez.github.io/classtempo/
 
@@ -77,12 +77,16 @@ The current player uses **local audio and video files**, including files selecte
 system file picker. MP3, M4A/AAC, WAV, AIFF and browser-supported video formats are accepted; FLAC, OGG and other
 formats depend on the browser's decoder. A file may need to finish downloading from its provider first.
 
-**Apple Music and Spotify are not integrated.** Subscription downloads are not ordinary media files that this
-player can import. Apple Music feasibility is a separate step, currently awaiting the developer credentials
-needed to test authenticated MusicKit playback. See [the feasibility plan](docs/APPLE_MUSIC_FEASIBILITY.md).
-No streaming playback, streaming tempo control, or classroom-use permission is implied by this release.
+**The class player uses local files.** Subscription downloads are not ordinary media files that it can import.
+An isolated Apple Music connection test is prepared at `#apple-music`: explicit sign-in, catalog search, the
+first 25 library songs/playlists/tracks, one song queued paused, Play/Pause, seeking and optional speed checks.
+The Library entry appears only when deployment has MusicKit credentials. Apple account activation, credentials,
+authenticated playback and physical-iPhone acceptance are still pending. See the
+[setup instructions](docs/APPLE_MUSIC_SETUP.md) and [feasibility plan](docs/APPLE_MUSIC_FEASIBILITY.md).
+The test does not add streams to classes, prepare stems or save songs offline. Spotify is not integrated.
 
-Media and settings stay on this device; there is no account, upload service or cloud sync. The supplied white
+Local media and settings stay on this device; there is no local-media upload service or cloud sync. The optional
+Apple Music test uses Apple's SDK, authorization and network services; it does not upload imported media. The supplied white
 logo forms the O in Now Playing and the final o in the larger ClassTempo wordmark. The former DJ interface and synthetic Demo have been removed from the product.
 
 ## Saved files, backups and offline use

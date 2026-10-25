@@ -13,7 +13,8 @@
     "preview": "npm run preview -w apps/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
-    "icons": "node scripts/gen-icons.mjs"
+    "icons": "node scripts/gen-icons.mjs",
+    "apple-music:config": "node scripts/apple-music-token.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

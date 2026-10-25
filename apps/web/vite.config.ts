@@ -56,8 +56,8 @@ function mixdeckServiceWorker(): Plugin {
       // when requested, so reading help never adds image downloads to ordinary player startup.
       const precache = [...files.keys()].filter((path) =>
         !path.split('/').some((part) => part.startsWith('.')) &&
-        !path.startsWith('guide/images/') &&
-        !/(?:StemsBenchmark|stems\.worker|separate(?:-wasm)?\.worker|ort-wasm|stems-runtime)/i.test(path),
+        !path.startsWith('guide/images/') && path !== 'apple-music-config.json' &&
+        !/(?:AppleMusic|StemsBenchmark|stems\.worker|separate(?:-wasm)?\.worker|ort-wasm|stems-runtime)/i.test(path),
       ).sort();
       // A screenshot-only edit still needs a new cache; otherwise its lazily cached old copy would persist.
       const versionFiles = [...precache, ...[...files.keys()].filter((path) => path.startsWith('guide/images/'))].sort();
@@ -160,6 +160,8 @@ self.addEventListener('fetch', (event) => {
   // Never touch blob:, data: or other non-HTTP schemes (decoded songs, worklet blobs), other origins or other apps on this origin.
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
   if (url.origin !== self.location.origin || !url.href.startsWith(BASE)) return;
+  // Developer tokens expire and must never be served from a previous app cache.
+  if (url.href.split('?')[0] === new URL('apple-music-config.json', BASE).href) return;
   // Media range requests go straight to the network; a cached full 200 would break them.
   if (request.headers.has('range')) return;
   event.respondWith(request.mode === 'navigate' ? networkFirstNavigate(request) : cacheFirst(request));
