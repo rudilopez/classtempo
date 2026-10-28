@@ -1,9 +1,12 @@
 # Apple Music feasibility — ClassTempo
 
-Status, 2026-10-25: **connection-test implementation prepared; authenticated playback not verified**.
-The owner reports payment/enrollment, but the signed-in Developer website still labels membership Pending and
-denies Certificates, Identifiers & Profiles access. MusicKit media identifier/key and token setup remain blocked
-on Apple account activation. Do not purchase another membership to work around this state.
+Status, 2026-10-28: **developer account active and signing credentials configured; authenticated playback not verified**.
+The signed-in Developer website confirmed active membership. The MusicKit-only Media ID
+`media.io.github.rudilopez.classtempo` and an associated Media Services key were created. All three signing
+credentials are stored as GitHub Actions repository secrets. The configured Pages deployment succeeded;
+Apple's catalog API accepted the developer token, and the production Library link opened the connection
+screen and Apple's sign-in window in Chrome. Listener authorization and full-track playback still require
+separate verification; no authenticated desktop or physical-iPhone result is established.
 ClassTempo's teaching player continues to use imported local songs and videos.
 
 ## What is established
@@ -16,10 +19,11 @@ ClassTempo's teaching player continues to use imported local songs and videos.
 - The native iPhone app [Grooves](https://apps.apple.com/us/app/grooves-song-speed-changer/id592398757) advertises Apple Music tempo changes with pitch preserved and section repetition. This is evidence of a native path, not proof of equivalent behavior in Safari or this PWA.
 - The current local audio engine receives decoded file samples. Streaming playback must use its authorized provider player; do not assume stream access to decoded samples, waveform/BPM analysis, stems, or provider downloads.
 
-## Prerequisite
+## Account and credentials
 
-Set up the owner's Apple Developer account, enable the appropriate MusicKit identifier/key, and create a developer token according to [Apple's instructions](https://developer.apple.com/documentation/applemusicapi/generating-developer-tokens).
-Never commit the signing private key or a user's music token. The prepared build signer uses repository secrets,
+The Apple account, MusicKit identifier/key and repository secrets are configured as of 2026-10-28.
+The deployment signer creates the developer token according to [Apple's instructions](https://developer.apple.com/documentation/applemusicapi/generating-developer-tokens).
+Never commit the signing private key or a user's music token. The build signer uses repository secrets,
 30-day ES256 developer tokens restricted to `https://rudilopez.github.io`, and a weekly Pages refresh. Public
 configuration bypasses the service worker cache. See [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md).
 
@@ -42,7 +46,7 @@ copied into UI diagnostics. A cancelled/stuck account attempt can be abandoned b
 
 ## Bounded iPhone spike
 
-Use MusicKit on the Web v3 in an isolated diagnostic screen, with explicit user authorization, once the prerequisite exists. Do not place experimental controls in the teaching player.
+Use MusicKit on the Web v3 in an isolated diagnostic screen, with explicit user authorization, after verifying the configured deployment. Do not place experimental controls in the teaching player.
 
 1. Sign in, search the catalog and read the user's library/playlist without changing it.
 2. Play a full subscribed track from a tap over the instructor's actual Bluetooth/AirPlay speaker connection. Record iOS version, browser versus installed PWA, SDK version, account/subscription status, and connection.
@@ -62,6 +66,14 @@ Technical playback and permitted classroom use are separate checks. [Apple's con
 
 ## Remaining evidence
 
-There is no authenticated MusicKit run or physical-iPhone streaming result. Unit checks and a simulated-SDK
-browser flow verify plumbing only. Account activation, credentials and the device test remain external
-prerequisites; local class tools can ship independently.
+Activation evidence on 2026-10-28:
+
+- [Configured Pages deployment](https://github.com/rudilopez/classtempo/actions/runs/40712530896) succeeded.
+- The public configuration returned HTTP 200 with a 30-day token restricted to the production origin.
+- Apple's catalog search returned HTTP 200 and a song using that developer token, without a user token.
+- Production Chrome: Library entry visible, SDK initialized, Connect opened Apple's sign-in page.
+- Typecheck, all 349 tests and build passed.
+
+There is no authenticated desktop MusicKit run or physical-iPhone streaming result. Listener authorization,
+full-track playback and the device tests still need verification. Catalog access does not establish a
+subscriber's playback entitlement. Local class tools remain independent.

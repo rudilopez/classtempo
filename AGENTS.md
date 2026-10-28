@@ -78,8 +78,9 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   position and disables the active delay/mode without deleting presets; returning to Play must not revive a pass.
   Dialogs contain focus, restore background inert state and prevent global player shortcuts while open.
 - Apple Music has an isolated `#apple-music` connection test; the Library entry is enabled only in a configured
-  build. It is not part of the class player and has no authenticated/device acceptance yet. The owner's Apple
-  Developer account still shows Pending (2026-10-25); credentials cannot be created until Apple activates it.
+  build. It is not part of the class player and has no authenticated desktop or physical-iPhone acceptance yet.
+  Apple Developer membership was verified active on 2026-10-28. The ClassTempo MusicKit Media ID and key were
+  created, and all three signing credentials were stored as GitHub Actions repository secrets.
   Keep signing keys in deployment secrets, public configuration network-only, and sign-in/Play gesture-driven.
   Never promise streaming tempo, phrase repetition, stems or offline parity without actual device evidence.
   Spotify is not integrated. See docs/APPLE_MUSIC_SETUP.md and docs/APPLE_MUSIC_FEASIBILITY.md.
