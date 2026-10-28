@@ -1,6 +1,6 @@
 # Apple Music feasibility — ClassTempo
 
-Status, 2026-10-28: **Mac tempo listening accepted; iPhone 75% listening failed with warbling. Other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain unverified**.
+Status, 2026-10-28: **Mac tempo listening accepted; physical-iPhone 75% listening accepted in a clean Apple Music session with Local audio engine: Not started. An earlier iPhone capture with the local context running failed. Other iPhone rates/songs, iPad/Android listening and uninterrupted full-track completion remain unverified**.
 The signed-in Developer website confirmed active membership. The MusicKit-only Media ID
 `media.io.github.rudilopez.classtempo` and an associated Media Services key were created. All three signing
 credentials are stored as GitHub Actions repository secrets. The configured Pages deployment succeeded;
@@ -9,9 +9,11 @@ catalog/library browsing, paused selection, Play/Pause, seeking and return-to-lo
 audio at 100%, with playback observed beyond the preview range. Slower playback warbled and faster playback
 changed pitch in the earlier experiment. After the slider and presets returned, the owner confirmed on
 2026-10-28 that all tempos sounded great on Mac. **Playback info** retains read-only diagnostics. Songs still
-open paused at 100%. The subsequent iPhone check failed at 75% despite correct rate readings and enabled
-pitch preservation. Other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain
-unverified. Detailed evidence is recorded below.
+open paused at 100%. Subsequent iPhone checks failed at 75%, including one with the full track buffered and
+a 256 kbps target while the local context was running. In a clean Apple Music session with Local audio engine
+**Not started**, the owner tested the requested iPhone 75% passage and reported **“Sounds great now.”**
+This accepts that clean-session listening check, not other rates, songs, iPad/Android listening or uninterrupted
+full-track completion. Detailed chronological evidence is recorded below.
 The owner then approved bringing normal-speed streaming into the familiar ClassTempo player first, with clean
 tempo investigation next. Imported files keep their existing engine and full local teaching features.
 
@@ -204,7 +206,7 @@ rates, iPad/Android listening and uninterrupted full-track completion remain unv
 [APPLE_MUSIC_TEMPO_TRIAL.md](APPLE_MUSIC_TEMPO_TRIAL.md) for primary sources, the iPhone Safari/Home Screen
 and Android Chrome checks, and the transport behavior that must remain intact. No native app is planned.
 
-Next candidate, 2026-10-28: request the public HIGH / 256 kbps preference before loading each new song and
+Earlier candidate, 2026-10-28: request the public HIGH / 256 kbps preference before loading each new song and
 compare the failed 75% passage with sufficient browser-reported data already buffered. The inspected official
 SDK defaults to STANDARD / 64 kbps unless a bitrate is supplied or its network-information calculation changes
 that target; ClassTempo previously omitted the preference. This is a plausible source-quality difference,
@@ -215,22 +217,27 @@ phone procedure and SDK snapshot evidence are in [APPLE_MUSIC_TEMPO_TRIAL.md](AP
 The candidate records the independent local AudioContext state without changing its lifecycle. A full reload
 directly at `#apple-music` leaves the local engine uncreated; opening Apple Music after visiting the local
 player retains it. Compare these paths separately without assuming any shared Safari buffer was removed.
-The owner's iPhone 75% failure remains unresolved pending listening; the accepted Mac experience is preserved
-as a separate baseline. This investigation stays in the web player without protected-sample access, a native
+At this stage the iPhone 75% failure remained unresolved; the subsequent clean-session listening pass is
+recorded below, with the accepted Mac experience preserved as a separate baseline. This investigation stays
+in the web player without protected-sample access, a native
 rewrite or substituting local files for the requested streaming workflow.
 
-## Follow-up: full-buffer failure and pending engine isolation — 2026-10-28
+## Follow-up: full-buffer failure, then clean-session acceptance — 2026-10-28
 
 The owner reported “Still warbles” after the HIGH/256 kbps candidate. The subsequent physical-iPhone
 `web-tempo-v2` report confirms a 256 kbps target, requested/SDK/native rate 0.75, `preservesPitch: true`,
 `readyState: 4`, `networkState: 1`, position 7.0567 s, duration 245.317 s and 238.2605 s buffered ahead
 through the track end. It also reports the local AudioContext created and running at 48000 Hz. Thus
-waiting for the whole song is not a solution for this captured failure, but a clean page without the
-local engine remains untested. The exact song/version and output route were not supplied; do not
+waiting for the whole song is not a solution for this captured failure; a clean page without the
+local engine had not yet been tested. The exact song/version and output route were not supplied; do not
 assume the prior 229-second Mac track.
 
 Playback info now offers **Restart Apple Music cleanly** when a local context exists. It explicitly reloads
 the document, restores selected-song metadata via a five-minute one-shot session handoff, and reopens
-the song paused at 100% with its saved cues. Confirm **Local audio engine: Not started**, then explicitly
-Play and compare 75% before attributing the failure solely to Safari's algorithm. This is a reproducible
-isolation action, not an accepted audio fix. See APPLE_MUSIC_TEMPO_TRIAL.md for the exact evidence.
+the song paused at 100% with its saved cues. The owner then confirmed the UI showed **Local audio engine:
+Not started**, tested the requested physical-iPhone 75% passage, and reported **“Sounds great now.”** This is
+listening acceptance for that clean-session path. It does not establish a precise internal cause, all songs or
+rates, other devices, uninterrupted completion, or an identical song/version comparison with the Mac test.
+Ordinary local-to-Apple navigation still retains the context, so the clean restart remains explicit.
+Preserve both the earlier failure and the new pass. See [APPLE_MUSIC_TEMPO_TRIAL.md](APPLE_MUSIC_TEMPO_TRIAL.md)
+for exact evidence and the repeatable clean-session procedure.

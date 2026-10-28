@@ -109,7 +109,11 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   created/running at 48000 Hz. One ratechange appeared near position 0.98, with no waiting event after startup.
   No timing result, track title or output route was supplied; this duration differs from the earlier 229-second
   Mac track, so do not claim an identical song/version comparison. Waiting for the full song is not a solution
-  for that capture, and the higher-bitrate candidate did not pass listening. Local-engine isolation remains untested.
+  for that capture, and the higher-bitrate candidate alone did not pass listening. In a clean Apple Music session with
+  Local audio engine showing Not started, the owner tested the requested 75% iPhone passage and reported
+  "Sounds great now." This accepts that physical-iPhone 75% clean-session listening result, not every song,
+  rate, browser or output route. It does not prove the internal Safari cause. Preserve it and the Mac pass
+  as separate baselines; ordinary local-to-Apple navigation still retains the local context.
   Other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain unverified.
   Keep phone layout repairs separate from audio-quality claims; public MusicKit exposes a stream-bitrate target, but no pitch-correction algorithm selector.
   Apple Developer membership was verified active on 2026-10-28. The ClassTempo MusicKit Media ID and key were
@@ -119,17 +123,21 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   The owner explicitly requires a web app across phones, not a native rewrite. Apple Music shows the shared
   50–150% slider, ±1% nudges and 50/75/90/100/110% presets without a special URL. The Playback info button
   opens read-only pitch/rate/timing/buffer diagnostics, requested stream bitrate and local-context state.
-  Playback info also offers Restart Apple Music cleanly for the remaining isolation check: preserve selected
+  Playback info also offers the explicit Restart Apple Music cleanly action: preserve selected
   track metadata only in single-use sessionStorage with a five-minute lifetime, fully reload #apple-music,
   and reopen the selected song paused at 100%, using its existing saved cue identity. Never store credentials
-  or protected audio in that handoff. The button does not prove an audio fix: confirm local engine Not started
-  after restart, then explicitly Play and compare 75% on the physical iPhone. Do not resume music automatically.
+  or protected audio in that handoff. Keep the accepted clean-session path reproducible: confirm local engine
+  Not started after restart, then explicitly Play. Do not resume music automatically or silently replace
+  ordinary source navigation with a reload. The button alone is not listening evidence for other devices/rates.
   New configurations request HIGH (256 kbps) before loading songs; this is a source-quality target, not a
   verified delivered bitrate or a clean-tempo fix. MusicKit controls buffering; do not gate tempo on a full
   download or promise offline availability. Use only public MusicKit rate controls. Initialize and open
   new songs paused at 100%; Play/seek preserve the requested rate. Selecting 100% resets speed without
   changing playback state or a prepared cue offset. Browser timing and pitch flags do not prove clean sound.
   Keep Back 10s and Talk available. See docs/APPLE_MUSIC_TEMPO_TRIAL.md.
+  Keep the shared Cues / Stems switch visible for Apple Music: Cues selected, Stems greyed out and disabled
+  with the persistent Local audio only label. Stems remains available for supported imported audio files;
+  do not imply that subscription streams support separation or change local-player controls.
   Spotify is not integrated. See docs/APPLE_MUSIC_SETUP.md and docs/APPLE_MUSIC_FEASIBILITY.md.
 - Stems uses opt-in local Spleeter separation for audio files only, with a 4:30/100 MB preparation limit.
   Ordinary song/video playback has no duration cap. The owner confirmed preparation of the supplied song and

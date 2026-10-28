@@ -101,9 +101,13 @@ clear audio at 100%, and playback beyond the preview range was observed. Slower 
 playback changed pitch. Original-speed streaming shipped first. The owner then requested the slider and
 presets in the ordinary player. After their restoration, the owner confirmed all tempos sounded great on Mac
 on 2026-10-28. Playback info retains read-only diagnostics. Local files retain their independent engine, named
-practices, class plans and stems. The subsequent iPhone check failed at 75%: warbling remained despite correct
-rate readings and enabled pitch preservation. Other iPhone rates, iPad/Android listening and uninterrupted
-full-track completion remain unverified. Layout fixes do not resolve this audio-quality failure. Follow
+practices, class plans and stems. The subsequent iPhone checks failed at 75%, including a full-buffer capture
+at a 256 kbps target with the local AudioContext running. In the clean Apple Music session with Local audio
+engine **Not started**, the owner tested the requested iPhone 75% passage and reported **“Sounds great now.”**
+Preserve this bounded physical-phone listening pass and the Mac pass separately. Other iPhone rates/songs,
+iPad/Android listening and uninterrupted full-track completion remain unverified. The layout repair did not
+establish audio quality. Ordinary local-to-Apple navigation still retains the local context; the clean restart
+remains an explicit Playback info action. Follow
 [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 Verify source switching, direct file Open, the Apple Music picker, shared Stage, cues and asynchronous seek
@@ -111,8 +115,8 @@ cancellation in the new interface, then verify uninterrupted original-speed play
 phone output on the actual target platform. The owner clarified that ClassTempo must remain web-based across
 phones; native app work is outside the intended solution. The visible
 [web tempo listening controls](APPLE_MUSIC_TEMPO_TRIAL.md) compare supported browser playback paths without
-a special URL. Mac listening acceptance does not establish phone quality; timing and listening checks remain
-required on the target devices. Streaming phrase-control support is not implemented. Do not equate MusicKit playback support with access
+a special URL. Mac acceptance and the physical-iPhone 75% clean-session pass do not establish all other
+rates, tracks or devices; extend acceptance with actual listening. Streaming phrase-control support is not implemented. Do not equate MusicKit playback support with access
 to raw audio or parity with local-file processing. Spotify is not a promised integration. Platform terms and
 permitted classroom music use are independent of whether a technical integration plays a song.
 
