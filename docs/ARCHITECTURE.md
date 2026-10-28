@@ -338,10 +338,24 @@ file reloads and a separately recorded physical-device result. Passing typecheck
 
 ## Spotify source
 
-`#spotify` lazy-loads an independent provider adapter. The lightweight PKCE callback detector participates in
-initial routing before `localVisited`, so a Spotify authorization return does not mount the local audio engine.
+Spotify discovery is opt-in per browser. The exact unlisted `#spotify-invite` route writes a nonsecret,
+versioned tester-visibility flag, preferring localStorage with sessionStorage/document-memory fallbacks, and
+replaces the invite hash with `#spotify`. Ordinary local/Apple Music libraries hide the Spotify source; the
+public guide does not advertise it. A bare `#spotify`, an old provider session or an OAuth callback never
+creates the flag. The route guard runs before the lazy provider adapter can mount, so an uninvited browser
+does not initialize the Spotify SDK even when given its ordinary route.
+
+For an invited browser, `#spotify` lazy-loads the independent adapter. The lightweight PKCE callback detector
+participates in initial routing before `localVisited`, so an invited Spotify authorization return does not
+mount the local audio engine. The visibility flag is not authentication or a provider entitlement; Spotify's
+approved-user list, Premium requirement and existing PKCE checks remain authoritative.
 The limits screen appears before connecting the SDK and offers Apple Music, Open a file and Files & classes.
 No configured public client ID means no connection attempt, with the alternatives still usable.
+
+Private Spotify options provide a clean canonical tester link without query parameters, emails or tokens.
+Hide Spotify on this device invalidates the tab's connection, removes visibility and reloads the local player;
+it does not clear saved Spotify cues or local/Apple Music data. Reloading also avoids constructing another
+native SDK player after a later invitation. Storage clearing or a different browser requires a new invitation.
 
 The public Web Playback SDK owns protected audio. Catalog/library reads and starting a selected URI use the
 Web API with the SDK instance’s own ready device ID. Selecting a song or preparing a paused cue does not

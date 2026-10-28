@@ -108,14 +108,24 @@ restart remains an explicit action.
 Streaming requires internet and an active subscription. Saved classes, named practices and stems still use
 imported files. In Apple Music, the **Cues / Stems** switch keeps Cues active and shows Stems greyed out with
 **Local audio only**, so its availability is clear. Subscription downloads are not ordinary files ClassTempo can import or save offline.
-**Spotify opens with its limitations first.** Choose **Library → Spotify** to compare original-speed
-Spotify listening with Apple Music or an imported file. Spotify requires Premium, internet and access to
+**Spotify is an invite-only testing feature.** Ordinary libraries and the public guide do not advertise it.
+Approved testers open the unlisted [Spotify tester link](https://rudilopez.github.io/classtempo/#spotify-invite)
+once in the browser they plan to use. That browser then shows **Library → Spotify** on later visits. The link
+reveals the interface; Spotify's approved-account list still controls who can connect. Forwarding the link
+does not grant Spotify account access. A bare `#spotify` or an existing sign-in does not unlock the interface.
+Spotify opens with its limitations first and offers Apple Music or an imported file as alternatives.
+Spotify requires Premium, internet and access to
 ClassTempo’s Spotify developer application. It does not support tempo changes, Practice, Stems, class plans
 or offline playback in ClassTempo. Its standard terms restrict personal/noncommercial use; the notice does
 not supply permission for classroom use. YouTube is deferred.
 When configured, choose **Continue at 100%**, connect on Spotify’s page, then search or browse saved songs and
 playlists. Songs open paused; Play starts only this browser’s Spotify device. Cues preserve playing/paused
 state. Disconnect clears the tab’s Spotify tokens, temporary lists and browser’s saved Spotify cues.
+**Spotify options → Copy tester link** copies the clean invitation URL for an approved tester.
+**Hide Spotify on this device** removes its visibility, disconnects this tab and returns to the local player;
+saved cues, local files, classes and Apple Music settings remain. Reopen the invitation to reveal Spotify again.
+Visibility normally survives reloads on that browser; private browsing or cleared/blocked storage may require
+opening the invitation again. No invitations are sent automatically.
 Without a configured public client ID, the source still shows its limits and alternatives, with connection
 clearly unavailable. See [Spotify setup](docs/SPOTIFY_SETUP.md) and [connection privacy](apps/web/public/spotify-privacy.html).
 

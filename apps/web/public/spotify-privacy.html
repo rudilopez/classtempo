@@ -8,11 +8,13 @@
 <li>ClassTempo does not request permission to change your saved songs or playlists. It does not record, export, download, analyze or separate Spotify audio.</li>
 </ul>
 <h2>What stays in the browser</h2><ul>
+<li>Opening a tester invitation stores a nonsecret visibility preference in browser storage. It reveals the Spotify interface in that browser; Spotify still controls account access. The link does not contain a password or account token.</li>
 <li>Connection tokens and the temporary sign-in verifier are stored in this tab’s session storage. They are excluded from backups and diagnostics and are not written to the source repository.</li>
 <li>Saved Spotify cue positions and names stay in this browser’s local storage, separate from imported-file and Apple Music cues. They are excluded from the local-file settings backup.</li>
 <li>Spotify browsing results and playback state are held temporarily in memory. No ClassTempo analytics or account database is used for this integration. Requests to Spotify and hosting the app remain subject to those providers’ policies.</li>
 </ul>
 <h2>Disconnect and revoke access</h2><p>Use <b>Library → Spotify → Disconnect</b> to stop this browser’s Spotify player and clear its connection tokens, browsing results and saved Spotify cues. This does not delete your Spotify playlists, imported files or Apple Music settings.</p>
+<p>Use <b>Spotify options → Hide Spotify on this device</b> to hide the interface and disconnect this tab while keeping saved cues, imported files and Apple Music settings. This changes the current browser’s visibility preference, not Spotify’s approved-account list.</p>
 <p>To revoke Spotify’s authorization grant completely, open <a href="https://www.spotify.com/account/apps/" target="_blank" rel="noopener noreferrer">Spotify’s connected-app settings</a> and remove ClassTempo. Clearing browser storage also removes the local connection and cue data.</p>
 <h2>Spotify’s own policies</h2><p>Spotify supplies the account, catalog and protected player. Read <a href="https://www.spotify.com/legal/privacy-policy/" target="_blank" rel="noopener noreferrer">Spotify’s privacy policy</a> and <a href="https://developer.spotify.com/policy" target="_blank" rel="noopener noreferrer">developer policy</a>.</p>
 </main></body></html>

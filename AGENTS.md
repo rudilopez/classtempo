@@ -142,6 +142,15 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Keep the shared Cues / Stems switch visible for Apple Music: Cues selected, Stems greyed out and disabled
   with the persistent Local audio only label. Stems remains available for supported imported audio files;
   do not imply that subscription streams support separation or change local-player controls.
+  Spotify is hidden from ordinary local/Apple Music libraries and the public guide. Only the unlisted
+  `#spotify-invite` link reveals it on that browser, persisting a nonsecret tester-visibility flag with a
+  temporary-storage fallback and consuming the invite hash into `#spotify`. A bare `#spotify`, existing
+  Spotify session or OAuth callback must never grant visibility. Gate routing before mounting the adapter;
+  invited OAuth returns must still avoid initializing the local audio engine. This is UI discovery only,
+  never a substitute for Spotify's approved-account list, Premium or the upfront limitations screen.
+  Private Spotify options offer Copy tester link and Hide Spotify on this device. Copy only the canonical
+  app/invite URL, never callback parameters or credentials. Hide cancels/disconnects this tab's Spotify session,
+  removes tester visibility and reloads the local player; preserve saved cues and all local/Apple Music data.
   Spotify has a separate original-speed source and mandatory upfront limitations/options screen. Keep actual
   connection unavailable without configured client identity; do not claim developer configuration or a disclaimer
   grants classroom permission. Spotify requests public PKCE authorization, never a client secret in client code.

@@ -43,6 +43,9 @@
 .spotify-result-row > button { flex: 1; min-width: 0; }
 .spotify-result-row > a { flex: none; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; color: var(--a); font-size: 11px; text-decoration: none; }
 .spotify-result-row > button > img { object-fit: contain; border-radius: 0; }
+.spotify-test-access { display: grid; gap: 8px; min-width: 0; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.spotify-test-access p { color: var(--dim); font-size: 13px; line-height: 1.45; }
+.spotify-test-access > a { color: var(--a); overflow-wrap: anywhere; font-size: 13px; min-height: 44px; display: flex; align-items: center; }
 @media (max-width: 599px) {
   .spotify-track-heading .spotify-attribution { min-width: 84px; gap: 4px; }
   .spotify-track-heading .spotify-attribution img { width: 72px; }

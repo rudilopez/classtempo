@@ -14,7 +14,8 @@ Spotify’s registration agreement do not establish Spotify approval of ClassTem
 
 ## Product limits
 
-Library → Spotify explains original-speed-only playback, Premium and internet requirements, unavailable
+Spotify is hidden from ordinary local/Apple Music libraries and the public guide. Invited browsers see
+Library → Spotify, which explains original-speed-only playback, Premium and internet requirements, unavailable
 Practice/Stems/class plans/offline playback, and Spotify’s personal/noncommercial restriction. It offers Apple
 Music (with a playlist-transfer explanation), Open a file, Files & classes, or Continue at 100% when configured.
 Unconfigured builds keep Continue disabled with an explicit setup message. The notice does not override provider
@@ -24,6 +25,44 @@ eligible use/agreement before enabling this integration for that purpose.
 Development access can read playlist contents only where the signed-in user owns or collaborates on the
 playlist. Followed Spotify/editorial playlists may be unavailable. The player explains this restriction on a
 denied playlist request and offers another playlist, Search or Saved songs.
+
+## Inviting testers
+
+Choose the people deliberately; the link is not a public Spotify signup path. Each person needs their own
+Spotify Premium account and approval in ClassTempo's Spotify developer application.
+
+1. Get the tester's name and the email address associated with their Spotify account.
+2. In Spotify Developer Dashboard, open ClassTempo → Settings → Users Management → Add new user. Add that
+   approved account within the development allowance. Do not request the tester's password.
+3. Send the tester this unlisted link: **https://rudilopez.github.io/classtempo/#spotify-invite**.
+4. Have them open it in the browser they will use for ClassTempo. Spotify's limitations appear first. They
+   choose Continue at 100%, connect that approved Spotify account on Spotify's page, select a song and press Play.
+
+The invitation reveals Spotify on that browser and changes its route to `#spotify`; it does not sign anyone
+in, add them to Spotify's allowlist, bypass Premium or change the five-user development restriction. The link
+contains no account email, credential or unique access token. A forwarded link alone does not grant provider
+access. No invitations are sent and no allowlist entries are changed by opening it.
+
+After the invitation, **Library → Spotify** remains visible on that browser's later visits. The visibility
+flag normally uses localStorage, with temporary session/document fallbacks if storage is unavailable. Another
+browser, private browsing or cleared storage can require reopening the link. Existing Spotify authorization
+or a bare `#spotify` URL does not grant this visibility.
+
+In **Spotify options**, **Copy tester link** copies only the canonical invitation URL, excluding OAuth query
+parameters. **Hide Spotify on this device** disconnects the tab's Spotify session, removes its tester visibility
+and reloads the local player. It keeps saved Spotify cues, local files, classes and Apple Music settings.
+The invitation can reveal Spotify again; the user must reconnect if the session was disconnected. Ordinary
+**Disconnect** retains its existing behavior of clearing this browser's Spotify connection and cue data.
+
+Private-discovery verification, October 28, 2026: typecheck, all 573 tests and the production build passed.
+Chromium verified hidden local/Apple Music source entries, no Spotify adapter/SDK frame for an uninvited
+`#spotify`, invitation consumption, remembered access after reload, source navigation, and Hide followed by
+re-invitation. An existing saved local file remained available after Hide. Copy reported success and exposed
+the clean link; unit coverage checks OAuth-query removal and the actual relative `./` production base under
+`/classtempo/`. Public Library passed containment checks at seven phone/tablet/desktop sizes; the invitation
+passed twelve sizes, including compact phone browser viewports. Options scroll internally at 360×640.
+No account was added to Spotify's allowlist and no invitation was sent. The Mac audio acceptance below belongs
+to the earlier playback release; physical-phone acceptance for this visibility change remains separate.
 
 ## Configuration and evidence checklist
 
