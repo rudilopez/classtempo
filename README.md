@@ -78,10 +78,11 @@ system file picker. MP3, M4A/AAC, WAV, AIFF and browser-supported video formats 
 formats depend on the browser's decoder. A file may need to finish downloading from its provider first.
 
 **The class player uses local files.** Subscription downloads are not ordinary media files that it can import.
-An isolated Apple Music connection test is prepared at `#apple-music`: explicit sign-in, catalog search, the
+An isolated Apple Music connection test is available at `#apple-music`: explicit sign-in, catalog search, the
 first 25 library songs/playlists/tracks, one song queued paused, Play/Pause, seeking and optional speed checks.
-The Library entry appears only when deployment has MusicKit credentials. Apple account activation, credentials,
-authenticated playback and physical-iPhone acceptance are still pending. See the
+The configured Library entry and catalog API access were verified on 2026-10-28 after Apple account activation
+and credential setup. Subscriber authorization, full-track playback and physical-iPhone acceptance are not yet
+verified. See the
 [setup instructions](docs/APPLE_MUSIC_SETUP.md) and [feasibility plan](docs/APPLE_MUSIC_FEASIBILITY.md).
 The test does not add streams to classes, prepare stems or save songs offline. Spotify is not integrated.
 
