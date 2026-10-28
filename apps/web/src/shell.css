@@ -57,6 +57,7 @@
 .app > main[hidden] {
   display: none;
 }
+.app[hidden], .splash[hidden] { display: none; }
 
 /* ---------- mode pills: a compact segmented control next to the logo ---------- */
 .mode-switch {

@@ -4,28 +4,47 @@ ClassTempo is a static React/TypeScript PWA for one-track dance instruction. Vit
 including a generated service worker. GitHub Pages serves the app under `/classtempo/`; relative asset paths keep
 it portable to other static hosts. No account, media upload or application server is involved in local-file playback.
 
-## Optional Apple Music connection test
+## Apple Music in the shared player presentation
 
-`#apple-music` is a separate lazy screen. Switching between it, the stems benchmark and the local player reloads
-the document, releasing the previous playback engine. Normal player startup does not load MusicKit. The
-connection screen fetches public `apple-music-config.json` with no cache; the service worker neither precaches
-nor intercepts that endpoint. The Library link requires the configured build flag. No credentials means no link.
+The owner approved a familiar ClassTempo player for Apple Music at normal speed first, with clean streaming
+tempo research next. The `#apple-music` source keeps provider playback separate internally while sharing player
+branding, Now Playing, transport and Stage presentation. Search, library songs and playlists live in a picker
+that closes after a paused song selection. Switching sources must silence the old source and cancel its pending
+work; matching the visual controls does not make streaming a local File.
+
+`main.tsx` changes between local and Apple Music sources without reloading the document. Once opened, the local
+`App` remains mounted but hidden and inactive during streaming, preserving its loaded file while cancelling
+practice/class transitions, closing its dialogs and releasing Keep awake. Apple Music unmounts and stops its
+SDK transport when leaving. A selected File can be handed directly to the local player in memory; the local
+deck loads it once ready, without another file-picker step. The historical stems benchmark still reloads into
+a fresh document for isolated memory measurements.
+
+Normal local-player startup does not load MusicKit. The Apple Music source fetches public
+`apple-music-config.json` with no cache; the service worker neither precaches nor intercepts that endpoint.
+The Library entry requires the configured build flag. No credentials means no entry.
 
 The deployment runner signs an origin-restricted, 30-day developer JWT using Node crypto and three repository
 secrets. The private key never enters Vite environment variables or assets. A weekly deployment refreshes the
 token; stale/expired setup is reported, never silently treated as available. MusicKit owns user authorization and
-protected media playback. The test's read-only lists are first-page/25-item views. Songs queue paused and start
+protected media playback. The source's read-only lists are first-page/25-item views. Songs queue paused and start
 only from a tap; SDK events/progress drive the display. Generation guards discard stale account/list results,
 and SDK configure/queue operations cannot overlap retries while their underlying promises remain pending.
 Apple Music playback is fixed at original speed. Initialization, song selection and Play reset the SDK rate
 to 1; Play still reaches the SDK synchronously within the user gesture. The failed streaming speed experiments
-and their timing panel are removed. Play/Pause, Restart, seeking and Back 10 seconds remain available.
+and their timing panel are removed. Play/Pause, Restart and seeking remain available in the familiar layout.
 No provider samples enter the local engine, stems, IndexedDB media store, class plans or backup format.
+Streaming cues use `classtempo.apple-music.cues.<type>.<encoded provider ID>`; filename/duration local cue keys
+remain unchanged. These bookmarks store only positions/names and are not part of the local-file backup.
+MusicKit seeks are asynchronous. The transport refuses overlapping seeks and keeps its native-operation lock
+until the underlying promise settles, even if the adapter is disposed. Selecting a cue pauses first, then
+seeks and requires another explicit Play; no seek completion starts playback. Talk uses pause/resume for
+streaming rather than the local audio gain node. Streaming practice repeats and local class integration are
+not enabled by reusing the same presentation.
 
 Apple account activation, MusicKit identifier/key creation and repository-secret setup were completed on
-2026-10-28. Production Chrome subscriber authorization, read-only catalog/library access, paused song selection,
-Play/Pause, seeking and return-to-local teardown are verified. Navigating to the local player during streaming
-opened an empty, paused local player with no media elements remaining. The owner confirmed clear audio at 100%, with playback observed beyond the
+2026-10-28. The earlier connection screen verified production Chrome subscriber authorization, read-only
+catalog/library access, paused selection, Play/Pause, seeking and return-to-local teardown. The owner confirmed
+clear audio at 100%, with playback observed beyond the
 preview range. The owner's listening test found warbling at slower speed and pitch changes at faster speed;
 non-original-speed streaming failed acceptance. Uninterrupted full-track completion and physical-iPhone tests
 remain outstanding. See
@@ -271,8 +290,9 @@ class syntax; transpiled helper references can make worklet startup fail. Produc
 SharedArrayBuffer requirement. The dev server has COOP/COEP headers; Pages does not provide equivalent custom
 headers, and future cross-origin-isolated work must account for that difference.
 
-MusicKit loads only in its opt-in original-speed connection test; bounded Chrome authorization/playback evidence is recorded
-above, with full-track completion and physical-iPhone acceptance still outstanding.
+MusicKit loads only after opening the optional Apple Music source. It uses the shared player presentation at
+original speed; bounded Chrome authorization/playback evidence is recorded above, with uninterrupted full-track
+completion and physical-iPhone acceptance still outstanding.
 Spotify is not integrated. See [Apple Music feasibility](APPLE_MUSIC_FEASIBILITY.md) for the remaining tests.
 The hidden historical Demucs page retains its research-only model; the
 production stems feature uses a separate licensed Spleeter model. Neither runtime nor model downloads occur during

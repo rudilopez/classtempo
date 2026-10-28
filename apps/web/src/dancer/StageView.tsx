@@ -12,6 +12,10 @@ import './stageClassroom.css';
 import './stageVideo.css';
 
 interface Props {
+  /** Temporarily block transport while an asynchronous source operation is pending. */
+  disabled?: boolean;
+  playDisabled?: boolean;
+  cueActionLabel?: string;
   /** The VideoDeck's element when a video with a picture is loaded; it is moved in here while Stage is open. */
   video: HTMLVideoElement | null;
   /** The video's width / height (lays the picture out at full width on top in portrait). */
@@ -100,7 +104,7 @@ export function StageView({
   duration = 0, practiceRange, onSeek, onOpenPractice,
   tempo = 100, onTempoChange, mirrored = false, zoom = 1, onMirroredChange, onZoomChange,
   onRestartSection, practiceName, onEndPractice, pendingLabel, talking = false, onToggleTalk, onRetryVideo, onVideoDetails,
-  classControls,
+  classControls, disabled = false, playDisabled = disabled, cueActionLabel = 'Launch',
 }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const [tray, setTray] = useState<'cues' | 'tools' | 'class' | null>(null);
@@ -120,6 +124,7 @@ export function StageView({
     setTray(next);
   };
   const [videoFailed, setVideoFailed] = useState(!!video?.error);
+  const controlsDisabled = videoFailed || disabled;
   const close = useRef(onClose);
   useEffect(() => {
     close.current = onClose;
@@ -138,9 +143,8 @@ export function StageView({
     const el = root.current;
     if (!el) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const app = document.querySelector<HTMLElement>('.app');
-    const previouslyInert = app?.inert ?? false;
-    if (app) app.inert = true;
+    const apps = Array.from(document.querySelectorAll<HTMLElement>('.app')).map((app) => ({ app, inert: app.inert }));
+    for (const { app } of apps) app.inert = true;
     // The recovery button is portaled alongside Stage when fullscreen is unavailable. It must remain usable.
     const focusable = () => {
       const recovery = document.querySelector<HTMLButtonElement>('.resume-audio');
@@ -191,7 +195,7 @@ export function StageView({
       document.removeEventListener('webkitfullscreenchange', onChange);
       document.removeEventListener('keydown', onTab, true);
       document.removeEventListener('focusin', onFocus);
-      if (app) app.inert = previouslyInert;
+      for (const { app, inert } of apps) app.inert = inert;
       if (currentFullscreen() === el) exitFullscreen();
       if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
@@ -261,7 +265,7 @@ export function StageView({
               {Array.from({ length: CUE_SLOTS }, (_, index) => {
                 const cue = cues[index] ?? null;
                 return <button key={index} className={`stage-cue-number ${cue ? 'set' : 'empty'}`} style={{ ['--pad' as string]: padColor(index) }}
-                  onClick={() => cue ? onLaunch(index) : onSetCue?.(index)} disabled={videoFailed || (!cue && !onSetCue)}
+                  onClick={() => cue ? onLaunch(index) : onSetCue?.(index)} disabled={controlsDisabled || (!cue && !onSetCue)}
                   aria-label={cue ? `Play cue ${index + 1}: ${cue.name} at ${formatTime(cue.time)}` : `Set cue ${index + 1} at current position`}
                   title={cue ? `${cue.name} · ${formatTime(cue.time)}` : 'Set a cue at the current position'}>
                   <span>{index + 1}</span>{!cue && <small aria-hidden="true">+</small>}
@@ -273,14 +277,14 @@ export function StageView({
               {onTempoChange && <div className="stage-video-tool-row">
                 <span>Tempo</span>
                 <div className="stage-tempo" role="group" aria-label="Tempo">
-                  <button onClick={() => onTempoChange(clampTempo(tempo - 1))} disabled={videoFailed || tempo <= TEMPO_MIN} aria-label="Decrease tempo by 1 percent">−</button>
-                  <button className="stage-tempo-value" onClick={() => onTempoChange(100)} disabled={videoFailed} aria-label={`Tempo ${tempo} percent. Reset to 100 percent`} title="Reset to original tempo">{tempo}%</button>
-                  <button onClick={() => onTempoChange(clampTempo(tempo + 1))} disabled={videoFailed || tempo >= TEMPO_MAX} aria-label="Increase tempo by 1 percent">+</button>
+                  <button onClick={() => onTempoChange(clampTempo(tempo - 1))} disabled={controlsDisabled || tempo <= TEMPO_MIN} aria-label="Decrease tempo by 1 percent">−</button>
+                  <button className="stage-tempo-value" onClick={() => onTempoChange(100)} disabled={controlsDisabled} aria-label={`Tempo ${tempo} percent. Reset to 100 percent`} title="Reset to original tempo">{tempo}%</button>
+                  <button onClick={() => onTempoChange(clampTempo(tempo + 1))} disabled={controlsDisabled || tempo >= TEMPO_MAX} aria-label="Increase tempo by 1 percent">+</button>
                 </div>
               </div>}
               <div className="stage-video-tool-actions">
-                <button onClick={classControls ? onRestart : onRestartSection ?? onRestart} disabled={videoFailed} aria-label={classControls ? 'Play exercise again' : onRestartSection ? 'Restart section' : 'Restart video'}>⟲ {classControls ? 'Again' : onRestartSection ? 'Section' : 'Restart'}</button>
-                {onToggleTalk && <button className={talking ? 'on' : ''} onClick={onToggleTalk} disabled={videoFailed} aria-pressed={talking} title="Pause video while you speak">Talk</button>}
+                <button onClick={classControls ? onRestart : onRestartSection ?? onRestart} disabled={controlsDisabled} aria-label={classControls ? 'Play exercise again' : onRestartSection ? 'Restart section' : 'Restart video'}>⟲ {classControls ? 'Again' : onRestartSection ? 'Section' : 'Restart'}</button>
+                {onToggleTalk && <button className={talking ? 'on' : ''} onClick={onToggleTalk} disabled={controlsDisabled} aria-pressed={talking} title="Pause video while you speak">Talk</button>}
                 {!videoFailed && onMirroredChange && onZoomChange && <VideoTools mirrored={mirrored} zoom={zoom} onMirroredChange={onMirroredChange} onZoomChange={onZoomChange} />}
               </div>
             </div>
@@ -290,25 +294,26 @@ export function StageView({
           <span title={practiceName}>Practice · {practiceName}</span>
           <button onClick={onEndPractice}>End practice</button>
         </div>}
-        {onSeek && <VideoTimeline position={position} duration={duration} cues={cues} practiceRange={practiceRange} onSeek={onSeek} disabled={videoFailed} />}
+        {onSeek && <VideoTimeline position={position} duration={duration} cues={cues} practiceRange={practiceRange} onSeek={onSeek} disabled={controlsDisabled} />}
         <div className="stage-video-dock" aria-label="Video playback controls">
-          <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} disabled={videoFailed} aria-label={videoFailed ? 'Video unavailable' : pendingLabel ? 'Cancel playback countdown' : playing ? 'Pause' : 'Play'}>
+          <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} disabled={videoFailed || playDisabled} aria-label={videoFailed ? 'Video unavailable' : pendingLabel ? 'Cancel playback countdown' : playing ? 'Pause' : 'Play'}>
             {videoFailed ? 'Error' : pendingLabel ? 'Cancel' : playing ? '❚❚ Pause' : '▶ Play'}
           </button>
           <button ref={cuesTrigger} className={tray === 'cues' ? 'on' : ''} aria-expanded={tray === 'cues'} aria-controls="stage-cues-tray" onClick={() => tray === 'cues' ? closeTray() : changeTray('cues')}>Cues</button>
-          <button onClick={onOpenPractice} disabled={!onOpenPractice || videoFailed}>Practice</button>
+          <button onClick={onOpenPractice} disabled={!onOpenPractice || controlsDisabled}>Practice</button>
           <button ref={toolsTrigger} className={`stage-tools-toggle ${tray === 'tools' ? 'on' : ''}`} aria-label="Tools" aria-expanded={tray === 'tools'} aria-controls="stage-tools-tray" onClick={() => tray === 'tools' ? closeTray() : changeTray('tools')}><span>Tools</span><small>{tempo}%</small></button>
           <button onClick={onClose} aria-label="Exit Stage view" title="Exit Stage (Esc)">Exit</button>
         </div>
       </div> : <div className="stage-bar">
         {classStrip}
+        {onSeek && <VideoTimeline label="Song position" position={position} duration={duration} cues={cues} practiceRange={practiceRange} onSeek={onSeek} disabled={controlsDisabled} />}
         <div className="stage-controls">
           {onEndPractice && <div className="stage-practice">
             <span title={practiceName}>Practice · {practiceName}</span>
             <button onClick={onEndPractice}>End practice</button>
           </div>}
           <div className={`stage-transport ${onToggleTalk ? 'stage-with-talk' : ''}`}>
-            <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} disabled={videoFailed} title="Space">
+            <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} disabled={videoFailed || playDisabled} title="Space">
               {videoFailed ? 'Unavailable' : pendingLabel ? '✕ Cancel' : playing ? '❚❚ Pause' : '▶ Play'}
             </button>
             <button
@@ -316,12 +321,12 @@ export function StageView({
               onClick={classControls ? onRestart : onRestartSection ?? onRestart}
               title="Home"
               aria-label={classControls ? 'Play exercise again' : onRestartSection ? 'Restart section' : 'Restart song'}
-              disabled={videoFailed}
+              disabled={controlsDisabled}
             >
               ⟲ {classControls ? 'Again' : onRestartSection ? 'Section' : 'Restart'}
             </button>
             {onToggleTalk && (
-              <button className={`stage-talk ${talking ? 'on' : ''}`} onClick={onToggleTalk} disabled={videoFailed} aria-pressed={talking} title="Lower music while you speak">
+              <button className={`stage-talk ${talking ? 'on' : ''}`} onClick={onToggleTalk} disabled={controlsDisabled} aria-pressed={talking} title="Lower music while you speak">
                 Talk
               </button>
             )}
@@ -330,9 +335,9 @@ export function StageView({
             <div className="stage-options">
               {onTempoChange && (
                 <div className="stage-tempo" role="group" aria-label="Tempo">
-                  <button onClick={() => onTempoChange(clampTempo(tempo - 1))} disabled={videoFailed || tempo <= TEMPO_MIN} aria-label="Decrease tempo by 1 percent">−</button>
-                  <button className="stage-tempo-value" onClick={() => onTempoChange(100)} disabled={videoFailed} aria-label={`Tempo ${tempo} percent. Reset to 100 percent`} title="Reset to original tempo">{tempo}%</button>
-                  <button onClick={() => onTempoChange(clampTempo(tempo + 1))} disabled={videoFailed || tempo >= TEMPO_MAX} aria-label="Increase tempo by 1 percent">+</button>
+                  <button onClick={() => onTempoChange(clampTempo(tempo - 1))} disabled={controlsDisabled || tempo <= TEMPO_MIN} aria-label="Decrease tempo by 1 percent">−</button>
+                  <button className="stage-tempo-value" onClick={() => onTempoChange(100)} disabled={controlsDisabled} aria-label={`Tempo ${tempo} percent. Reset to 100 percent`} title="Reset to original tempo">{tempo}%</button>
+                  <button onClick={() => onTempoChange(clampTempo(tempo + 1))} disabled={controlsDisabled || tempo >= TEMPO_MAX} aria-label="Increase tempo by 1 percent">+</button>
                 </div>
               )}
               {video && !videoFailed && onMirroredChange && onZoomChange && (
@@ -349,8 +354,8 @@ export function StageView({
                 className="stage-pad"
                 style={{ ['--pad' as string]: padColor(index) }}
                 onClick={() => onLaunch(index)}
-                disabled={videoFailed}
-                title={`Launch ${cue.name} (key ${index + 1})`}
+                disabled={controlsDisabled}
+                title={`${cueActionLabel} ${cue.name} (key ${index + 1})`}
               >
                 <span className="stage-pad-key">{index + 1}</span>
                 <span className="stage-pad-name">{cue.name}</span>

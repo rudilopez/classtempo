@@ -84,21 +84,26 @@ The owner confirmed the supplied 1080p derivative plays on the iPhone on 2026-10
 
 ## Next gate: instructor music access
 
-The intended users primarily obtain music from Apple Music or Spotify. The current file player therefore does
-not yet satisfy that source workflow. Apple Music remains a separate feasibility test. As of 2026-10-28,
-Apple Developer membership is active, the MusicKit media identifier/key are created, and the signing credentials
-are stored in GitHub Actions repository secrets. Production Chrome subscriber authorization, catalog/library
-browsing, paused song selection, Play/Pause, seeking and stopping streaming when returning to the local player
-are verified. The owner confirmed clear audio at 100%,
-and playback was observed beyond the preview range. Slower streaming playback warbled and faster playback
-changed pitch in the listening test. The connection screen now supports original-speed playback only; tempo
-changes use local audio files. Uninterrupted full-track completion remains unverified. Follow
+The intended users primarily obtain music from Apple Music or Spotify. On 2026-10-28 the owner clarified that
+the integration must use the familiar ClassTempo player, or an identical player, and approved **same player
+first at normal speed; investigate clean tempo next**. A separate connection-test interface is not the product
+goal. Apple Music browsing belongs in a picker; song selection closes it and returns to paused Now Playing.
+Shared presentation does not require routing protected streams through the local audio engine.
+
+Apple Developer membership is active, the MusicKit media identifier/key are created, and signing credentials
+are stored in GitHub Actions repository secrets. The earlier connection screen established production Chrome
+authorization, catalog/library browsing, paused selection, Play/Pause, seeking and teardown. The owner confirmed
+clear audio at 100%, and playback beyond the preview range was observed. Slower playback warbled and faster
+playback changed pitch. Original-speed streaming therefore ships first; local files retain tempo changes,
+named practices, class plans and stems. Uninterrupted full-track completion remains unverified. Follow
 [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
-Next, verify uninterrupted original-speed playback, seeking, lock-screen behavior and phone output on the
-actual target platform. Any renewed streaming tempo or phrase-control work needs a separate supported
-implementation and listening tests before exposing controls again. Evaluate a native implementation if the
-web player cannot meet those requirements. Do not equate MusicKit playback support with access
+Verify source switching, direct file Open, the Apple Music picker, shared Stage, cues and asynchronous seek
+cancellation in the new interface, then verify uninterrupted original-speed playback, lock-screen behavior and
+phone output on the actual target platform. Clean streaming tempo research follows this release. A small native
+MusicKit experiment may test a different supported path; a full rewrite is not justified without a listening
+pass. Any renewed streaming tempo or phrase-control work needs timing and listening tests before exposing
+controls again. Do not equate MusicKit playback support with access
 to raw audio or parity with local-file processing. Spotify is not a promised integration. Platform terms and
 permitted classroom music use are independent of whether a technical integration plays a song.
 

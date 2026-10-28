@@ -1,9 +1,9 @@
 import { Engine } from '@mixdeck/engine';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import brandLogo from './assets/itda-logo-white.png';
+import { Wordmark } from './components/PlayerChrome';
 import { isDancerPlaying, restartDancerKeepAlive } from './dancer/dancerAudio';
-import { DancerMode } from './dancer/DancerMode';
+import { DancerMode, type LocalPlayerRequest } from './dancer/DancerMode';
 import { watchAudioContext } from './platform/audioRecovery';
 import './shell.css';
 
@@ -17,13 +17,7 @@ function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-function Wordmark({ className }: { className: string }) {
-  return <span className={`${className} brand-wordmark`} role="img" aria-label="ClassTempo">
-    <span className="brand-class" aria-hidden="true">Class</span><span className="brand-tempo" aria-hidden="true">Temp</span><img className="brand-mark" src={brandLogo} alt="" aria-hidden="true" />
-  </span>;
-}
-
-export function App() {
+export function App({ active = true, request }: { active?: boolean; request?: LocalPlayerRequest }) {
   const [engine, setEngine] = useState<Engine | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -54,7 +48,7 @@ export function App() {
 
   // the first tap, click or key press anywhere starts the audio context; disarmed once it runs
   useEffect(() => {
-    if (!engine) return;
+    if (!engine || !active) return;
     const { ctx } = engine;
     const unlock = () => engine.unlock();
     const disarm = () => {
@@ -68,17 +62,17 @@ export function App() {
     for (const type of UNLOCK_EVENTS) window.addEventListener(type, unlock, { capture: true, passive: true });
     ctx.addEventListener('statechange', onStateChange);
     return disarm;
-  }, [engine]);
+  }, [engine, active]);
 
   // interruptions (calls, Siri, alarms, other apps): resume on our own, or ask for a tap when the browser wants one
   useEffect(() => {
-    if (!engine) return;
+    if (!engine || !active) return;
     return watchAudioContext(engine.ctx, {
       shouldBeRunning: isDancerPlaying,
       onNeedsGesture: setNeedsGesture,
       onResumeAttempt: restartDancerKeepAlive,
     });
-  }, [engine]);
+  }, [engine, active]);
 
   /** The tap the browser asked for: resumes the context (and the Dancer keep-alive) inside the gesture. */
   const resumeAudio = useCallback(() => {
@@ -100,7 +94,7 @@ export function App() {
 
   if (!engine) {
     return (
-      <div className="splash">
+      <div className="splash" hidden={!active}>
         <Wordmark className="splash-logo" />
         {error ? (
           <div className="splash-error" role="alert">
@@ -119,7 +113,7 @@ export function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app" hidden={!active}>
       <header>
         <div className="head-left">
           <Wordmark className="logo" />
@@ -127,9 +121,9 @@ export function App() {
         <div className="header-actions" ref={setDancerActions} />
       </header>
       <main className="dancer-main">
-        <DancerMode engine={engine} active actionsContainer={dancerActions} />
+        <DancerMode engine={engine} active={active} request={request} actionsContainer={dancerActions} />
       </main>
-      {needsGesture && <ResumeAudioButton onResume={resumeAudio} />}
+      {active && needsGesture && <ResumeAudioButton onResume={resumeAudio} />}
     </div>
   );
 }

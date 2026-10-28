@@ -9,6 +9,7 @@ export function padColor(index: number): string {
 }
 
 interface Props {
+  launchLabel?: string;
   cues: readonly (Cue | null)[];
   editing: boolean;
   disabled: boolean;
@@ -19,7 +20,7 @@ interface Props {
 }
 
 /** 4×2 grid of big, touch-friendly cue pads. */
-export function CuePads({ cues, editing, disabled, onPress, onClear, onRename }: Props) {
+export function CuePads({ cues, editing, disabled, onPress, onClear, onRename, launchLabel = 'Launch' }: Props) {
   return (
     <div className="pads">
       {Array.from({ length: CUE_SLOTS }, (_, i) => {
@@ -27,7 +28,7 @@ export function CuePads({ cues, editing, disabled, onPress, onClear, onRename }:
         const title = cue
           ? editing
             ? `Move to the current position (key ${i + 1})`
-            : `Launch (key ${i + 1})`
+            : `${launchLabel} (key ${i + 1})`
           : `Set a cue at the current position (key ${i + 1})`;
         return (
           <div key={i} className="pad-slot">

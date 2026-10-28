@@ -9,7 +9,8 @@ catalog/library browsing, paused selection, Play/Pause, seeking and return-to-lo
 audio at 100%, with playback observed beyond the preview range. Slower playback warbled and faster playback
 changed pitch. Apple Music is therefore original-speed only. Uninterrupted full-track completion and
 physical-iPhone acceptance remain unverified. Detailed evidence is recorded below.
-ClassTempo's teaching player continues to use imported local songs and videos.
+The owner then approved bringing normal-speed streaming into the familiar ClassTempo player first, with clean
+tempo investigation next. Imported files keep their existing engine and full local teaching features.
 
 ## What is established
 
@@ -29,41 +30,54 @@ Never commit the signing private key or a user's music token. The build signer u
 30-day ES256 developer tokens restricted to `https://rudilopez.github.io`, and a weekly Pages refresh. Public
 configuration bypasses the service worker cache. See [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md).
 
-## Prepared connection screen
+## Shared player release
 
-`#apple-music` loads in a fresh document so the local engine and provider player cannot overlap. A configured
-build exposes **Library → Apple Music · Connection test**. Without credentials, that entry is absent and the
-direct route explains the missing setup. Apple's SDK loads only inside this route after valid config arrives.
+The owner explicitly rejected a separate connection-test experience: Apple Music should use the same player
+or one that looks identical. The approved first release uses original-speed streaming with the familiar
+ClassTempo header, Now Playing, transport and Stage. Browsing is a picker that closes when a song is selected.
+The provider player remains separate internally from local file decoding; source switches must prevent overlap.
+
+A configured build exposes **Library → Apple Music**. Without credentials, that entry is absent and the
+direct `#apple-music` route explains the missing setup. Apple's SDK loads only after valid config arrives.
 Connect invokes `authorize()` directly in a tap; cancellation is not treated as authorization. Catalog search,
 library songs, playlists and playlist tracks are read-only and limited visibly to their first 25 items. Selecting
 a song queues it paused; Play is a second explicit gesture. No local file identity, practice or class record is
 created for the stream. Disconnect clears visible account lists; stale requests cannot restore them.
 
-Play/Pause, Restart, seeking and Back 10 seconds use MusicKit directly. Initialization, song selection and
+Play/Pause, Restart and seeking use MusicKit directly. Initialization, song selection and
 Play set the SDK rate to 1. The changed-speed controls and timing panel were removed after the listening
 failure below; the UI directs tempo changes to local audio files. The implementation uses supported SDK
 controls, without patching a private player or extracting protected streaming samples. Phrase repetition,
-native speaker routing and integration into local class sets are not implemented in this spike.
-Expired config stops the test and requires reloading fresh configuration. Raw SDK failures and tokens are not
+native speaker routing and integration into local class sets are not implemented. Streaming cue bookmarks must
+use provider identity; they must not overwrite filename-based cues for imported media. Empty pads save the
+position; a saved cue pauses and seeks, then waits for a new Play gesture. Edit cues and Undo work on the
+streaming bookmarks. They stay in this browser and are not included in the local-media settings backup.
+Talk pauses streaming and resumes only if it was previously playing. Keep awake and Stage reuse the existing
+presentation and platform helpers. Open accepts a local file directly; Files & classes returns to the local
+library. These source transitions require their own browser and device checks below.
+Expired config stops streaming and requires reloading fresh configuration. Raw SDK failures and tokens are not
 copied into UI diagnostics. A cancelled/stuck account attempt can be abandoned by reloading the connection.
 
 ## Bounded iPhone spike
 
-Use the original-speed MusicKit screen with explicit user authorization after verifying the configured deployment. Do not place experimental controls in the teaching player.
+Use the shared player with the Apple Music source and explicit authorization after verifying the configured
+deployment. Keep unproven tempo and practice controls out of the released streaming player.
 
 1. Sign in, search the catalog and read the user's library/playlist without changing it.
 2. Play a full subscribed track from a tap over the instructor's actual Bluetooth/AirPlay speaker connection. Record iOS version, browser versus installed PWA, SDK version, account/subscription status, and connection.
 3. Confirm original-speed clarity throughout the track, including after Pause, Resume and Restart.
-4. Seek beyond the preview range, use Back 10 seconds and switch tracks. Confirm a selected song remains paused until Play and returning to the local player stops the stream.
+4. Seek beyond the preview range, use cue bookmarks and switch tracks. Confirm a selected song remains paused
+   until Play. Test Stage and source switching: leaving Apple Music must stop the stream, and returning to a
+   local file must not restart an old practice delay or class transition.
 5. Lock/unlock, use headphone controls, interrupt with a call, leave/return to the app, and disconnect/reconnect the speaker. Confirm state follows actual audible playback.
 6. Disable networking. Report exactly what the provider supports; do not label a subscription download as a locally cached ClassTempo file.
 7. Sign out and expire/revoke the token. Confirm recoverable errors and that no stale timer starts playback.
 
-Publish only capabilities demonstrated on the physical iPhone. Streaming tempo and phrase repetition require
-a separate supported implementation and new timing plus listening tests before their controls can return.
-If web playback cannot provide reliable pitch-preserving tempo and phrase control, evaluate a native iOS
-MusicKit build before promising streaming parity. Keep the local player independent so this experiment cannot
-regress teaching sessions.
+Keep physical-iPhone acceptance separate from desktop and mock checks. Streaming tempo and phrase repetition
+require a supported implementation and new timing plus listening tests before their controls can return.
+The failed browser listening test does not establish that all native or provider-partner paths fail. Evaluate a
+small native MusicKit prototype before a rewrite; keep the shared ClassTempo interface as the product target.
+Preserve local-file teaching sessions while investigating.
 
 ## Classroom use and Spotify
 
@@ -82,7 +96,7 @@ Activation evidence on 2026-10-28:
   connected interface appeared.
 - Typecheck, all 349 tests and build passed.
 
-Bounded production Chrome playback check on 2026-10-28:
+Bounded production Chrome playback check of the earlier connection screen on 2026-10-28:
 
 - My songs, Playlists and the selected playlist each returned 25 items; catalog search also worked. These
   were read-only first-page checks, not a complete library audit.
@@ -114,8 +128,28 @@ the current listening gate.
 Streaming phrase repetition and integration into local classes are not implemented. Local class tools remain
 independent.
 
-Validation of the original-speed update: typecheck, all 351 tests and build passed. Local checks of the real UI
+Validation of the earlier original-speed update: typecheck, all 351 tests and build passed. Local checks of the real UI
 with a MusicKit stub confirmed that a seeded 0.75 rate resets to 1, selection stays paused, and seeking, Back
 10 seconds, Restart and Play/Pause work. Layout checks found no overflow and all buttons at least 44 pixels
 high at 360×780, 390×844, 430×932, 844×390, 768×1024, 1180×820 and 1366×1024. These are local mock UI checks,
 not real streaming-audio or physical-device acceptance.
+
+Shared-player implementation checks on 2026-10-28:
+
+- After the final source edits, typecheck, all 366 tests and the production build passed.
+- A local MusicKit stub drove the real shared interface at 360×780, 390×844, 430×932, 844×390,
+  768×1024, 1180×820 and 1366×1024. The tested player layouts had no horizontal or page overflow,
+  all buttons stayed within the viewport with targets at least 44 pixels high, and cue pads were at least
+  88 pixels high.
+- Selecting a stub song closed the Library picker and opened it paused. A saved cue restored when the same
+  provider song was opened again. Cue Rename → Save → Undo worked.
+- Shared Stage made both the hidden local app and visible Apple Music app inert while open. Local audio
+  Stage opened and closed correctly, with its cue and tempo controls intact.
+- From the Apple Music player, Open handed the supplied M4A file directly to the local deck. The first
+  selection loaded once the deck was ready, with a duration of 3:49.4 and an estimated 139.7 BPM. Local
+  playback worked. Switching through Library to Apple Music paused the local song at 5.2 seconds and
+  preserved the loaded song.
+
+These checks cover the real UI and a real local audio file, with streaming simulated by the local stub.
+They do not establish the new interface's production streaming behavior, uninterrupted full-track completion,
+or physical-iPhone acceptance. The earlier real MusicKit evidence above remains a separate result.

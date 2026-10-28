@@ -77,15 +77,20 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Named practices retain independent playback snapshots. End practice cancels timers, pauses at the current
   position and disables the active delay/mode without deleting presets; returning to Play must not revive a pass.
   Dialogs contain focus, restore background inert state and prevent global player shortcuts while open.
-- Apple Music has an isolated `#apple-music` connection test; the Library entry is enabled only in a configured
-  build. It is not part of the class player. Production Chrome authorization, read-only catalog/library access,
-  paused song selection, Play/Pause, seeking and stopping streaming when returning to the local player were
-  verified on 2026-10-28. The owner confirmed clear audio
-  at 100%; playback beyond the preview range was observed. Slower playback warbled and faster playback changed
-  pitch in the owner's listening check. Apple Music is therefore original-speed only: reset the rate during
-  initialization, song selection and Play, and do not expose the failed speed experiments. Tempo changes belong
-  to the local-file player. Uninterrupted full-track completion and physical-iPhone streaming acceptance remain
-  unverified.
+- Apple Music is a music source in the familiar ClassTempo player, not a separate connection-test product.
+  The owner approved the same-player experience at normal speed first, with clean streaming tempo research
+  next. Reuse the shared branding, Now Playing, transport and Stage presentation. Browsing belongs in a picker
+  that closes after selection; songs open paused. Source switches must stop the old source, cancel pending
+  practice/class work, close its dialogs and prevent delayed callbacks from reviving it. Streaming playback
+  stays inside MusicKit; never disguise a stream as a local File or feed protected samples into the local engine.
+  Keep cue identity separate from filename-based local keys. Do not imply that matching controls establish
+  streaming practice, class plans, stems, waveform/BPM analysis or offline support.
+  Production Chrome authorization, read-only catalog/library access, paused selection, Play/Pause, seeking and
+  teardown were verified on 2026-10-28 in the earlier connection screen. The owner confirmed clear audio at
+  100%; playback beyond the preview range was observed. Slower playback warbled and faster playback changed
+  pitch. Reset the rate during initialization, song selection and Play; keep failed speed controls out of the
+  released player. That result rejects the tested browser path, not every possible provider integration.
+  Uninterrupted full-track completion and physical-iPhone streaming acceptance remain unverified.
   Apple Developer membership was verified active on 2026-10-28. The ClassTempo MusicKit Media ID and key were
   created, and all three signing credentials were stored as GitHub Actions repository secrets.
   Keep signing keys in deployment secrets, public configuration network-only, and sign-in/Play gesture-driven.
@@ -100,7 +105,7 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Preserve the opt-in stem unity-playback adapter and test sample timing, queued transport changes and tempo
   transitions when changing it. Existing prepared stems must not need regeneration for playback-only fixes.
   Selecting the Stems pill never downloads models; Prepare explicitly downloads the pinned, hash-verified engine.
-  Keep original playback available, preserve pending practice during source switches, and cancel stale jobs on loads.
+  Keep original playback available, preserve pending practice during Original/Stems switches, and cancel stale jobs on loads.
   Store complete aligned results atomically; never call a failed save offline-ready. Low/High drums are frequency
   filters, not independently separated instruments. No server upload/fallback is authorized. Preserve that
   device acceptance as the regression baseline; other media, tempos and device behaviors need their own evidence.
