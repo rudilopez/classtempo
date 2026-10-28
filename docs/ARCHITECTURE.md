@@ -34,7 +34,11 @@ for 50–150% in whole-percent steps, ±1% nudges and the 50/75/90/100/110% pres
 Play reaches the SDK synchronously within the user gesture and preserves the requested rate, including after
 its asynchronous completion; seeking also preserves rate and playback state. Selecting 100% changes speed
 without pausing, starting or losing a prepared cue offset. The Playback info button opens read-only
-pitch/rate/timing diagnostics; those readings do not establish audible quality.
+pitch/rate/timing/buffer diagnostics; those readings do not establish audible quality. Configuration requests
+MusicKit HIGH (256 kbps) before any queue is loaded. This is a source-quality target, not measured bitrate or
+a different time-stretch algorithm. A bounded read-only event history helps distinguish waiting for data from
+steady playback artifacts. Passive local-context bookkeeping distinguishes a fresh Apple-only page from one
+that previously opened the local player; it never creates, starts, suspends or routes an audio context.
 Back 10s, Talk, Play/Pause, Restart and seeking remain available in the familiar layout.
 No provider samples enter the local engine, stems, IndexedDB media store, class plans or backup format.
 Streaming cues use `classtempo.apple-music.cues.<type>.<encoded provider ID>`; filename/duration local cue keys
@@ -54,7 +58,7 @@ clear audio at 100%, with playback observed beyond the
 preview range. An earlier listening test found warbling at slower speed and pitch changes at faster speed.
 After the slider and presets returned, the owner confirmed on 2026-10-28 that all tempos sounded great on Mac.
 The subsequent iPhone listening check failed at 75% despite matching requested/SDK/native rates and enabled
-pitch preservation. Public MusicKit offers no algorithm/quality selector. Other iPhone rates, iPad/Android
+pitch preservation. Public MusicKit offers a stream-bitrate target but no pitch-correction algorithm selector. Other iPhone rates, iPad/Android
 listening and uninterrupted full-track completion remain outstanding. See
 [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 

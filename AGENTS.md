@@ -104,14 +104,17 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   The owner subsequently reported warbling on iPhone at 75%; requested, SDK and native rates all read 0.75,
   with readyState 4 and preservesPitch true. That iPhone listening check failed despite correct rate/flags.
   Other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain unverified.
-  Keep phone layout repairs separate from audio-quality claims; public MusicKit exposes no quality selector.
+  Keep phone layout repairs separate from audio-quality claims; public MusicKit exposes a stream-bitrate target, but no pitch-correction algorithm selector.
   Apple Developer membership was verified active on 2026-10-28. The ClassTempo MusicKit Media ID and key were
   created, and all three signing credentials were stored as GitHub Actions repository secrets.
   Keep signing keys in deployment secrets, public configuration network-only, and sign-in/Play gesture-driven.
   Never promise streaming tempo, phrase repetition, stems or offline parity without actual device evidence.
   The owner explicitly requires a web app across phones, not a native rewrite. Apple Music shows the shared
   50–150% slider, ±1% nudges and 50/75/90/100/110% presets without a special URL. The Playback info button
-  opens read-only pitch/rate/timing diagnostics. Use only public MusicKit rate controls. Initialize and open
+  opens read-only pitch/rate/timing/buffer diagnostics, requested stream bitrate and local-context state.
+  New configurations request HIGH (256 kbps) before loading songs; this is a source-quality target, not a
+  verified delivered bitrate or a clean-tempo fix. MusicKit controls buffering; do not gate tempo on a full
+  download or promise offline availability. Use only public MusicKit rate controls. Initialize and open
   new songs paused at 100%; Play/seek preserve the requested rate. Selecting 100% resets speed without
   changing playback state or a prepared cue offset. Browser timing and pitch flags do not prove clean sound.
   Keep Back 10s and Talk available. See docs/APPLE_MUSIC_TEMPO_TRIAL.md.

@@ -51,9 +51,10 @@ describe('MusicKit lazy loading', () => {
     vi.stubGlobal('MusicKit', sdk);
     doc.dispatchEvent(new Event('musickitloaded'));
     await expect(first).resolves.toBe(music);
-    expect(sdk.configure).toHaveBeenCalledExactlyOnceWith({ developerToken: 'public-developer-token', app: { name: 'ClassTempo', build: '1' } });
+    expect(sdk.configure).toHaveBeenCalledExactlyOnceWith({ developerToken: 'public-developer-token', app: { name: 'ClassTempo', build: '1' }, bitrate: 256 });
     expect(music.authorize).not.toHaveBeenCalled();
     expect(music.play).not.toHaveBeenCalled();
+    expect(music.setQueue).not.toHaveBeenCalled();
   });
 
   it('reuses an already available SDK and checks getInstance when configure returns void', async () => {

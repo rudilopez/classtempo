@@ -22,6 +22,12 @@ tempo investigation next. Imported files keep their existing engine and full loc
 - MusicKit Web v3 also documents writable `playbackRate`, forwarded to the browser media element, and
   `seekToTime(seconds)`. This establishes an API surface, not preserved pitch or reliable iPhone repetition.
   See the [web instance reference](https://js-cdn.music.apple.com/musickit/v3/docs/index.html?path=/story/reference-javascript-musickit-instance--page).
+- Public MusicKit also exposes [`bitrate`](https://js-cdn.music.apple.com/musickit/v3/docs/index.html?path=/story/reference-javascript-musickit-instance--page#bitrate):
+  HIGH targets 256 kbps and STANDARD targets 64 kbps for the next loaded item. This is source-stream quality,
+  not a selectable pitch algorithm or time-stretch quality setting; the target does not prove delivered bitrate.
+- The current public web reference has no documented full-song download/prefetch operation. Browser-reported
+  buffered ranges can support a bounded wait/replay experiment, but `readyState: 4` does not establish a full
+  download or offline support. See the [HTML media readiness definition](https://html.spec.whatwg.org/multipage/media.html#dom-media-readystate).
 - The native iPhone app [Grooves](https://apps.apple.com/us/app/grooves-song-speed-changer/id592398757) advertises Apple Music tempo changes with pitch preserved and section repetition. This is evidence of a native path, not proof of equivalent behavior in Safari or this PWA.
 - The current local audio engine receives decoded file samples. Streaming playback must use its authorized provider player; do not assume stream access to decoded samples, waveform/BPM analysis, stems, or provider downloads.
 
@@ -191,8 +197,24 @@ acceptance on that Mac; exact tested rates, browser version and output route wer
 subsequently reported warbling on iPhone at 75%. The copied diagnostic reports iPhone OS 18_7 / Safari
 Version 27.0.1, requested/SDK/native rates of 0.75, active playback, readyState 4 and preservesPitch true.
 This is a failed listening check despite correctly applied speed and enabled pitch correction; it does not
-identify the installed pitch algorithm. Public MusicKit exposes no quality selector. The accompanying
+identify the installed pitch algorithm. Public MusicKit exposes stream bitrate selection, but no public
+pitch-algorithm or time-stretch-quality selector. The accompanying
 short-viewport layout failure is a separate repair and must not be described as fixing audio. Other iPhone
 rates, iPad/Android listening and uninterrupted full-track completion remain unverified. See
 [APPLE_MUSIC_TEMPO_TRIAL.md](APPLE_MUSIC_TEMPO_TRIAL.md) for primary sources, the iPhone Safari/Home Screen
 and Android Chrome checks, and the transport behavior that must remain intact. No native app is planned.
+
+Next candidate, 2026-10-28: request the public HIGH / 256 kbps preference before loading each new song and
+compare the failed 75% passage with sufficient browser-reported data already buffered. The inspected official
+SDK defaults to STANDARD / 64 kbps unless a bitrate is supplied or its network-information calculation changes
+that target; ClassTempo previously omitted the preference. This is a plausible source-quality difference,
+not proof of the failed phone's delivered bitrate or a verified fix. Playback diagnostics distinguish the
+target bitrate, buffered ranges and playback stalls from listening quality. Do not make the instructor wait
+for a full download or clamp larger tempo changes without evidence that buffering helps. The exact bounded
+phone procedure and SDK snapshot evidence are in [APPLE_MUSIC_TEMPO_TRIAL.md](APPLE_MUSIC_TEMPO_TRIAL.md).
+The candidate records the independent local AudioContext state without changing its lifecycle. A full reload
+directly at `#apple-music` leaves the local engine uncreated; opening Apple Music after visiting the local
+player retains it. Compare these paths separately without assuming any shared Safari buffer was removed.
+The owner's iPhone 75% failure remains unresolved pending listening; the accepted Mac experience is preserved
+as a separate baseline. This investigation stays in the web player without protected-sample access, a native
+rewrite or substituting local files for the requested streaming workflow.
