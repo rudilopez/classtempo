@@ -83,6 +83,22 @@ describe('Spotify browsing and metadata boundary', () => {
     const { savedTracks } = await import('./client');
     await expect(savedTracks()).rejects.not.toThrow('secret');
   });
+  it('explains denied playlist contents without changing other access errors or exposing the provider body', async () => {
+    const { playlistTracks, savedTracks } = await import('./client');
+    fetcher.mockResolvedValueOnce(Response.json({ error: 'Bearer secret raw body' }, { status: 403 }));
+    await expect(playlistTracks(ID)).rejects.toThrow('Spotify could not open this playlist. Development access supports playlists you own or collaborate on. Try another playlist, Search or Saved songs.');
+    fetcher.mockResolvedValueOnce(Response.json({ error: 'Bearer secret raw body' }, { status: 403 }));
+    await expect(savedTracks()).rejects.toThrow('Spotify access is unavailable. Check Premium and the app’s approved users.');
+  });
+  it('keeps cancellation ahead of the playlist access explanation when a denied response arrives after abort', async () => {
+    const { playlistTracks } = await import('./client'); const controller = new AbortController();
+    fetcher.mockImplementationOnce(async () => {
+      controller.abort();
+      return Response.json({ error: 'Bearer secret raw body' }, { status: 403 });
+    });
+    await expect(playlistTracks(ID, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
   it('aborts a list before requesting a token or contacting Spotify', async () => {
     const { savedTracks } = await import('./client'); const controller = new AbortController(); controller.abort();
     await expect(savedTracks(controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
