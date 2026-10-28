@@ -2,7 +2,7 @@
 
 ClassTempo is a static React/TypeScript PWA for one-track dance instruction. Vite builds `apps/web/dist`,
 including a generated service worker. GitHub Pages serves the app under `/classtempo/`; relative asset paths keep
-it portable to other static hosts. No account, media upload or application server is involved in current playback.
+it portable to other static hosts. No account, media upload or application server is involved in local-file playback.
 
 ## Optional Apple Music connection test
 
@@ -19,7 +19,9 @@ only from a tap; SDK events/progress drive the display. Generation guards discar
 and SDK configure/queue operations cannot overlap retries while their underlying promises remain pending.
 No provider samples enter the local engine, stems, IndexedDB media store, class plans or backup format.
 
-Account activation and authenticated iPhone tests remain outstanding. See
+Apple account activation, MusicKit identifier/key creation and repository-secret setup were completed on
+2026-10-28. The configured production Library connection test and catalog API access are verified; subscriber
+authorization, full-track playback and physical-iPhone tests remain outstanding. See
 [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 ## Application and playback
@@ -262,8 +264,9 @@ class syntax; transpiled helper references can make worklet startup fail. Produc
 SharedArrayBuffer requirement. The dev server has COOP/COEP headers; Pages does not provide equivalent custom
 headers, and future cross-origin-isolated work must account for that difference.
 
-MusicKit and Spotify are not loaded or authenticated. See [Apple Music feasibility](APPLE_MUSIC_FEASIBILITY.md)
-for credential and device-test gates. The hidden historical Demucs page retains its research-only model; the
+MusicKit loads only in its opt-in connection test; subscriber authorization and playback remain unverified.
+Spotify is not integrated. See [Apple Music feasibility](APPLE_MUSIC_FEASIBILITY.md) for the remaining tests.
+The hidden historical Demucs page retains its research-only model; the
 production stems feature uses a separate licensed Spleeter model. Neither runtime nor model downloads occur during
 normal playback. Physical phone preparation/playback validation remains separate. No server fallback is enabled.
 

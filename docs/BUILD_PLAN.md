@@ -85,14 +85,13 @@ The owner confirmed the supplied 1080p derivative plays on the iPhone on 2026-10
 ## Next gate: instructor music access
 
 The intended users primarily obtain music from Apple Music or Spotify. The current file player therefore does
-not yet satisfy that source workflow. Apple Music is a feasibility project, not an enabled feature. The owner
-has enrolled in the Apple Developer Program; the MusicKit media identifier/key and developer token remain
-needed for authenticated testing. As of 2026-10-25, the signed-in Apple account still says Pending and denies
-identifier/key access. A separate `#apple-music` connection test and secure deployment signer are prepared;
-the Library link stays hidden until credentials are configured. Follow
+not yet satisfy that source workflow. Apple Music remains a separate feasibility test. As of 2026-10-28,
+Apple Developer membership is active, the MusicKit media identifier/key are created, and the signing credentials
+are stored in GitHub Actions repository secrets. The configured production Library connection test and catalog
+API access are verified; subscriber authorization and playback are not. Follow
 [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
-Once credentials and a suitable test account are available, prove playback, pitch-preserving speed, seeking,
+Complete subscriber authorization, then prove playback, pitch-preserving speed, seeking,
 sections, lock-screen behavior and phone output on the actual target platform. Decide from that evidence whether
 the PWA is sufficient or a native implementation is needed. Do not equate MusicKit playback support with access
 to raw audio or parity with local-file processing. Spotify is not a promised integration. Platform terms and
