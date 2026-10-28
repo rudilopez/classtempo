@@ -108,7 +108,16 @@ restart remains an explicit action.
 Streaming requires internet and an active subscription. Saved classes, named practices and stems still use
 imported files. In Apple Music, the **Cues / Stems** switch keeps Cues active and shows Stems greyed out with
 **Local audio only**, so its availability is clear. Subscription downloads are not ordinary files ClassTempo can import or save offline.
-Spotify is not integrated.
+**Spotify opens with its limitations first.** Choose **Library → Spotify** to compare original-speed
+Spotify listening with Apple Music or an imported file. Spotify requires Premium, internet and access to
+ClassTempo’s Spotify developer application. It does not support tempo changes, Practice, Stems, class plans
+or offline playback in ClassTempo. Its standard terms restrict personal/noncommercial use; the notice does
+not supply permission for classroom use. YouTube is deferred.
+When configured, choose **Continue at 100%**, connect on Spotify’s page, then search or browse saved songs and
+playlists. Songs open paused; Play starts only this browser’s Spotify device. Cues preserve playing/paused
+state. Disconnect clears the tab’s Spotify tokens, temporary lists and browser’s saved Spotify cues.
+Without a configured public client ID, the source still shows its limits and alternatives, with connection
+clearly unavailable. See [Spotify setup](docs/SPOTIFY_SETUP.md) and [connection privacy](apps/web/public/spotify-privacy.html).
 
 The earlier connection screen's production Chrome authorization, catalog/library browsing, paused selection,
 Play/Pause, seeking and teardown were verified on 2026-10-28. The owner confirmed clear audio at 100%, with

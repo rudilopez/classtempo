@@ -271,11 +271,12 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
           <button type="button" className="library-close" onClick={onClose} disabled={busy} aria-label="Close library">✕</button>
         </header>
         <p id="library-description" className="library-description">Your media and teaching plans, saved on this device.</p>
-        <div className={`library-tabs ${import.meta.env.VITE_APPLE_MUSIC_ENABLED === 'true' ? 'has-apple-music' : ''}`} role="group" aria-label="Library content">
+        <div className="library-tabs" role="group" aria-label="Library content">
           <button type="button" aria-pressed={view === 'media'} disabled={busy || !!classDraft} onClick={() => setView('media')}>Media <span className="library-tab-count">{media.length}</span></button>
           <button type="button" aria-pressed={view === 'classes'} disabled={busy || !!classDraft} onClick={() => { setView('classes'); setSelected(''); setCreatingClass(false); }}>Classes <span className="library-tab-count">{classes.length}</span></button>
           {import.meta.env.VITE_APPLE_MUSIC_ENABLED === 'true' && <button type="button" disabled={busy || !!classDraft}
             onClick={() => { window.location.hash = 'apple-music'; }}>Apple Music</button>}
+          <button type="button" disabled={busy || !!classDraft} onClick={() => { window.location.hash = 'spotify'; }}>Spotify</button>
         </div>
         <div className="library-feedback" aria-live="polite">
           {busy && <p>{progress}</p>}

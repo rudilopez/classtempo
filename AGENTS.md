@@ -142,7 +142,15 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Keep the shared Cues / Stems switch visible for Apple Music: Cues selected, Stems greyed out and disabled
   with the persistent Local audio only label. Stems remains available for supported imported audio files;
   do not imply that subscription streams support separation or change local-player controls.
-  Spotify is not integrated. See docs/APPLE_MUSIC_SETUP.md and docs/APPLE_MUSIC_FEASIBILITY.md.
+  Spotify has a separate original-speed source and mandatory upfront limitations/options screen. Keep actual
+  connection unavailable without configured client identity; do not claim developer configuration or a disclaimer
+  grants classroom permission. Spotify requests public PKCE authorization, never a client secret in client code.
+  Only explicit Play targets this SDK browser device; never transfer playback on connect/selection or issue global
+  active-device commands. Preserve paused selection and state-preserving cues, cancellation and source teardown.
+  Spotify has no tempo changes, Practice, Stems, class plans or offline support; mark unavailable controls clearly.
+  Disconnect removes Spotify tokens/lists/cues only. Keep its artwork original: no crop, blur, gradients/text/controls
+  over it; display official Spotify attribution and links in player, results and Stage. No provider samples enter
+  the local engine. YouTube is deferred. See docs/SPOTIFY_SETUP.md, docs/APPLE_MUSIC_SETUP.md and docs/APPLE_MUSIC_FEASIBILITY.md.
 - Stems uses opt-in local Spleeter separation for audio files only, with a 4:30/100 MB preparation limit.
   Ordinary song/video playback has no duration cap. The owner confirmed preparation of the supplied song and
   clear All-at-100% playback on the physical iPhone on 2026-10-23; Beta has been removed for this release.

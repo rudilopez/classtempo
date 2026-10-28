@@ -14,7 +14,7 @@ export function CueStemsSwitch({ value, onChange, stemsDisabled = false }: Props
     onKeyDown={(event) => event.stopPropagation()} onKeyUp={(event) => event.stopPropagation()}>
     <button type="button" aria-pressed={value === 'cues'} onClick={() => onChange('cues')}>Cues</button>
     <button type="button" aria-pressed={value === 'stems'} disabled={stemsDisabled}
-      title={stemsDisabled ? 'Stems are available for imported audio files, not Apple Music.' : undefined}
+      title={stemsDisabled ? 'Stems are available for imported audio files only.' : undefined}
       onClick={() => onChange('stems')}>
       Stems{stemsDisabled && <small>Local audio only</small>}
     </button>

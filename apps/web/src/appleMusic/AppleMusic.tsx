@@ -434,7 +434,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       </main>
     </div>
     {pickerOpen && <AppleMusicPicker title="Library" onClose={() => setPickerOpen(false)} busy={busy}>
-      <div className="apple-music-sources" role="group" aria-label="Music source"><button type="button" onClick={onOpenLocalLibrary} disabled={busy}>Files &amp; classes</button><button type="button" aria-pressed="true">♫ Apple Music</button></div>
+      <div className="apple-music-sources" role="group" aria-label="Music source"><button type="button" onClick={onOpenLocalLibrary} disabled={busy}>Files &amp; classes</button><button type="button" aria-pressed="true">♫ Apple Music</button><button type="button" disabled={busy || seeking} onClick={() => { window.location.hash = 'spotify'; }}>Spotify</button></div>
       <div className="apple-music-account"><span>{playback.isAuthorized ? 'Connected to Apple Music' : 'Apple Music'}</span>{playback.isAuthorized && <button type="button" onClick={disconnect} disabled={busy || seeking}>Disconnect</button>}</div>
       <p className="apple-music-limits">Stream with your Apple Music subscription. Internet required. Practice, Stems and classes use local files.</p>
       {feedback}
