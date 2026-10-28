@@ -48,6 +48,7 @@ const API = 'https://api.spotify.com/v1/';
 const SDK_URL = 'https://sdk.scdn.co/spotify-player.js';
 const TIMEOUT = 20_000;
 const ID = /^[A-Za-z0-9]{22}$/;
+const PLAYLIST_ACCESS_ERROR = 'Spotify could not open this playlist. Development access supports playlists you own or collaborate on. Try another playlist, Search or Saved songs.';
 let sdkLoading: Promise<SpotifySdk> | null = null;
 
 class RateLimitError extends Error {
@@ -115,7 +116,8 @@ async function apiRequest(path: string, signal?: AbortSignal, body?: unknown, be
       cache: 'no-store', credentials: 'omit', redirect: 'error' });
     checkAbort(controller.signal);
     if (response.status === 401) throw new Error('Reconnect to Spotify, then try again.');
-    if (response.status === 403) throw new Error('Spotify access is unavailable. Check Premium and the app’s approved users.');
+    if (response.status === 403) throw new Error(/^playlists\/[A-Za-z0-9]{22}\/items(?:\?|$)/.test(path)
+      ? PLAYLIST_ACCESS_ERROR : 'Spotify access is unavailable. Check Premium and the app’s approved users.');
     if (response.status === 429) throw new RateLimitError(response.headers.get('Retry-After'));
     if (!response.ok) throw new Error('Spotify could not complete this request. Try again while connected.');
     return response.status === 204 ? null : await response.json() as unknown;
@@ -125,6 +127,7 @@ async function apiRequest(path: string, signal?: AbortSignal, body?: unknown, be
     // Only our own fixed errors may cross this boundary; never provider bodies or auth exceptions.
     if (error instanceof Error && [
       'Reconnect to Spotify, then try again.',
+      PLAYLIST_ACCESS_ERROR,
       'Spotify access is unavailable. Check Premium and the app’s approved users.',
       'Spotify could not complete this request. Try again while connected.',
       'Spotify playback action cancelled.',
