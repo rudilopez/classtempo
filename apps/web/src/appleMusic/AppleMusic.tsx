@@ -6,6 +6,7 @@ import {
 } from './client';
 import { Wordmark, NowPlayingLabel, PlayerTransport } from '../components/PlayerChrome';
 import { CuePads } from '../dancer/CuePads';
+import { CueStemsSwitch } from '../dancer/CueStemsSwitch';
 import { emptyCues, type CueSlots } from '../dancer/cueStore';
 import { ACCEPT_MEDIA } from '../dancer/media';
 import { StageView } from '../dancer/StageView';
@@ -422,7 +423,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
             <div className="apple-music-tool-buttons"><button type="button" disabled={blocked} onClick={() => seek(position - 10)}>↶ Back 10s</button><button type="button" disabled={blocked} className={talking ? 'on' : ''} aria-pressed={talking} title="Pause while you speak; tap again to resume" onClick={toggleTalk}>{talking ? 'Finish talking' : 'Talk'}</button><TempoTrial instance={instance} trackId={selected?.id ?? null} requestedRate={transportPlayer?.requestedRate ?? 1} playing={playback.isPlaying} seeking={seeking} onCleanRestart={cleanRestart} restartDisabled={blocked} /></div>
           </div>
           <div className={`cues ${undoCues.length ? 'has-undo' : ''}`}>
-            <div className="cues-head"><span className="apple-music-cue-heading">Cues</span><span className="cues-hint">{editing ? 'Tap to move' : 'Tap empty to set'}</span>{undoCues.length > 0 && <button type="button" className="cues-undo" disabled={blocked} onClick={() => { const previous = undoCues[undoCues.length - 1]; if (previous) { changeCues(previous, false); setUndoCues((items) => items.slice(0, -1)); } }}>Undo</button>}<button type="button" disabled={blocked} onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit cues'}</button></div>
+            <div className="cues-head"><CueStemsSwitch value="cues" onChange={() => {}} stemsDisabled /><span className="cues-hint">{editing ? 'Tap to move' : 'Tap empty to set'}</span>{undoCues.length > 0 && <button type="button" className="cues-undo" disabled={blocked} onClick={() => { const previous = undoCues[undoCues.length - 1]; if (previous) { changeCues(previous, false); setUndoCues((items) => items.slice(0, -1)); } }}>Undo</button>}<button type="button" disabled={blocked} onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit cues'}</button></div>
             <CuePads cues={cues} launchLabel="Go to cue" editing={editing} disabled={blocked} onPress={pressCue} onClear={(index) => changeCues(cues.map((cue, slot) => slot === index ? null : cue))} onRename={(index) => setRename({ index, name: cues[index]?.name || '' })} />
             <p className="apple-music-cue-help">Cues keep playing or stay paused.</p>
           </div>

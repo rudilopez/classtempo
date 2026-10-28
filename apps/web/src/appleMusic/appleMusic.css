@@ -27,7 +27,6 @@
 .apple-music-tool-buttons button { min-height: 44px; font-size: 12px; padding: 5px 8px; white-space: nowrap; }
 .apple-music-app .cues { gap: 6px; min-height: min-content; justify-content: flex-start; }
 .apple-music-app .cues-head, .apple-music-app .apple-music-cue-help { flex: none; }
-.apple-music-cue-heading { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border: 1px solid var(--a); border-radius: 999px; color: #082b28; background: var(--a); font-size: 13px; font-weight: 800; }
 .apple-music-app .cues-head > button:last-child { margin-left: auto; min-height: 44px; font-size: 12px; padding-inline: 8px; white-space: nowrap; }
 .apple-music-app .cues-hint { font-size: 11px; color: var(--dim); }
 .apple-music-app .apple-music-cue-help { margin: 0; font-size: 11px; line-height: 1.25; color: var(--dim); }
@@ -100,7 +99,6 @@
 @media (max-width: 599px) {
   .apple-music-app .apple-music-dancer { --pad-max: 88px; }
   .apple-music-app .apple-music-artwork > img { max-height: 180px; }
-  .apple-music-app .apple-music-cue-heading { padding-inline: 12px; }
   .apple-music-app .cues-head { gap: 6px; }
   .apple-music-app .cues-hint { font-size: 10px; }
   .apple-music-app .apple-music-feedback { left: 12px; right: 12px; }

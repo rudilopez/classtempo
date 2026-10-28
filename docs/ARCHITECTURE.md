@@ -20,7 +20,7 @@ deck loads it once ready, without another file-picker step. Playback info also o
 Apple Music restart when the local engine exists. It stores validated song metadata only in a five-minute,
 one-shot sessionStorage handoff, replaces the route and reloads the document. The fresh Apple-only setup
 consumes the handoff after its disposal guard, queues the same song paused at 100% and restores saved cues.
-No playback starts automatically. This diagnostic restart discards the in-memory local deck; library files
+No playback starts automatically. This explicit restart discards the in-memory local deck; library files
 and persisted settings remain. If temporary storage is unavailable, the action fails without reloading. The historical stems benchmark still reloads into
 a fresh document for isolated memory measurements.
 
@@ -62,9 +62,14 @@ catalog/library access, paused selection, Play/Pause, seeking and return-to-loca
 clear audio at 100%, with playback observed beyond the
 preview range. An earlier listening test found warbling at slower speed and pitch changes at faster speed.
 After the slider and presets returned, the owner confirmed on 2026-10-28 that all tempos sounded great on Mac.
-The subsequent iPhone listening check failed at 75% despite matching requested/SDK/native rates and enabled
-pitch preservation. Public MusicKit offers a stream-bitrate target but no pitch-correction algorithm selector. Other iPhone rates, iPad/Android
-listening and uninterrupted full-track completion remain outstanding. See
+Subsequent iPhone checks failed at 75% despite matching rates and enabled pitch preservation, including a
+256 kbps-target/full-buffer capture with the local AudioContext running. In a clean Apple Music session with
+Local audio engine **Not started**, the owner tested the requested physical-iPhone 75% passage and reported
+**“Sounds great now.”** This accepts the clean-session path for that listening check, without establishing the
+precise Safari cause or an identical song/version comparison with Mac. Ordinary local-to-Apple navigation
+still retains the context; the clean restart remains explicit. Public MusicKit offers a stream-bitrate target
+but no pitch-correction algorithm selector. Other iPhone rates/songs, iPad/Android listening and uninterrupted
+full-track completion remain outstanding. See
 [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 ## Application and playback
@@ -310,7 +315,7 @@ headers, and future cross-origin-isolated work must account for that difference.
 
 MusicKit loads only after opening the optional Apple Music source. It uses the shared player presentation,
 starting at original speed with visible tempo controls. Bounded Chrome authorization/playback evidence and
-the owner's Mac acceptance and subsequent iPhone 75% listening failure are recorded above. Other iPhone rates,
+the owner's Mac acceptance, subsequent iPhone failures and later 75% clean-session listening pass are recorded above. Other iPhone rates/songs,
 iPad/Android listening and uninterrupted full-track completion remain outstanding.
 Spotify is not integrated. See [Apple Music feasibility](APPLE_MUSIC_FEASIBILITY.md) for the remaining tests.
 The hidden historical Demucs page retains its research-only model; the

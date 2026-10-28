@@ -96,16 +96,24 @@ Apple Music shows the familiar **50–150% tempo slider**, ±1% buttons and **50
 regular player; no special test link is needed. Each song opens paused at 100%. The **100%** preset restores
 original speed while keeping the current playing or paused state. **Playback info** opens read-only rate,
 pitch and timing diagnostics. Back 10s and Talk remain available.
+If slow Apple Music playback warbles after using the local player, choose **Playback info → Restart Apple
+Music cleanly**. The selected song reopens paused at 100%, with its saved cues; confirm **Local audio engine:
+Not started**, then press Play and choose your tempo. This reload preserves saved library files and settings,
+but an unsaved local file must be reopened. Ordinary source switching retains the local engine; this clean
+restart remains an explicit action.
 Streaming requires internet and an active subscription. Saved classes, named practices and stems still use
-imported files. Subscription downloads are not ordinary files ClassTempo can import or save offline.
+imported files. In Apple Music, the **Cues / Stems** switch keeps Cues active and shows Stems greyed out with
+**Local audio only**, so its availability is clear. Subscription downloads are not ordinary files ClassTempo can import or save offline.
 Spotify is not integrated.
 
 The earlier connection screen's production Chrome authorization, catalog/library browsing, paused selection,
 Play/Pause, seeking and teardown were verified on 2026-10-28. The owner confirmed clear audio at 100%, with
 playback observed beyond the preview range. Slower playback warbled and faster playback changed pitch, so those
 speed controls were initially removed. After the slider and presets returned, the owner confirmed that all
-tempos sounded great on Mac on 2026-10-28. The subsequent iPhone check failed at 75%: the owner heard warbling
-although the requested, SDK and native rates matched and pitch preservation was enabled. Other iPhone rates,
+tempos sounded great on Mac on 2026-10-28. The subsequent iPhone checks failed at 75%, including one with a
+256 kbps target and the full track reported buffered while the local audio engine was running. In a clean Apple Music session
+with **Local audio engine: Not started**, the owner tested the requested iPhone 75% passage and
+reported **“Sounds great now.”** This accepts that clean-session listening result; other iPhone rates, songs,
 iPad/Android listening and uninterrupted full-track completion remain unverified. See the
 [setup instructions](docs/APPLE_MUSIC_SETUP.md) and [feasibility plan](docs/APPLE_MUSIC_FEASIBILITY.md).
 
