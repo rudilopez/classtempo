@@ -82,6 +82,10 @@ formats depend on the browser's decoder. A file may need to finish downloading f
 then search the catalog or browse My songs and Playlists. Selecting a song closes the picker and opens the song
 paused, with the same branding, Now Playing, Play/Pause, Restart and Stage layout. The Apple Music source uses
 Apple's streaming player underneath; imported songs and videos keep their existing local engine.
+Album artwork fills Now Playing with a gradient that keeps the title readable, using the same compact phone
+space. **Stage** shows the full cover over a blurred artwork backdrop, with Play, Cues, Tools, Exit and seeking
+below it. Cue and tool trays open below the artwork; the image stays unobstructed. These visual changes do
+not change audio playback or tempo processing.
 **Open** still accepts a local song or video directly from this player. **Library → Files & classes** returns
 to saved local media. Switching sources pauses the source you leave; returning does not restart an old delay
 or class transition.

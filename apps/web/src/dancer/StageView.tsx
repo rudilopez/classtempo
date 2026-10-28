@@ -10,6 +10,7 @@ import { VideoTimeline } from './VideoTimeline';
 import { ClassControls, type ClassControlsProps } from '../classes/ClassControls';
 import './stageClassroom.css';
 import './stageVideo.css';
+import './stageArtwork.css';
 
 interface Props {
   /** Temporarily block transport while an asynchronous source operation is pending. */
@@ -22,6 +23,9 @@ interface Props {
   aspect: number | null;
   /** Song name, shown small above the cue section when there is no video. */
   title: string;
+  /** Optional album cover for a picture-first song Stage; video always takes precedence. */
+  artworkUrl?: string;
+  artist?: string;
   playing: boolean;
   /** Elapsed seconds (the 10 Hz display position). */
   position: number;
@@ -36,7 +40,7 @@ interface Props {
   onRestart: () => void;
   /** Goes to an existing cue without changing playback state. Audio Stage shows only these set pads. */
   onLaunch: (index: number) => void;
-  /** Sets an empty video Stage cue without moving existing cues or changing playback. */
+  /** Sets an empty video/artwork Stage cue without moving existing cues or changing playback. */
   onSetCue?: (index: number) => void;
   onClose: () => void;
   tempo?: number;
@@ -100,13 +104,17 @@ function exitFullscreen(): void {
  * leaving full screen (Esc, Android back), closes it.
  */
 export function StageView({
-  video, aspect, title, playing, position, cues, section, onTogglePlay, onRestart, onLaunch, onSetCue, onClose,
+  video, aspect, title, artworkUrl, artist, playing, position, cues, section, onTogglePlay, onRestart, onLaunch, onSetCue, onClose,
   duration = 0, practiceRange, onSeek, onOpenPractice,
   tempo = 100, onTempoChange, mirrored = false, zoom = 1, onMirroredChange, onZoomChange,
   onRestartSection, practiceName, onEndPractice, pendingLabel, talking = false, onToggleTalk, onRetryVideo, onVideoDetails,
   classControls, disabled = false, playDisabled = disabled, cueActionLabel = 'Go to',
 }: Props) {
   const root = useRef<HTMLDivElement>(null);
+  const hasArtwork = !video && !!artworkUrl;
+  const hasVisual = !!video || hasArtwork;
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
+  const artworkFailed = failedArtworkUrl === artworkUrl;
   const [tray, setTray] = useState<'cues' | 'tools' | 'class' | null>(null);
   const activeTray = useRef(tray);
   activeTray.current = tray;
@@ -223,7 +231,7 @@ export function StageView({
   return createPortal(
     <div
       ref={root}
-      className={`stage stage-classroom ${video ? 'stage-has-video' : 'stage-no-video'} ${tray === 'class' ? 'stage-class-order-open' : ''}`}
+      className={`stage stage-classroom ${video ? 'stage-has-video' : hasArtwork ? 'stage-has-artwork' : 'stage-no-video'} ${tray === 'class' ? 'stage-class-order-open' : ''}`}
       style={aspect ? { ['--video-ar' as string]: String(aspect) } : undefined}
       role="dialog"
       aria-modal="true"
@@ -247,6 +255,18 @@ export function StageView({
       <div className="stage-screen">
         {video ? (
           <VideoView element={video} playing={playing} onTap={onTogglePlay} mirrored={mirrored} zoom={zoom} className="stage-video" onRetry={onRetryVideo} onDetails={onVideoDetails} />
+        ) : hasArtwork ? (
+          <div className="stage-artwork">
+            {!artworkFailed && <img className="stage-artwork-backdrop" src={artworkUrl} alt="" aria-hidden="true" />}
+            <div className="stage-artwork-frame">
+              {artworkFailed ? <div className="stage-artwork-fallback" role="img" aria-label="Album artwork unavailable"><span aria-hidden="true">♫</span></div>
+                : <img className="stage-artwork-image" src={artworkUrl} alt={`Album cover for ${title}`} onError={() => setFailedArtworkUrl(artworkUrl ?? null)} />}
+            </div>
+            <div className="stage-artwork-caption">
+              <strong title={title}>{title}</strong>
+              {artist && <span title={artist}>{artist}</span>}
+            </div>
+          </div>
         ) : (
           <div className="stage-now" aria-live="polite">
             <span className="stage-title">{title}</span>
@@ -256,9 +276,9 @@ export function StageView({
         )}
         {pendingLabel && <div className="stage-pending" role="status">{pendingLabel}</div>}
       </div>
-      {video ? <div className="stage-video-controls">
+      {hasVisual ? <div className="stage-video-controls">
         {classStrip}
-        {tray && tray !== 'class' && <div ref={trayRoot} id={`stage-${tray}-tray`} className={`stage-video-panel stage-video-${tray}-panel`} role="region" aria-label={tray === 'cues' ? 'Cue controls' : 'Video tools'}>
+        {tray && tray !== 'class' && <div ref={trayRoot} id={`stage-${tray}-tray`} className={`stage-video-panel stage-video-${tray}-panel`} role="region" aria-label={tray === 'cues' ? 'Cue controls' : video ? 'Video tools' : 'Song tools'}>
           {tray === 'cues' ? <>
             <p className="stage-cue-help">Tap + to set · Tap a saved number to jump</p>
             <div className="stage-cue-strip">
@@ -283,9 +303,9 @@ export function StageView({
                 </div>
               </div>}
               <div className="stage-video-tool-actions">
-                <button onClick={classControls ? onRestart : onRestartSection ?? onRestart} disabled={controlsDisabled} aria-label={classControls ? 'Play exercise again' : onRestartSection ? 'Restart section' : 'Restart video'}>⟲ {classControls ? 'Again' : onRestartSection ? 'Section' : 'Restart'}</button>
-                {onToggleTalk && <button className={talking ? 'on' : ''} onClick={onToggleTalk} disabled={controlsDisabled} aria-pressed={talking} title="Pause video while you speak">Talk</button>}
-                {!videoFailed && onMirroredChange && onZoomChange && <VideoTools mirrored={mirrored} zoom={zoom} onMirroredChange={onMirroredChange} onZoomChange={onZoomChange} />}
+                <button onClick={classControls ? onRestart : onRestartSection ?? onRestart} disabled={controlsDisabled} aria-label={classControls ? 'Play exercise again' : onRestartSection ? 'Restart section' : video ? 'Restart video' : 'Restart song'}>⟲ {classControls ? 'Again' : onRestartSection ? 'Section' : 'Restart'}</button>
+                {onToggleTalk && <button className={talking ? 'on' : ''} onClick={onToggleTalk} disabled={controlsDisabled} aria-pressed={talking} title={video ? 'Pause video while you speak' : 'Pause song while you speak'}>Talk</button>}
+                {video && !videoFailed && onMirroredChange && onZoomChange && <VideoTools mirrored={mirrored} zoom={zoom} onMirroredChange={onMirroredChange} onZoomChange={onZoomChange} />}
               </div>
             </div>
           </>}
@@ -294,13 +314,13 @@ export function StageView({
           <span title={practiceName}>Practice · {practiceName}</span>
           <button onClick={onEndPractice}>End practice</button>
         </div>}
-        {onSeek && <VideoTimeline position={position} duration={duration} cues={cues} practiceRange={practiceRange} onSeek={onSeek} disabled={controlsDisabled} />}
-        <div className="stage-video-dock" aria-label="Video playback controls">
+        {onSeek && <VideoTimeline label={video ? 'Video position' : 'Song position'} position={position} duration={duration} cues={cues} practiceRange={practiceRange} onSeek={onSeek} disabled={controlsDisabled} />}
+        <div className={`stage-video-dock ${hasArtwork && !onOpenPractice ? 'stage-artwork-dock' : ''}`} aria-label={video ? 'Video playback controls' : 'Song playback controls'}>
           <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} disabled={videoFailed || playDisabled} aria-label={videoFailed ? 'Video unavailable' : pendingLabel ? 'Cancel playback countdown' : playing ? 'Pause' : 'Play'}>
             {videoFailed ? 'Error' : pendingLabel ? 'Cancel' : playing ? '❚❚ Pause' : '▶ Play'}
           </button>
           <button ref={cuesTrigger} className={tray === 'cues' ? 'on' : ''} aria-expanded={tray === 'cues'} aria-controls="stage-cues-tray" onClick={() => tray === 'cues' ? closeTray() : changeTray('cues')}>Cues</button>
-          <button onClick={onOpenPractice} disabled={!onOpenPractice || controlsDisabled}>Practice</button>
+          {(!hasArtwork || onOpenPractice) && <button onClick={onOpenPractice} disabled={!onOpenPractice || controlsDisabled}>Practice</button>}
           <button ref={toolsTrigger} className={`stage-tools-toggle ${tray === 'tools' ? 'on' : ''}`} aria-label="Tools" aria-expanded={tray === 'tools'} aria-controls="stage-tools-tray" onClick={() => tray === 'tools' ? closeTray() : changeTray('tools')}><span>Tools</span><small>{tempo}%</small></button>
           <button onClick={onClose} aria-label="Exit Stage view" title="Exit Stage (Esc)">Exit</button>
         </div>
@@ -366,7 +386,7 @@ export function StageView({
           <p className="stage-hint">Set cues first</p>
         )}
       </div>}
-      {!video && <button className="stage-exit" onClick={onClose} aria-label="Exit Stage view" title="Exit (Esc)">
+      {!hasVisual && <button className="stage-exit" onClick={onClose} aria-label="Exit Stage view" title="Exit (Esc)">
         ✕
       </button>}
     </div>,

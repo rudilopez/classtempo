@@ -16,6 +16,13 @@
 .apple-music-artwork > img { height: 100%; width: auto; max-height: 260px; max-width: 100%; object-fit: contain; border-radius: 9px; }
 .apple-music-artwork > span { color: var(--a); font-size: 40px; }
 .apple-music-artwork > button { font-size: 13px; min-height: 44px; }
+/* Art fills the existing card instead of adding height to the phone layout. */
+.apple-music-app .dancer-media-panel.has-artwork { position: relative; isolation: isolate; overflow: hidden; background: #09131d; }
+.apple-music-app .has-artwork .apple-music-artwork { position: absolute; inset: 0; display: block; contain: strict; z-index: -2; }
+.apple-music-app .has-artwork .apple-music-artwork > img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; border-radius: 0; }
+.apple-music-app .dancer-media-panel.has-artwork::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, #030b13ed 0%, #030b1399 28%, #030b1326 55%, #030b13bf 100%); pointer-events: none; }
+.apple-music-app .has-artwork .dancer-track-info { text-shadow: 0 1px 5px #000; }
+.apple-music-app .has-artwork .apple-music-artist { color: #d6e2eb; }
 .apple-music-timeline { grid-row: 3; display: flex; align-items: center; height: 44px; min-height: 44px; }
 .apple-music-timeline input { width: 100%; min-width: 0; height: 44px; margin: 0; }
 /* Intrinsic grid rows cannot flex-shrink below the controls they contain. */
