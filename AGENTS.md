@@ -42,6 +42,8 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   For Apple Music, also check Safari-sized usable viewports 360×640, 390×664 and 402×690/714/734. Verify
   panel containment and actual control overlap, not only document scroll dimensions. Keep seek inside Now Playing
   and Cues below the tempo tools; a full-screen desktop viewport is not equivalent to visible phone browser bars.
+  Check with fully loaded album artwork as well as missing artwork; decorative bitmap dimensions must not
+  enlarge the media panel's minimum or push the bottom controls outside the viewport.
 - One player only: Open accepts audio/video and detects the actual file type. Library Add saves the selection
   and opens its first file paused. Picker cancellation preserves the track. Class Auto-next is off by default;
   Next & play is an explicit advance/start action, and Again restarts the current exercise.
