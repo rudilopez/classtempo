@@ -362,11 +362,18 @@ An inactive retained player must not overwrite Apple Music/local metadata, short
 instead of constructing a second vendor SDK player in the same document. Normal source switches preserve
 selection and browsing state; an explicit reload discards temporary UI state.
 
-This lifecycle candidate follows an observed failure after returning from Apple Music: a second native player
-became ready, but REST Play failed with a sanitized generic error. The HTTP status and cause are unconfirmed.
-The retained-player implementation is not yet deployed or verified by a real source roundtrip. Earlier PR #41
-evidence establishes Mac 100% listening, cues, Stage, owned-playlist reads and natural full-track completion;
-it does not establish this candidate’s source recovery or physical-phone behavior.
+The retained-player lifecycle is deployed in PR #42 and passes real Mac source roundtrips. A prepared paused
+1.0-second offset survives Spotify → Apple Music → Spotify before first Play; leaving during playback at 8.8
+seconds returns paused at 8.8 seconds. Explicit Play succeeds after each return. Diagnostics retain one native
+player/connect/ready sequence (421 ms startup), with no new constructor, OAuth prompt or error events.
+Earlier PR #41 evidence establishes owner-confirmed Mac 100% clear audio, cues, Stage, owned-playlist reads and
+natural full-track completion. PR #42 adds source-return/playback-progression evidence without further audio
+processing changes; physical-phone, background, Bluetooth and lock-screen acceptance remain outstanding.
+
+Historical failures remain distinct: PR #41 corrected the inactive-pause/error-handler feedback loop. Before
+retention, a second native player became ready but REST Play failed with a sanitized generic error; its HTTP
+status and cause are unconfirmed. The original 20-second initial/same-page Retry startup stalls also have no
+confirmed cause; a later fresh document reached ready at 552 ms before the lifecycle change.
 
 OAuth uses public client identity and Authorization Code with PKCE S256, random state and a one-use ten-minute
 session handoff. The callback removes authorization query fields before token exchange. Access/refresh tokens

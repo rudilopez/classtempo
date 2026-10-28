@@ -5,10 +5,11 @@ production redirect and SDK/API selections are verified, and its public client I
 Actions. The configured deployment succeeded, the owner manually approved ClassTempo’s OAuth consent, and the
 callback and private-library reads succeeded. After PR #41 corrected idle pause/error-handler behavior,
 ClassTempo played a complete real Spotify track at 100%, and the owner confirmed clear audio on Mac. Paused
-selection, playing/paused cues, Stage and owned-playlist browsing were verified in that browser. A subsequent
-Spotify → Apple Music → Spotify roundtrip failed to restart playback after constructing a second SDK player;
-a retained-player lifecycle candidate is implemented but not yet deployed or retested. Physical-phone acceptance
-remains pending. YouTube is deferred. App registration and the owner’s acceptance of
+selection, playing/paused cues, Stage and owned-playlist browsing were verified in that browser. PR #42’s
+retained-player lifecycle is deployed: Spotify → Apple Music → Spotify now preserves paused offsets and
+resumes only on explicit Play, with one SDK player and no new authorization prompt or error. Mac configuration
+and control verification is complete; physical-phone, background, Bluetooth and lock-screen acceptance remain
+pending. YouTube is deferred. App registration and the owner’s acceptance of
 Spotify’s registration agreement do not establish Spotify approval of ClassTempo’s use case.
 
 ## Product limits
@@ -36,31 +37,33 @@ The following records the verified setup separately from the remaining acceptanc
 | Products | Web API and Web Playback SDK selected and verified. |
 | Registration agreement | Accepted by the owner; the agent did not accept on the owner’s behalf. |
 | Public client ID | Stored as GitHub Actions repository variable `SPOTIFY_CLIENT_ID`; a client secret was neither viewed nor used. |
-| Deployment | [Actions run 40779762009](https://github.com/rudilopez/classtempo/actions/runs/40779762009) succeeded on `b5c69a60e1669c0ba155da42acd5671d7ad2f450` after PR #41. Live `#spotify` enables Continue at 100%. |
-| Automated checks | Typecheck, 552 tests and production build passed for the retained-player candidate, including inactive OS-handler guards, disabled native Media Session ownership, paused cues, non-reentrant SDK errors and late REST cancellation. Live source-roundtrip verification follows deployment. |
+| Deployment | [Actions run 40781996193](https://github.com/rudilopez/classtempo/actions/runs/40781996193) succeeded on `08e1e55bc9d5cc8ccfb2ff21a121a5092d39de4d` after PR #42. Live `#spotify` enables Continue at 100%. |
+| Automated checks | Typecheck, 552 tests and production build passed, including CI, for the deployed retained-player lifecycle. Coverage includes inactive OS-handler guards, disabled native Media Session ownership, paused cues, non-reentrant SDK errors and late REST cancellation. |
 | Premium membership | The signed-in owner’s Spotify Account Overview confirms Premium Family. |
 | Development users | User Management lists 0/5 explicit test users. The owner’s authorized Web API reads work without an explicit listed entry; this does not establish access for any other user. |
 | Real account authorization | Verified: the owner manually approved ClassTempo’s OAuth consent, the callback succeeded, and the authorized UI shows Disconnect. No client secret was accessed. |
 | Catalog and private-library reads | Verified: Search returned the requested “Que Fue Lo Que Me Hiciste” by Dalvin La Melodia; Saved songs returned 20 real saved tracks. Metadata access is separate from protected audio playback. |
-| Protected player startup | A fresh reload/reconnect after PR #41 reached a usable player. Earlier fresh-document diagnostics after PR #40 recorded `sdk_loaded` at 13 ms, `token_provided` at 232 ms, `connect_resolved` with `true` at 440 ms and `ready` at 552 ms. The cause of the original initial/same-page Retry 20-second timeouts remains unconfirmed. |
+| Protected player startup | Verified after PR #42: a fresh document initialized the SDK with native Media Session disabled and reached ready at 421 ms. Source returns retained exactly one `player_created`, one connect and one ready event, with no error events. No new native player or OAuth prompt appeared on return. |
 | Paused song selection and cue | Verified after PR #41: a real song opened paused without `playback_error`; cue 1 at zero before first Play stayed paused and error-free. While playing, cue 1 sought to zero and kept playing; after Pause, cue 1 stayed at zero with Play shown. The test cue was cleared, leaving all eight slots empty. |
 | Idle-pause/error-loop correction | PR #41 corrected pausing an inactive SDK player and repeated pause calls from SDK error handlers. The earlier pre-Play `playback_error` feedback loop did not recur in the fresh selection/cue test. |
-| Real protected playback | Verified at 100% in ClassTempo on Mac before the source-lifecycle candidate: explicit Play ran the real “Que Fue Lo Que Me Hiciste” track with a 3:49.4 duration through natural completion. |
-| Listening acceptance | The owner answered “Yes, clear audio” for the Mac test at 100% before the source-lifecycle candidate. This establishes that listening result only, not physical-iPhone or other-device audio acceptance. |
+| Real protected playback | PR #41 ran the real “Que Fue Lo Que Me Hiciste” track at 100% in ClassTempo on Mac through its natural 3:49.4 completion. After PR #42, explicit Play and visible playback progression worked after both source roundtrips below. |
+| Listening acceptance | The owner answered “Yes, clear audio” for the PR #41 Mac test at 100%. PR #42 changes lifecycle and control ownership, with no further audio processing changes; its new evidence is playback progression and source recovery, not a new listening-acceptance claim. Physical-iPhone and other-device audio remain unaccepted. |
 | Main player and Stage | Verified in the Mac browser, including a 390×664 phone-sized viewport: playback continued; Stage showed the cover and eight-button cue bar below it. Tools offered only Restart and Talk at fixed 100%. Leaving Stage preserved playback. This is responsive-layout evidence, not a physical-phone test. |
-| Natural full-track completion | Verified before the source-lifecycle candidate: the continuous run was observed at 3:41.4, then naturally returned to zero with Play shown at the 3:49.4 end. No next track started. |
-| Owned playlists | Verified before the source-lifecycle candidate: the provider playlist list returned 20 items; an owned playlist opened two track rows without errors while the selected song continued playing. |
-| Source roundtrip | Failed after PR #41: returning from Apple Music created a second native SDK player, which reached ready at 895 ms, but the subsequent REST Play failed with the sanitized generic error. The HTTP status and cause are unconfirmed. The retained-player candidate below still needs deployment and real roundtrip verification. |
+| Natural full-track completion | Verified on PR #41: the continuous run was observed at 3:41.4, then naturally returned to zero with Play shown at the 3:49.4 end. No next track started. |
+| Owned playlists | Verified on PR #41: the provider playlist list returned 20 items; an owned playlist opened two track rows without errors while the selected song continued playing. |
+| Source roundtrip | Verified live after PR #42: preparing 1.0 seconds before first Play preserved the song, 1.0-second offset and paused Play state across Spotify → Apple Music → Spotify; explicit Play then worked. A second roundtrip left during playback at 8.8 seconds and returned at 8.8 seconds with Play shown, paused; explicit Play worked again. |
+| Test cleanup | All eight cue slots are empty after clearing test cues. Keep awake is off. |
 | First-party comparison | Spotify’s own web player played the same song with a 3:49 duration, progressed from 18 to 37 seconds and showed “This web browser” as its current device. It was paused and closed. This comparison does not establish ClassTempo playback or listening acceptance. |
-| Physical phones | Pending; iPhone/Android listening, interruptions and background behavior remain separate acceptance checks. |
+| Physical phones | Pending; physical iPhone/Android listening, background playback, Bluetooth, interruptions and lock-screen behavior remain separate acceptance checks. |
 
 Do not mark pending rows complete from a successful app registration, deployment or consent screen alone.
 
-## Source lifecycle candidate
+## Source lifecycle and verification
 
-This candidate is implemented on `codex/spotify-verified`; it is not yet deployed or accepted in a real source
-roundtrip. The Mac 100% audio, cue, Stage, playlist and full-track observations above belong to the earlier
-PR #41 baseline. Candidate checks and live retest results must be recorded separately.
+PR #42 is deployed and its real Mac source roundtrips pass. The owner’s Mac 100% audio acceptance, cue, Stage,
+playlist and full-track observations above belong to the earlier PR #41 baseline. PR #42 changes lifecycle and
+control ownership without additional audio processing changes; its real playback progression and source-return
+results are recorded separately above.
 
 The router retains one Spotify React component after its first visit and passes an `active` prop. Normal source
 changes keep the native SDK player, selected track and list state. Deactivation invalidates pending actions,
@@ -74,6 +77,13 @@ local-file commands. Failed-player recovery uses **Restart Spotify connection**,
 while preserving tab authorization and saved cues, rather than constructing a second vendor player in the
 same document. Normal source changes retain the selected track/list; an explicit reload does not promise to
 preserve that temporary UI state.
+
+Earlier investigation found a pre-Play `playback_error` loop caused by pausing an inactive SDK player and
+answering SDK errors with further pause calls; PR #41 corrected it. A later source return constructed a second
+native player that reached ready at 895 ms but failed REST Play with a sanitized generic error. Its HTTP status
+and cause were unconfirmed; PR #42 avoids that second constructor and passes the real roundtrip checks.
+The original initial/same-page Retry 20-second startup stalls also have no confirmed cause. A fresh document
+had subsequently reached ready at 552 ms before these lifecycle changes, and PR #42 reached ready at 421 ms.
 
 ## Account/app configuration
 
@@ -104,8 +114,8 @@ privacy page explains the distinction. No imported file or Apple data is cleared
 
 ## Regression and remaining acceptance
 
-Implementation verification, October 28, 2026: typecheck, all 545 tests and production build passed for PR #41,
-including idle-pause/error-loop correction and cancellation regression tests. An earlier mocked SDK/API
+Implementation verification, October 28, 2026: typecheck, all 552 tests and production build passed for PR #42,
+including retained source ownership, idle-pause/error-loop correction and cancellation regression tests. An earlier mocked SDK/API
 browser run verified paused song selection, first Play at a prepared cue, playing/paused cue behavior,
 pending-start cancellation, disconnect and source exit. Loaded-artwork main layouts passed at twelve sizes;
 Stage and the upfront choices passed at seven phone/tablet/desktop sizes. The unconfigured release screen

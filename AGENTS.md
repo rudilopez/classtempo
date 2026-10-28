@@ -152,8 +152,11 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Spotify interface/keyboard controls while inactive. Fresh Apple Music documents must not initialize Spotify.
   Keep native `enableMediaSession: false`: ClassTempo binds guarded Spotify OS handlers only while active and
   cleans them before another source takes ownership. Failed-player Restart reloads the document with auth/cues
-  retained instead of constructing a second SDK player. The lifecycle candidate still needs live roundtrip
-  acceptance; the earlier Mac 100% listening/full-track result does not validate this new lifecycle or phones.
+  retained instead of constructing a second SDK player. PR #42’s real Mac source roundtrips preserve a prepared
+  1.0-second offset before first Play and pause at 8.8 seconds when leaving playback; explicit Play works on each
+  return with one SDK instance and no new OAuth prompt/error events. Preserve that result alongside the earlier
+  owner-confirmed Mac 100% clear audio/full-track completion. Physical-phone, background, Bluetooth and
+  lock-screen acceptance remain separate and pending; a phone-sized desktop viewport does not establish them.
   Spotify has no tempo changes, Practice, Stems, class plans or offline support; mark unavailable controls clearly.
   Disconnect removes Spotify tokens/lists/cues only. Keep its artwork original: no crop, blur, gradients/text/controls
   over it; display official Spotify attribution and links in player, results and Stage. No provider samples enter
