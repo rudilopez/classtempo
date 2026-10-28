@@ -51,10 +51,10 @@ export function createAppleMusicTransport(instance: MusicKitInstance): AppleMusi
       if (seekingInstances.has(instance)) throw new Error('The song is still seeking. Try again when it is ready.');
       if (!Number.isFinite(seconds)) throw new Error('Choose a valid position in the song.');
       const duration = instance.currentPlaybackDuration;
-      if (!Number.isFinite(duration) || duration <= 0) throw new Error('Wait for the song to load before seeking.');
-      const position = Math.min(duration, Math.max(0, seconds));
-      const token = ++generation;
       const wasPlaying = instance.isPlaying;
+      const durationReady = Number.isFinite(duration) && duration > 0;
+      if (!durationReady && (!launch || wasPlaying)) throw new Error('Wait for the song to load before seeking.');
+      const token = ++generation;
       seekingInstances.add(instance);
       const failed = (error: unknown): never => {
         // A failed launch must not leave music playing at the wrong position, but
@@ -65,6 +65,26 @@ export function createAppleMusicTransport(instance: MusicKitInstance): AppleMusi
         }
         throw error;
       };
+      if (!durationReady) {
+        // A newly queued MusicKit song has catalog duration but no native media
+        // yet. Start in the gesture, then seek once Apple initializes the stream.
+        // Only the seek is deferred, and a later Pause/source change revokes it.
+        let starting: void | Promise<unknown>;
+        try { starting = startPlaying(); } catch (error) {
+          seekingInstances.delete(instance);
+          return Promise.reject(error).catch(failed);
+        }
+        return Promise.resolve(starting).then(() => {
+          if (disposed || token !== generation) throw new Error('Playback action cancelled.');
+          assertAvailable();
+          const loadedDuration = instance.currentPlaybackDuration;
+          if (!Number.isFinite(loadedDuration) || loadedDuration <= 0) throw new Error('Wait for the song to load before seeking.');
+          return instance.seekToTime(Math.min(loadedDuration, Math.max(0, seconds)));
+        }).then(() => {
+          if (disposed || token !== generation) throw new Error('Playback action cancelled.');
+        }).catch(failed).finally(() => { seekingInstances.delete(instance); });
+      }
+      const position = Math.min(duration, Math.max(0, seconds));
       let nativeSeek: Promise<void>;
       try {
         if (launch) instance.playbackRate = 1;

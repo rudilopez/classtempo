@@ -163,3 +163,12 @@ saved Apple Music cue. The owner rejected that difference from local-file playba
 must jump and play in one action; the old pause-on-cue result is historical evidence, not the intended behavior.
 Verify the corrected launch from both playing and paused states, cancellation by Pause/source changes, and
 Stage. Keep actual iPhone acceptance separate from desktop and automated results.
+
+Correction validation: production Chrome played through a saved five-second cue in “Alma Rota” and resumed
+from that cue in Stage after pausing, with native playback rate 1. A newly queued song exposed an additional
+SDK state: catalog duration was available but native duration was zero until first Play. Cue launch now starts
+MusicKit inside the tap, then seeks after initialization only if that action has not been cancelled. The full
+suite passes 381 tests, typecheck and build, including initialization, cancellation and late-failure cases.
+The local real-UI test with delayed Play also confirmed immediate Pause can cancel a pending cue start;
+keyboard cue/transport actions and all seven required player viewport sizes passed their relevant checks.
+Live first-cue initialization and physical-iPhone behavior require separate confirmation.
