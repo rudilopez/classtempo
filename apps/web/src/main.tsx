@@ -1,6 +1,7 @@
-import { lazy, StrictMode, Suspense } from 'react';
+import { lazy, StrictMode, Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import type { LocalPlayerRequest } from './dancer/DancerMode';
 import { registerSW } from './pwa/registerSW';
 import './styles.css';
 
@@ -10,11 +11,37 @@ const AppleMusic = lazy(() => import('./appleMusic/AppleMusic'));
 const route = (): 'stems' | 'apple-music' | 'player' => window.location.hash === '#stems-benchmark' ? 'stems'
   : window.location.hash === '#apple-music' ? 'apple-music' : 'player';
 const initialRoute = route();
-// Entering/leaving the lab starts a fresh document, releasing playback worklets before memory measurements.
-// Handle a same-page fragment navigation too (for example opening the link in an already-running app).
-window.addEventListener('hashchange', () => {
-  if (route() !== initialRoute) window.location.reload();
+if (initialRoute === 'stems') window.addEventListener('hashchange', () => {
+  if (route() !== 'stems') window.location.reload();
 });
+function PlayerSources(): React.ReactElement {
+  const [source, setSource] = useState(initialRoute);
+  const [localVisited, setLocalVisited] = useState(initialRoute === 'player');
+  const [request, setRequest] = useState<LocalPlayerRequest>();
+  useEffect(() => {
+    const change = () => {
+      const next = route();
+      // The memory benchmark still needs a fresh document without either playback engine.
+      if (next === 'stems' || initialRoute === 'stems') { window.location.reload(); return; }
+      if (next === 'player') setLocalVisited(true);
+      setSource(next);
+    };
+    window.addEventListener('hashchange', change);
+    return () => window.removeEventListener('hashchange', change);
+  }, []);
+  const openLocal = (file?: File) => {
+    setRequest((previous) => ({ id: (previous?.id ?? 0) + 1, file, library: !file }));
+    setLocalVisited(true);
+    window.history.pushState(null, '', import.meta.env.BASE_URL);
+    setSource('player');
+  };
+  return <>
+    {localVisited && <App active={source === 'player'} request={request} />}
+    {source === 'apple-music' && <Suspense fallback={<p role="status">Opening Apple Music…</p>}>
+      <AppleMusic onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={() => openLocal()} />
+    </Suspense>}
+  </>;
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -22,11 +49,7 @@ createRoot(document.getElementById('root')!).render(
       <Suspense fallback={<p role="status">Opening stems benchmark…</p>}>
         <StemsBenchmark />
       </Suspense>
-    ) : initialRoute === 'apple-music' ? (
-      <Suspense fallback={<p role="status">Opening Apple Music…</p>}>
-        <AppleMusic />
-      </Suspense>
-    ) : <App />}
+    ) : <PlayerSources />}
   </StrictMode>,
 );
 

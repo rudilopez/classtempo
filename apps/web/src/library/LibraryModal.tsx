@@ -271,9 +271,11 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
           <button type="button" className="library-close" onClick={onClose} disabled={busy} aria-label="Close library">✕</button>
         </header>
         <p id="library-description" className="library-description">Your media and teaching plans, saved on this device.</p>
-        <div className="library-tabs" role="group" aria-label="Library content">
+        <div className={`library-tabs ${import.meta.env.VITE_APPLE_MUSIC_ENABLED === 'true' ? 'has-apple-music' : ''}`} role="group" aria-label="Library content">
           <button type="button" aria-pressed={view === 'media'} disabled={busy || !!classDraft} onClick={() => setView('media')}>Media <span className="library-tab-count">{media.length}</span></button>
           <button type="button" aria-pressed={view === 'classes'} disabled={busy || !!classDraft} onClick={() => { setView('classes'); setSelected(''); setCreatingClass(false); }}>Classes <span className="library-tab-count">{classes.length}</span></button>
+          {import.meta.env.VITE_APPLE_MUSIC_ENABLED === 'true' && <button type="button" disabled={busy || !!classDraft}
+            onClick={() => { window.location.hash = 'apple-music'; }}>Apple Music</button>}
         </div>
         <div className="library-feedback" aria-live="polite">
           {busy && <p>{progress}</p>}
@@ -391,9 +393,6 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
           </div>
         </div>
         <footer className="library-help">
-          {import.meta.env.VITE_APPLE_MUSIC_ENABLED === 'true' && <a href={`${import.meta.env.BASE_URL}#apple-music`}>
-            <span>Apple Music · Connection test</span><span aria-hidden="true">↗</span>
-          </a>}
           <a href={`${import.meta.env.BASE_URL}guide.html`} target="_blank" rel="noopener noreferrer" aria-label="ClassTempo User guide (opens in a new tab)">
             <span>User guide</span><span aria-hidden="true">↗</span>
           </a>

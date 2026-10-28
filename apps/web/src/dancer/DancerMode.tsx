@@ -3,7 +3,7 @@ import { VideoDeck, type DancerPlayer, type DrumFocus, type Engine, type StemMix
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { analysis } from '../analysisClient';
-import nowPlayingLogo from '../assets/itda-logo-white.png';
+import { NowPlayingLabel, PlayerTransport } from '../components/PlayerChrome';
 import { Waveform, type WaveformMarker } from '../components/Waveform';
 import { LibraryModal } from '../library/LibraryModal';
 import { getMediaFile, listClasses, listMedia, markOpened, saveMedia, type ClassSet, type LibraryMedia } from '../library/store';
@@ -49,6 +49,14 @@ interface Props {
    */
   active: boolean;
   actionsContainer: HTMLDivElement | null;
+  request?: LocalPlayerRequest;
+}
+
+/** A source switch can open a selected local file directly, or reopen the saved library. */
+export interface LocalPlayerRequest {
+  id: number;
+  file?: File;
+  library?: boolean;
 }
 
 /** The loaded song and its cues travel together so a cue save can never target the wrong track. */
@@ -107,7 +115,7 @@ function errorText(e: unknown, fallback: string): string {
  * Minimal single-song player: launchable cue pads and key-locked tempo, no EQ, no mixer. Audio files play on the
  * engine's StretchDeck, video files on a VideoDeck (shown in place of the waveform, and full screen in Stage view).
  */
-export function DancerMode({ engine, active, actionsContainer }: Props) {
+export function DancerMode({ engine, active, actionsContainer, request }: Props) {
   const [stretch, setStretch] = useState<StretchDeck | null>(null);
   const [deckError, setDeckError] = useState<string | null>(null);
   /** The player the transport drives: the StretchDeck, or the VideoDeck while a video is loaded. */
@@ -418,9 +426,20 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
   // the screen sleep again
   useEffect(() => {
     if (active) return;
+    if (preparedStems.state.phase === 'working') preparedStems.cancel();
+    practiceController.current?.cancel();
+    classRun.current++; classStartPermit.current++; classGeneration.current++;
+    classArmed.current = false;
+    classPreflight.current?.abort();
+    setClassBusy(false);
     playerRef.current?.pause();
+    videoRef.current?.pause(); // Also revoke a class video's pending first-play intent before selection.
     keepAlive.stop();
     setStageOpen(false);
+    setLibraryOpen(false);
+    setPracticeOpen(false);
+    setClassDrawerOpen(false);
+    setEditing(false);
     setScreenOn(false);
     void wakeLock.disable();
   }, [active, keepAlive, wakeLock]);
@@ -1294,6 +1313,16 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
     if (file && !loading) void loadFile(file);
   };
 
+  const handledRequest = useRef<number | null>(null);
+  useEffect(() => {
+    if (!active || !request || handledRequest.current === request.id) return;
+    // Keep the selected File in memory until the local deck is ready; no second picker tap.
+    if (request.file && (!stretch || loading || classBusy)) return;
+    handledRequest.current = request.id;
+    if (request.file) void loadFile(request.file);
+    else if (request.library) setLibraryOpen(true);
+  }, [active, request, stretch, loading, classBusy]);
+
   const track = song?.track ?? null;
   const bpm = track?.bpm ? track.bpm * (tempo / 100) : null;
   const ready = player !== null && song !== null && !loading && !classBusy && !videoError && !failedVideoFile;
@@ -1436,9 +1465,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
           onKeyDown={(event) => event.stopPropagation()} onKeyUp={(event) => event.stopPropagation()}
           onClick={() => { void resumeClass(); }}>Resume {resumeName} <small>Opens paused</small></button>}
         <div className="dancer-track-info">
-          {!liveClass && <span className="dancer-track-kicker" role="img" aria-label="Now Playing">
-            <span aria-hidden="true">N</span><img className="now-playing-logo" src={nowPlayingLogo} alt="" aria-hidden="true" /><span aria-hidden="true">W PLAYING</span>
-          </span>}
+          {!liveClass && <NowPlayingLabel />}
           <div className="dancer-track-title" title={track?.name}>
             {loading ? 'Opening video or song…' : loadError ? loadError : track?.name ?? (deckError ? `Player failed to start: ${deckError}` : 'Tap Open to choose a song or video')}
           </div>
@@ -1464,27 +1491,13 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
 
       {pendingLabel && <div className="practice-countdown" role="status">{pendingLabel}</div>}
 
-      <div className="dancer-transport">
-        <button className={`play ${playing ? 'on' : ''} ${practiceActive ? 'practice-play' : ''}`} onClick={togglePlay} disabled={!ready} title={practiceActive ? `${practice.mode === 'repeat' ? 'Repeat' : 'Play'} ${practiceRange}` : 'Space'}>
-          <span>{videoError || failedVideoFile ? 'Video error' : waiting ? '✕ Cancel' : playing ? '❚❚ Pause' : practiceActive ? (practice.mode === 'repeat' ? '↻ Repeat' : '▶ Section') : '▶ Play'}</span>
-          {practiceActive && !videoError && !failedVideoFile && <small>{waiting ? (practiceState.phase === 'gap' ? 'Between passes' : 'Starting soon') : practiceProgress}</small>}
-        </button>
-        <button onClick={restart} disabled={!ready} title="Home">
-          ⟲ {liveClass ? 'Again' : practiceActive ? 'Section' : 'Restart'}
-        </button>
-        <button
-          ref={stageButton}
-          className="stage-open"
-          onClick={() => setStageOpen(true)}
-          disabled={!ready}
-          title="Stage: full screen with only play, restart and the cue pads"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
-          </svg>
-          Stage
-        </button>
-      </div>
+      <PlayerTransport playing={playing} disabled={!ready} onTogglePlay={togglePlay} onRestart={restart}
+        onStage={() => setStageOpen(true)} stageRef={stageButton}
+        playClassName={practiceActive ? 'practice-play' : ''}
+        playTitle={practiceActive ? `${practice.mode === 'repeat' ? 'Repeat' : 'Play'} ${practiceRange}` : 'Space'}
+        playLabel={videoError || failedVideoFile ? 'Video error' : waiting ? '✕ Cancel' : playing ? '❚❚ Pause' : practiceActive ? (practice.mode === 'repeat' ? '↻ Repeat' : '▶ Section') : '▶ Play'}
+        playDetail={practiceActive && !videoError && !failedVideoFile ? waiting ? (practiceState.phase === 'gap' ? 'Between passes' : 'Starting soon') : practiceProgress : undefined}
+        restartLabel={liveClass ? 'Again' : practiceActive ? 'Section' : 'Restart'} />
 
       {/* one box only where a layout needs it (phone landscape with a video: tempo above the pads); elsewhere its
           children sit straight on the card's grid (display: contents) */}
@@ -1540,7 +1553,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
         </div>
       </div>
 
-      <LibraryModal open={libraryOpen} onClose={() => setLibraryOpen(false)}
+      <LibraryModal open={active && libraryOpen} onClose={() => setLibraryOpen(false)}
         onNotice={showToast}
         onTeachClass={teachClass} activeClassId={liveClass?.plan.id}
         currentFile={currentFile} currentTitle={track?.name ?? null}
@@ -1553,7 +1566,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
             playerRef.current.setTempo(next.tempo); setTempo(Math.round(next.tempo * 100));
           }
         }} />
-      {practiceOpen && track && <PracticePanel settings={practice} onChange={savePractice}
+      {active && practiceOpen && track && <PracticePanel settings={practice} onChange={savePractice}
         cues={song?.cues ?? NO_CUES} onStart={startPractice} onEnd={endPractice}
         position={displayPos} duration={track.duration} delayDisabled={song?.kind === 'video' && !videoStarted.current} onClose={() => setPracticeOpen(false)} />}
 
@@ -1569,7 +1582,7 @@ export function DancerMode({ engine, active, actionsContainer }: Props) {
         )}
       </div>
 
-      {stageOpen && song && (
+      {active && stageOpen && song && (
         <StageView
           classControls={classControls}
           video={videoElement}

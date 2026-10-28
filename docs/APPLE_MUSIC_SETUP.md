@@ -1,8 +1,8 @@
 # Apple Music setup for ClassTempo
 
-This configures the separate MusicKit test screen, which supports original-speed playback only. Tempo changes
-use local audio files. Setup alone does **not** establish playback, stems, offline access or iPhone acceptance.
-Local songs, videos and classes remain independent.
+This configures the Apple Music source in the familiar ClassTempo player. Streaming supports original-speed
+playback only; tempo changes use local audio files. Setup alone does **not** establish playback, stems, offline
+access or iPhone acceptance. Local songs, videos and classes retain their existing storage and playback engine.
 Follow [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md) for the device test after setup.
 
 Current setup, 2026-10-28: Apple Developer membership is active. The MusicKit-only Media ID
@@ -53,9 +53,10 @@ A successful build generates `apps/web/public/apple-music-config.json` and publi
 contains only `developerToken` and `expiresAt` (Unix seconds). This developer token is intentionally public;
 the signing private key stays in the Actions secret and runner memory.
 
-The configured build shows the Apple Music test entry in Library. The direct `#apple-music` route remains
-available for setup information even before credentials exist. Check that setup is available, then follow the
-separate feasibility checklist with a suitable Apple Music account. A successful signature or deployment
+The configured build shows the Apple Music source in Library. The direct `#apple-music` route remains
+available for setup information even before credentials exist. Check that the source picker opens and that
+selecting a song returns to the familiar player paused, then follow the feasibility checklist with a suitable
+Apple Music account. A successful signature or deployment
 does not prove Apple accepts the key or that a subscribed track plays on the target device.
 
 With **all three secrets absent**, deployment succeeds without the config file or Library entry. With a
@@ -72,7 +73,7 @@ Apple documents these fields and the origin restriction in
 [Generating Developer Tokens](https://developer.apple.com/documentation/applemusicapi/generating-developer-tokens).
 
 The existing Pages workflow refreshes and redeploys every **Monday at 07:23 UTC**, as well as on `main` pushes
-and manual runs. The service worker does not cache the configuration, so reopening the test screen can fetch
+and manual runs. The service worker does not cache the configuration, so reopening Apple Music can fetch
 the current deployment's token. The app does not generate or renew tokens in the browser.
 
 Check failed Actions runs. GitHub schedules can be delayed, run only from the default branch, and can be
@@ -95,7 +96,7 @@ It removes any previous generated file before checking configuration. It does no
 the key/token. With no credentials it simply removes the generated configuration. `npm run build` does not
 automatically sign; production signing is an explicit workflow step. For a configured local build, run the
 signer first, then build with `VITE_APPLE_MUSIC_ENABLED=true`. The production-origin token still cannot be used
-from localhost; use the deployed test screen for authenticated testing.
+from localhost; use the deployed Apple Music source for authenticated testing.
 
 Generated config, `.env*` files and `.p8` keys are ignored by Git. No private key or Music User Token belongs in
 the published output. Only a developer token is generated here; authorization of a listener remains a separate,

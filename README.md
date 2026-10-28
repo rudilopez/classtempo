@@ -77,21 +77,33 @@ The current player uses **local audio and video files**, including files selecte
 system file picker. MP3, M4A/AAC, WAV, AIFF and browser-supported video formats are accepted; FLAC, OGG and other
 formats depend on the browser's decoder. A file may need to finish downloading from its provider first.
 
-**The class player uses local files.** Subscription downloads are not ordinary media files that it can import.
-An isolated Apple Music connection test is available at `#apple-music`: explicit sign-in, catalog search, the
-first 25 library songs/playlists/tracks, one song queued paused, Play/Pause, Restart and seeking.
-Apple Music plays at **original speed only**. Open a local audio file for tempo changes that preserve pitch.
-Production Chrome authorization, catalog/library browsing, paused selection, Play/Pause and seeking were
-verified on 2026-10-28. Returning to the local player also stopped the stream. The owner confirmed clear audio
-at 100%, with playback observed beyond the preview
-range. Slower streaming playback warbled and faster playback changed pitch in the listening test, so those
+**Apple Music uses the familiar ClassTempo player.** Open **Library → Apple Music**, connect your subscription,
+then search the catalog or browse My songs and Playlists. Selecting a song closes the picker and opens the song
+paused, with the same branding, Now Playing, Play/Pause, Restart and Stage layout. The Apple Music source uses
+Apple's streaming player underneath; imported songs and videos keep their existing local engine.
+**Open** still accepts a local song or video directly from this player. **Library → Files & classes** returns
+to saved local media. Switching sources pauses the source you leave; returning does not restart an old delay
+or class transition.
+
+Apple Music cues save positions on this device: tap an empty pad to set one, or use Edit cues to move, rename
+or clear it. Tapping a saved streaming cue moves to that position **paused**; tap Play to continue. This avoids
+starting audio from a delayed seek completion. Talk pauses streaming and resumes only if it was playing when
+Talk began. Streaming cues use provider IDs and do not replace cues saved for local files.
+
+Apple Music plays at **original speed only** and requires internet and an active subscription. Saved local
+classes, named practices, pitch-preserving tempo changes and stems continue to use imported files. Subscription
+downloads are not ordinary files ClassTempo can import or save offline. The owner approved bringing streaming
+into the same player first; clean streaming tempo remains a separate investigation. Spotify is not integrated.
+
+The earlier connection screen's production Chrome authorization, catalog/library browsing, paused selection,
+Play/Pause, seeking and teardown were verified on 2026-10-28. The owner confirmed clear audio at 100%, with
+playback observed beyond the preview range. Slower playback warbled and faster playback changed pitch, so those
 speed controls were removed. Uninterrupted full-track completion and physical-iPhone acceptance remain
-unverified. See the
+unverified; the shared interface does not establish them. See the
 [setup instructions](docs/APPLE_MUSIC_SETUP.md) and [feasibility plan](docs/APPLE_MUSIC_FEASIBILITY.md).
-The test does not add streams to classes, prepare stems or save songs offline. Spotify is not integrated.
 
 Local media and settings stay on this device; there is no local-media upload service or cloud sync. The optional
-Apple Music test uses Apple's SDK, authorization and network services; it does not upload imported media. The supplied white
+Apple Music source uses Apple's SDK, authorization and network services; it does not upload imported media. The supplied white
 logo forms the O in Now Playing and the final o in the larger ClassTempo wordmark. The former DJ interface and synthetic Demo have been removed from the product.
 
 ## Saved files, backups and offline use
@@ -103,6 +115,7 @@ original file and class entries intact; reimport the original to reconnect the e
 Library → **Backup & device storage** exports class sets, exercise names/notes, per-exercise settings, cues and per-track practice
 settings as JSON. **The backup does not contain songs or videos.** Keep the originals separately. Restore adds
 missing items without overwriting existing settings, then import missing media and reload the current track.
+Apple Music cue bookmarks currently stay in this browser and are not included in that local-media backup.
 
 After a successful online launch of the installed app, the app shell is cached. Saved media can then play
 without a connection while those files and caches remain on the device. Browsers can evict storage, and clearing

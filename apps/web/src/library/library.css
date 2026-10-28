@@ -33,6 +33,8 @@
 .library-panel .library-close { flex: 0 0 44px; font-size: 19px; padding: 8px; }
 .library-description { margin: 9px 0 14px; font-size: 13px; color: #b4c8db; flex: none; }
 .library-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex: none; padding: 5px; border-radius: 14px; background: #0a1522; }
+.library-tabs.has-apple-music { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.library-tabs.has-apple-music button { min-width: 0; padding-inline: 5px; gap: 4px; }
 .library-tabs button { display: flex; align-items: center; justify-content: center; gap: 9px; font-weight: 700; border-color: transparent; background: transparent; }
 .library-tabs button[aria-pressed="true"] { color: #0a2428; background: #8ce5d5; border-color: #a5f0e1; }
 .library-tab-count { display: inline-grid; place-content: center; min-width: 23px; min-height: 23px; padding: 2px 6px; border-radius: 7px; background: #ffffff16; font-size: 12px; }

@@ -4,6 +4,7 @@ import type { CueSlots } from './cueStore';
 import './videoTimeline.css';
 
 interface Props {
+  label?: string;
   position: number;
   duration: number;
   onSeek: (seconds: number) => void;
@@ -13,7 +14,7 @@ interface Props {
 }
 
 /** A thin seek line inside a full 44 px touch target, with readable elapsed/total times. */
-export function VideoTimeline({ position, duration, onSeek, disabled = false, cues = [], practiceRange }: Props) {
+export function VideoTimeline({ position, duration, onSeek, disabled = false, cues = [], practiceRange, label = 'Video position' }: Props) {
   const end = Number.isFinite(duration) && duration > 0 ? duration : 0;
   const value = Math.max(0, Math.min(end, Number.isFinite(position) ? position : 0));
   const percent = (time: number) => end > 0 ? Math.max(0, Math.min(100, time / end * 100)) : 0;
@@ -22,7 +23,7 @@ export function VideoTimeline({ position, duration, onSeek, disabled = false, cu
   return <div className="video-timeline" onKeyDown={(event) => event.stopPropagation()} onKeyUp={(event) => event.stopPropagation()}>
     <span>{formatTime(value)}</span>
     <div className="video-timeline-track">
-      <input type="range" aria-label="Video position" aria-valuetext={`${formatTime(value)} of ${formatTime(end)}`}
+      <input type="range" aria-label={label} aria-valuetext={`${formatTime(value)} of ${formatTime(end)}`}
         min={0} max={end || 1} step="0.01" value={value} disabled={disabled || !end}
         onChange={(event) => onSeek(Number(event.target.value))} />
       <div className="video-timeline-marks" aria-hidden="true">
