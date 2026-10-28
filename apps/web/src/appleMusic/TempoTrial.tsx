@@ -13,13 +13,16 @@ interface Props {
   requestedRate: number;
   playing: boolean;
   seeking: boolean;
+  onCleanRestart: () => boolean;
+  restartDisabled: boolean;
 }
 
-/** Read-only playback diagnostics. No media samples, source URLs or credentials are read. */
-export function TempoTrial({ instance, trackId, requestedRate, playing, seeking }: Props): React.ReactElement {
+/** Read-only diagnostics and an explicit clean restart. No samples, source URLs or credentials are read. */
+export function TempoTrial({ instance, trackId, requestedRate, playing, seeking, onCleanRestart, restartDisabled }: Props): React.ReactElement {
   const [details, setDetails] = useState(false);
   const [timing, setTiming] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
+  const [restartError, setRestartError] = useState('');
   const [diagnostics, setDiagnostics] = useState<PlaybackDiagnostics>({ media: [], events: [] });
   const monitor = useRef<PlaybackDiagnosticsMonitor | null>(null);
   const detailsOpen = useRef(details);
@@ -29,6 +32,7 @@ export function TempoTrial({ instance, trackId, requestedRate, playing, seeking 
   useEffect(() => {
     setDiagnostics({ media: [], events: [] });
     setCopyStatus('');
+    setRestartError('');
     if (!instance || !trackId) return;
     // Apple's rendered element is diagnostic-only. Never substitute a local video
     // or mutate the provider's element, even when it is replaced during playback.
@@ -107,6 +111,14 @@ export function TempoTrial({ instance, trackId, requestedRate, playing, seeking 
       <p>Buffered ahead: <strong>{bufferedAhead === null ? 'Not reported yet' : `${Math.floor(bufferedAhead)} s of song audio`}</strong>. Updates while this panel is open.</p>
       <p>Stream quality target: <strong>{targetBitrate === null ? 'Not reported' : `${targetBitrate} kbps`}</strong>. Apple chooses the actual stream quality.</p>
       <p>Local audio engine: <strong>{localAudioContext.created ? localAudioContext.state : 'Not started'}</strong>.</p>
+      {localAudioContext.created && <div>
+        <p>Restart to test Apple Music without the local audio engine. This reloads ClassTempo and reopens this song paused at 100%. Saved cues and library files stay saved; an unsaved local file will need to be opened again.</p>
+        <button type="button" disabled={restartDisabled} onClick={() => {
+          setRestartError('');
+          if (!onCleanRestart()) setRestartError('Could not restart Apple Music. Your browser may be blocking temporary storage. Try again, or reload this page and choose the song again.');
+        }}>Restart Apple Music cleanly</button>
+        {restartError && <p role="alert">{restartError}</p>}
+      </div>}
       <p>To check whether buffering helps, pause and watch the buffer. After it grows, replay the same passage at 75%. The browser may stop buffering before the whole song is loaded.</p>
       <button type="button" disabled={!playing || seeking || timer.current !== null} onClick={checkTiming}>Check timing for 12 seconds</button>
       {timing && <p role="status">{timing}</p>}

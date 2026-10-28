@@ -16,7 +16,12 @@ work; matching the visual controls does not make streaming a local File.
 `App` remains mounted but hidden and inactive during streaming, preserving its loaded file while cancelling
 practice/class transitions, closing its dialogs and releasing Keep awake. Apple Music unmounts and stops its
 SDK transport when leaving. A selected File can be handed directly to the local player in memory; the local
-deck loads it once ready, without another file-picker step. The historical stems benchmark still reloads into
+deck loads it once ready, without another file-picker step. Playback info also offers an explicit clean
+Apple Music restart when the local engine exists. It stores validated song metadata only in a five-minute,
+one-shot sessionStorage handoff, replaces the route and reloads the document. The fresh Apple-only setup
+consumes the handoff after its disposal guard, queues the same song paused at 100% and restores saved cues.
+No playback starts automatically. This diagnostic restart discards the in-memory local deck; library files
+and persisted settings remain. If temporary storage is unavailable, the action fails without reloading. The historical stems benchmark still reloads into
 a fresh document for isolated memory measurements.
 
 Normal local-player startup does not load MusicKit. The Apple Music source fetches public

@@ -103,6 +103,13 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   browser or device. Playback info retains read-only diagnostics without a test-only label.
   The owner subsequently reported warbling on iPhone at 75%; requested, SDK and native rates all read 0.75,
   with readyState 4 and preservesPitch true. That iPhone listening check failed despite correct rate/flags.
+  The subsequent web-tempo-v2 capture still warbled at 75% with a 256 kbps target and the entire reported track
+  buffered: position 7.056675747472746, duration 245.317, buffer 0.000001–245.3172345600907 and 238.2605318438445
+  seconds ahead. Network state was 1, ready state 4, pitch preservation true, and the local AudioContext was
+  created/running at 48000 Hz. One ratechange appeared near position 0.98, with no waiting event after startup.
+  No timing result, track title or output route was supplied; this duration differs from the earlier 229-second
+  Mac track, so do not claim an identical song/version comparison. Waiting for the full song is not a solution
+  for that capture, and the higher-bitrate candidate did not pass listening. Local-engine isolation remains untested.
   Other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain unverified.
   Keep phone layout repairs separate from audio-quality claims; public MusicKit exposes a stream-bitrate target, but no pitch-correction algorithm selector.
   Apple Developer membership was verified active on 2026-10-28. The ClassTempo MusicKit Media ID and key were
@@ -112,6 +119,11 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   The owner explicitly requires a web app across phones, not a native rewrite. Apple Music shows the shared
   50–150% slider, ±1% nudges and 50/75/90/100/110% presets without a special URL. The Playback info button
   opens read-only pitch/rate/timing/buffer diagnostics, requested stream bitrate and local-context state.
+  Playback info also offers Restart Apple Music cleanly for the remaining isolation check: preserve selected
+  track metadata only in single-use sessionStorage with a five-minute lifetime, fully reload #apple-music,
+  and reopen the selected song paused at 100%, using its existing saved cue identity. Never store credentials
+  or protected audio in that handoff. The button does not prove an audio fix: confirm local engine Not started
+  after restart, then explicitly Play and compare 75% on the physical iPhone. Do not resume music automatically.
   New configurations request HIGH (256 kbps) before loading songs; this is a source-quality target, not a
   verified delivered bitrate or a clean-tempo fix. MusicKit controls buffering; do not gate tempo on a full
   download or promise offline availability. Use only public MusicKit rate controls. Initialize and open
