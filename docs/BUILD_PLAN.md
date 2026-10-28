@@ -98,17 +98,19 @@ Apple Developer membership is active, the MusicKit media identifier/key are crea
 are stored in GitHub Actions repository secrets. The earlier connection screen established production Chrome
 authorization, catalog/library browsing, paused selection, Play/Pause, seeking and teardown. The owner confirmed
 clear audio at 100%, and playback beyond the preview range was observed. Slower playback warbled and faster
-playback changed pitch. Original-speed streaming therefore ships first; local files retain tempo changes,
-named practices, class plans and stems. Uninterrupted full-track completion remains unverified. Follow
+playback changed pitch. Original-speed streaming shipped first. The owner then requested the slider and
+presets in the ordinary player: they are visible with a Tempo test label while changed-speed quality remains
+unaccepted. Local files retain their independent engine, named practices, class plans and stems.
+Uninterrupted full-track completion remains unverified. Follow
 [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 Verify source switching, direct file Open, the Apple Music picker, shared Stage, cues and asynchronous seek
 cancellation in the new interface, then verify uninterrupted original-speed playback, lock-screen behavior and
 phone output on the actual target platform. The owner clarified that ClassTempo must remain web-based across
-phones; native app work is outside the intended solution. An explicitly opted-in
-[web tempo listening trial](APPLE_MUSIC_TEMPO_TRIAL.md) compares supported browser playback paths.
-Any renewed streaming tempo or phrase-control work needs timing and listening tests before exposing
-controls again. Do not equate MusicKit playback support with access
+phones; native app work is outside the intended solution. The visible
+[web tempo listening controls](APPLE_MUSIC_TEMPO_TRIAL.md) compare supported browser playback paths without
+a special URL. Timing and listening tests are required before claiming clean streaming tempo or phrase-control
+support. Do not equate MusicKit playback support with access
 to raw audio or parity with local-file processing. Spotify is not a promised integration. Platform terms and
 permitted classroom music use are independent of whether a technical integration plays a song.
 

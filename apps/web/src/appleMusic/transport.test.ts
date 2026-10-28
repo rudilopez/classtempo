@@ -255,7 +255,7 @@ describe('Apple Music transport', () => {
     expect(music.play).not.toHaveBeenCalled();
   });
 
-  it('keeps tempo opt-in and rejects unsupported trial rates without changing playback', () => {
+  it('keeps tempo opt-in and rejects invalid rates without changing playback', () => {
     const music = instance();
     const ordinary = createAppleMusicTransport(music);
     expect(ordinary.requestedRate).toBe(1);
@@ -264,15 +264,15 @@ describe('Apple Music transport', () => {
     ordinary.setTempoRate(1);
     expect(music.playbackRate).toBe(1);
     const trial = createAppleMusicTransport(music, { tempoTrial: true });
-    for (const rate of [0, 0.9, 2, NaN, Infinity]) {
-      expect(() => trial.setTempoRate(rate)).toThrow('available tempo');
+    for (const rate of [0, 0.49, 1.51, 2, NaN, Infinity, -Infinity]) {
+      expect(() => trial.setTempoRate(rate)).toThrow('between 50% and 150%');
     }
     expect(trial.requestedRate).toBe(1);
     expect(music.play).not.toHaveBeenCalled();
     expect(music.pause).not.toHaveBeenCalled();
   });
 
-  it.each([0.7, 0.85, 1, 1.15, 1.3])('sets trial rate %s while paused without playing', (rate) => {
+  it.each([0.5, 0.51, 0.7, 0.75, 0.85, 0.9, 1, 1.1, 1.15, 1.3, 1.49, 1.5])('sets trial rate %s while paused without playing', (rate) => {
     const music = instance();
     const transport = createAppleMusicTransport(music, { tempoTrial: true });
     transport.setTempoRate(rate);
@@ -281,6 +281,50 @@ describe('Apple Music transport', () => {
     expect(music.isPlaying).toBe(false);
     expect(music.play).not.toHaveBeenCalled();
     expect(music.pause).not.toHaveBeenCalled();
+  });
+
+  it.each([[0.856, 0.86], [1.234, 1.23], [0.7 + 0.01, 0.71]])('normalizes rate %s to whole-percent step %s', (input, expected) => {
+    const music = instance();
+    const transport = createAppleMusicTransport(music, { tempoTrial: true });
+    transport.setTempoRate(input);
+    expect(transport.requestedRate).toBe(expected);
+    expect(music.playbackRate).toBe(expected);
+    expect(music.play).not.toHaveBeenCalled();
+    expect(music.pause).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])('resetting to 100%% preserves playing=%s and the current position', (playing) => {
+    const music = instance();
+    music.isPlaying = playing;
+    music.currentPlaybackTime = 44;
+    const transport = createAppleMusicTransport(music, { tempoTrial: true });
+    transport.setTempoRate(0.75);
+    transport.setTempoRate(1);
+    expect(transport.requestedRate).toBe(1);
+    expect(music.playbackRate).toBe(1);
+    expect(music.isPlaying).toBe(playing);
+    expect(music.currentPlaybackTime).toBe(44);
+    expect(music.play).not.toHaveBeenCalled();
+    expect(music.pause).not.toHaveBeenCalled();
+    expect(music.seekToTime).not.toHaveBeenCalled();
+    expect(music.setQueue).not.toHaveBeenCalled();
+  });
+
+  it('resetting to 100% retains a fresh paused cue offset without disabling later tempo changes', async () => {
+    const music = instance();
+    music.currentPlaybackDuration = 0;
+    const transport = createAppleMusicTransport(music, { tempoTrial: true });
+    transport.setTempoRate(0.75);
+    await transport.seek(40, track);
+    transport.setTempoRate(1);
+    expect(transport.preparedPosition).toBe(40);
+    expect(music.setQueue).toHaveBeenCalledExactlyOnceWith({ song: track.id, startPlaying: false, startTime: 40 });
+    expect(music.play).not.toHaveBeenCalled();
+    expect(music.pause).not.toHaveBeenCalled();
+    transport.setTempoRate(1.1);
+    expect(transport.requestedRate).toBe(1.1);
+    expect(transport.preparedPosition).toBe(40);
+    expect(music.isPlaying).toBe(false);
   });
 
   it('applies tempo before explicit Play and restores the latest request after async Play resets it', async () => {

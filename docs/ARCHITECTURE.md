@@ -29,9 +29,13 @@ token; stale/expired setup is reported, never silently treated as available. Mus
 protected media playback. The source's read-only lists are first-page/25-item views. Songs queue paused and start
 only from a tap; SDK events/progress drive the display. Generation guards discard stale account/list results,
 and SDK configure/queue operations cannot overlap retries while their underlying promises remain pending.
-Apple Music playback is fixed at original speed. Initialization, song selection and Play reset the SDK rate
-to 1; Play still reaches the SDK synchronously within the user gesture. The failed streaming speed experiments
-and their timing panel are removed. Play/Pause, Restart and seeking remain available in the familiar layout.
+Apple Music initializes and selects songs paused at original speed. The regular player reuses `TempoControl`
+for 50–150% in whole-percent steps, ±1% nudges and the 50/75/90/100/110% presets. No query parameter is needed.
+Play reaches the SDK synchronously within the user gesture and preserves the requested rate, including after
+its asynchronous completion; seeking also preserves rate and playback state. Selecting 100% changes speed
+without pausing, starting or losing a prepared cue offset. The Tempo test info button opens read-only
+pitch/rate/timing diagnostics. This visible test interface does not establish clean changed-speed audio.
+Back 10s, Talk, Play/Pause, Restart and seeking remain available in the familiar layout.
 No provider samples enter the local engine, stems, IndexedDB media store, class plans or backup format.
 Streaming cues use `classtempo.apple-music.cues.<type>.<encoded provider ID>`; filename/duration local cue keys
 remain unchanged. These bookmarks store only positions/names and are not part of the local-file backup.
@@ -293,8 +297,8 @@ class syntax; transpiled helper references can make worklet startup fail. Produc
 SharedArrayBuffer requirement. The dev server has COOP/COEP headers; Pages does not provide equivalent custom
 headers, and future cross-origin-isolated work must account for that difference.
 
-MusicKit loads only after opening the optional Apple Music source. It uses the shared player presentation at
-original speed; bounded Chrome authorization/playback evidence is recorded above, with uninterrupted full-track
+MusicKit loads only after opening the optional Apple Music source. It uses the shared player presentation,
+starting at original speed with visible tempo-test controls. Bounded Chrome authorization/playback evidence is recorded above, with uninterrupted full-track
 completion and physical-iPhone acceptance still outstanding.
 Spotify is not integrated. See [Apple Music feasibility](APPLE_MUSIC_FEASIBILITY.md) for the remaining tests.
 The hidden historical Demucs page retains its research-only model; the

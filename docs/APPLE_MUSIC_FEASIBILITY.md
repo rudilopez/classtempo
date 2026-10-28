@@ -7,7 +7,8 @@ credentials are stored as GitHub Actions repository secrets. The configured Page
 Apple's catalog API accepted the developer token. Production Chrome subscriber authorization, read-only
 catalog/library browsing, paused selection, Play/Pause, seeking and return-to-local teardown were verified. The owner confirmed clear
 audio at 100%, with playback observed beyond the preview range. Slower playback warbled and faster playback
-changed pitch. Apple Music is therefore original-speed only. Uninterrupted full-track completion and
+changed pitch. The ordinary player now exposes the requested slider and presets with a **Tempo test** label;
+that interface change is not a changed-speed audio-quality pass. Songs still open paused at 100%. Uninterrupted full-track completion and
 physical-iPhone acceptance remain unverified. Detailed evidence is recorded below.
 The owner then approved bringing normal-speed streaming into the familiar ClassTempo player first, with clean
 tempo investigation next. Imported files keep their existing engine and full local teaching features.
@@ -33,7 +34,7 @@ configuration bypasses the service worker cache. See [APPLE_MUSIC_SETUP.md](APPL
 ## Shared player release
 
 The owner explicitly rejected a separate connection-test experience: Apple Music should use the same player
-or one that looks identical. The approved first release uses original-speed streaming with the familiar
+or one that looks identical. The approved first release used original-speed streaming with the familiar
 ClassTempo header, Now Playing, transport and Stage. Browsing is a picker that closes when a song is selected.
 The provider player remains separate internally from local file decoding; source switches must prevent overlap.
 
@@ -44,9 +45,11 @@ library songs, playlists and playlist tracks are read-only and limited visibly t
 a song queues it paused; only an explicit Play starts it. No local file identity, practice or class record is
 created for the stream. Disconnect clears visible account lists; stale requests cannot restore them.
 
-Play/Pause, Restart and seeking use MusicKit directly. Initialization, song selection and
-Play set the SDK rate to 1. The changed-speed controls and timing panel were removed after the listening
-failure below; the UI directs tempo changes to local audio files. The implementation uses supported SDK
+Play/Pause, Restart and seeking use MusicKit directly. Initialization and song selection reset to 100%.
+The ordinary player shows the shared 50–150% slider, ±1% nudges and 50/75/90/100/110% presets. Play and seeks
+preserve the requested rate; choosing 100% preserves playing/paused state and prepared cue position.
+The Tempo test info button opens diagnostics and clearly retains the unresolved audio-quality status.
+These visible controls supersede the earlier hidden-link experiment. The implementation uses supported SDK
 controls, without patching a private player or extracting protected streaming samples. Phrase repetition,
 native speaker routing and integration into local class sets are not implemented. Streaming cue bookmarks must
 use provider identity; they must not overwrite filename-based cues for imported media. Empty pads save the
@@ -64,7 +67,7 @@ copied into UI diagnostics. A cancelled/stuck account attempt can be abandoned b
 ## Bounded iPhone spike
 
 Use the shared player with the Apple Music source and explicit authorization after verifying the configured
-deployment. Keep unproven tempo and practice controls out of the released streaming player.
+deployment. Tempo controls remain labelled as a listening test; unimplemented streaming practice controls stay absent.
 
 1. Sign in, search the catalog and read the user's library/playlist without changing it.
 2. Play a full subscribed track from a tap over the instructor's actual Bluetooth/AirPlay speaker connection. Record iOS version, browser versus installed PWA, SDK version, account/subscription status, and connection.
@@ -80,7 +83,7 @@ deployment. Keep unproven tempo and practice controls out of the released stream
 7. Sign out and expire/revoke the token. Confirm recoverable errors and that no stale timer starts playback.
 
 Keep physical-iPhone acceptance separate from desktop and mock checks. Streaming tempo and phrase repetition
-require a supported implementation and new timing plus listening tests before their controls can return.
+require supported implementation and timing plus listening tests before claiming reliable behavior or sound quality.
 The failed Chrome listening test does not establish the result on other phone browsers. The owner explicitly
 requires ClassTempo to remain web-based across phones; a native prototype or rewrite is not the intended
 roadmap. Evaluate the supported browser path with physical-device listening while preserving local-file
@@ -175,8 +178,11 @@ This supersedes both always-pause and always-start behavior. A cue before a stre
 the position without starting audio. Verify both states, first-Play behavior, Pause/source-change cancellation
 and Stage. Keep physical-iPhone acceptance separate from desktop and automated results.
 
-Web-only tempo investigation, 2026-10-28: an explicit `?tempo-test=1#apple-music` audition uses the existing
-player with bounded rate presets and read-only pitch/rate/timing diagnostics. The normal app remains at
-100%. This is an unaccepted listening trial, not a claim that warbling or pitch changes are fixed. See
+Earlier web-only tempo investigation, 2026-10-28: an explicit `?tempo-test=1#apple-music` audition used the
+existing player with bounded rate presets and read-only pitch/rate/timing diagnostics, while normal entry stayed
+at 100%. The owner reported that this made the slider and presets disappear from the expected interface.
+The current revision removes that URL gate: the shared slider and presets are visible in the ordinary player,
+with Back 10s and Talk retained and diagnostics under Tempo test. Changed-speed quality remains unaccepted;
+this is not a claim that warbling or pitch changes are fixed. See
 [APPLE_MUSIC_TEMPO_TRIAL.md](APPLE_MUSIC_TEMPO_TRIAL.md) for primary sources, the iPhone Safari/Home Screen
 and Android Chrome checks, and the transport behavior that must remain intact. No native app is planned.

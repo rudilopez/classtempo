@@ -14,19 +14,13 @@
 .apple-music-artwork > button { font-size: 13px; min-height: 44px; }
 .apple-music-timeline { display: flex; flex: none; align-items: center; min-height: 44px; }
 .apple-music-timeline input { width: 100%; min-width: 0; min-height: 44px; margin: 0; }
-.apple-music-app .apple-music-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 8px; }
-.apple-music-source { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 12px; }
-.apple-music-source > span { color: var(--dim); }
-.apple-music-source > strong { color: var(--a); font-size: 11px; }
-.apple-music-tool-buttons { display: flex; gap: 6px; }
+.apple-music-app .apple-music-tools { display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 5px 8px; }
+.apple-music-tools .tempo { grid-area: auto; min-width: 0; }
+.apple-music-app .apple-music-tools .tempo-buttons { display: grid; margin-top: 4px; }
+.apple-music-tools .tempo-buttons button { min-height: 44px; min-width: 44px; }
+.apple-music-tool-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .apple-music-tool-buttons button { min-height: 44px; font-size: 12px; padding: 5px 8px; white-space: nowrap; }
-.apple-tempo-trial { width: 100%; min-width: 0; }
-.apple-tempo-trial-heading { display: flex; gap: 6px; align-items: center; font-size: 11px; }
-.apple-tempo-trial-heading strong { margin-right: auto; color: var(--dim); }
-.apple-tempo-trial-heading button { min-height: 44px; padding: 0 6px; font-size: 11px; background: transparent; border: 0; }
-.apple-tempo-rates { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
-.apple-tempo-rates button { min-height: 44px; min-width: 44px; padding: 0; font-size: 13px; }
-.apple-tempo-rates button[aria-pressed='true'] { background: var(--a); color: #062b24; border-color: var(--a); }
+.apple-music-tool-buttons .apple-tempo-info { color: #ffd5ac; }
 .apple-music-app .cues { gap: 6px; }
 .apple-music-cue-heading { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border: 1px solid var(--a); border-radius: 999px; color: #082b28; background: var(--a); font-size: 13px; font-weight: 800; }
 .apple-music-app .cues-head > button:last-child { margin-left: auto; min-height: 44px; font-size: 12px; padding-inline: 8px; white-space: nowrap; }
@@ -86,9 +80,10 @@
   .apple-music-app .pads { max-height: none; }
 }
 @media (orientation: landscape) and (max-height: 499px) {
-  .apple-music-app .apple-music-dancer { grid-template-rows: auto minmax(60px, 1fr) auto auto; grid-template-areas: 'clock cues' 'wave cues' 'transport cues' 'tempo cues'; }
+  .apple-music-app .apple-music-dancer { --pad-max: 72px; grid-template-rows: auto minmax(60px, 1fr) auto auto; grid-template-areas: 'clock cues' 'wave cues' 'transport cues' 'tempo tempo'; }
   .apple-music-app .apple-music-capabilities { display: none; }
-  .apple-music-app .apple-music-tools { padding: 2px 6px; }
+  .apple-music-app .apple-music-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 2px 6px; }
+  .apple-music-app .apple-music-cue-help { display: none; }
   .apple-music-app .apple-music-artwork { display: none; }
   .apple-music-app .dancer-track-title { -webkit-line-clamp: 1; }
   .apple-music-app .dancer-track-info { flex: 1; }
