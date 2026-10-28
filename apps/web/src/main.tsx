@@ -3,13 +3,16 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import type { LocalPlayerRequest } from './dancer/DancerMode';
 import { registerSW } from './pwa/registerSW';
+import { hasSpotifyCallback } from './spotify/auth';
 import './styles.css';
 
 // A hash route works on the static Pages host. The model/runtime is loaded only after opening the lab.
 const StemsBenchmark = lazy(() => import('./stems/StemsBenchmark'));
 const AppleMusic = lazy(() => import('./appleMusic/AppleMusic'));
-const route = (): 'stems' | 'apple-music' | 'player' => window.location.hash === '#stems-benchmark' ? 'stems'
-  : window.location.hash === '#apple-music' ? 'apple-music' : 'player';
+const Spotify = lazy(() => import('./spotify/Spotify'));
+const route = (): 'stems' | 'apple-music' | 'spotify' | 'player' => window.location.hash === '#stems-benchmark' ? 'stems'
+  : window.location.hash === '#apple-music' ? 'apple-music'
+  : window.location.hash === '#spotify' || hasSpotifyCallback() ? 'spotify' : 'player';
 const initialRoute = route();
 if (initialRoute === 'stems') window.addEventListener('hashchange', () => {
   if (route() !== 'stems') window.location.reload();
@@ -39,6 +42,10 @@ function PlayerSources(): React.ReactElement {
     {localVisited && <App active={source === 'player'} request={request} />}
     {source === 'apple-music' && <Suspense fallback={<p role="status">Opening Apple Music…</p>}>
       <AppleMusic onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={() => openLocal()} />
+    </Suspense>}
+    {source === 'spotify' && <Suspense fallback={<p role="status">Opening Spotify…</p>}>
+      <Spotify onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={() => openLocal()}
+        onOpenAppleMusic={() => { window.location.hash = 'apple-music'; }} />
     </Suspense>}
   </>;
 }

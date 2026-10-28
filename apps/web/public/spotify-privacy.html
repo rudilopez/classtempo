@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><title>Spotify privacy — ClassTempo</title><style>body{margin:0;background:#09131d;color:#edf4fa;font:16px/1.6 system-ui,sans-serif}main{max-width:720px;margin:auto;padding:32px 20px}h1{line-height:1.15}h2{font-size:20px;margin-top:28px}a{color:#8ce5d5}li{margin:10px 0}.back{display:inline-flex;align-items:center;min-height:44px}</style></head><body><main>
+<a class="back" href="./#spotify">← ClassTempo</a><h1>Spotify privacy and connection</h1><p>Updated October 28, 2026.</p>
+<p>Spotify is an optional connection for personal listening at original speed. An upfront notice explains its playback and use restrictions. Availability depends on ClassTempo’s Spotify application configuration and your Spotify account access.</p>
+<h2>What the connection uses</h2><ul>
+<li>Spotify handles sign-in on its own pages. ClassTempo does not receive your password.</li>
+<li>Permissions support Spotify’s player, account eligibility, catalog searches, reading saved songs/playlists, and playback commands for this browser. Spotify’s documented player setup includes account-profile and email scopes; ClassTempo does not independently retrieve or save your email address.</li>
+<li>ClassTempo does not request permission to change your saved songs or playlists. It does not record, export, download, analyze or separate Spotify audio.</li>
+</ul>
+<h2>What stays in the browser</h2><ul>
+<li>Connection tokens and the temporary sign-in verifier are stored in this tab’s session storage. They are excluded from backups and diagnostics and are not written to the source repository.</li>
+<li>Saved Spotify cue positions and names stay in this browser’s local storage, separate from imported-file and Apple Music cues. They are excluded from the local-file settings backup.</li>
+<li>Spotify browsing results and playback state are held temporarily in memory. No ClassTempo analytics or account database is used for this integration. Requests to Spotify and hosting the app remain subject to those providers’ policies.</li>
+</ul>
+<h2>Disconnect and revoke access</h2><p>Use <b>Library → Spotify → Disconnect</b> to stop this browser’s Spotify player and clear its connection tokens, browsing results and saved Spotify cues. This does not delete your Spotify playlists, imported files or Apple Music settings.</p>
+<p>To revoke Spotify’s authorization grant completely, open <a href="https://www.spotify.com/account/apps/" target="_blank" rel="noopener noreferrer">Spotify’s connected-app settings</a> and remove ClassTempo. Clearing browser storage also removes the local connection and cue data.</p>
+<h2>Spotify’s own policies</h2><p>Spotify supplies the account, catalog and protected player. Read <a href="https://www.spotify.com/legal/privacy-policy/" target="_blank" rel="noopener noreferrer">Spotify’s privacy policy</a> and <a href="https://developer.spotify.com/policy" target="_blank" rel="noopener noreferrer">developer policy</a>.</p>
+</main></body></html>

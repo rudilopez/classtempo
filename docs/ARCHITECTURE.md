@@ -326,7 +326,7 @@ MusicKit loads only after opening the optional Apple Music source. It uses the s
 starting at original speed with visible tempo controls. Bounded Chrome authorization/playback evidence and
 the owner's Mac acceptance, subsequent iPhone failures and later 75% clean-session listening pass are recorded above. Other iPhone rates/songs,
 iPad/Android listening and uninterrupted full-track completion remain outstanding.
-Spotify is not integrated. See [Apple Music feasibility](APPLE_MUSIC_FEASIBILITY.md) for the remaining tests.
+Spotify has a separate, optional original-speed source with an upfront limitations gate. See [Spotify setup](SPOTIFY_SETUP.md) for configuration and unverified device acceptance. See [Apple Music feasibility](APPLE_MUSIC_FEASIBILITY.md) for Apple’s remaining tests.
 The hidden historical Demucs page retains its research-only model; the
 production stems feature uses a separate licensed Spleeter model. Neither runtime nor model downloads occur during
 normal playback. Physical phone preparation/playback validation remains separate. No server fallback is enabled.
@@ -334,3 +334,30 @@ normal playback. Physical phone preparation/playback validation remains separate
 Tests cover pure data normalization, class ordering/backups, transport cancellation/repetition, engine creation,
 platform helpers and existing analysis. Release verification also needs responsive browser flows, actual saved
 file reloads and a separately recorded physical-device result. Passing typecheck/build is not playback acceptance.
+
+
+## Spotify source
+
+`#spotify` lazy-loads an independent provider adapter. The lightweight PKCE callback detector participates in
+initial routing before `localVisited`, so a Spotify authorization return does not mount the local audio engine.
+The limits screen appears before connecting the SDK and offers Apple Music, Open a file and Files & classes.
+No configured public client ID means no connection attempt, with the alternatives still usable.
+
+The public Web Playback SDK owns protected audio. Catalog/library reads and starting a selected URI use the
+Web API with the SDK instance’s own ready device ID. Selecting a song or preparing a paused cue does not
+start or transfer playback. Explicit Play activates the SDK synchronously from the gesture before network work.
+The transport keeps a prepared offset until playback reaches it; pause/source changes invalidate pending work.
+Cleanup pauses and disconnects only the owned browser device. SDK state/events plus bounded polling drive the
+visible state. Provider errors are sanitized, and Spotify’s action restrictions are honored.
+
+OAuth uses public client identity and Authorization Code with PKCE S256, random state and a one-use ten-minute
+session handoff. The callback removes authorization query fields before token exchange. Access/refresh tokens
+stay in sessionStorage, with guarded refresh and disconnect invalidation; no secret belongs in browser assets.
+Source-specific cues stay separate from local/Apple keys. Explicit Disconnect deletes only Spotify connection
+and cue data, and the privacy page explains provider-side revocation. Library reads never write playlists.
+
+Spotify is fixed at 100% with disabled tempo and Stems controls; Practice, class plans and offline support are
+unavailable. Spotify artwork stays uncropped and unobscured, including plain-background Stage; official Spotify
+attribution and track links remain in the source and fullscreen view. Apple artwork and audio behavior retain
+their existing presentation/transport. User notice is not a provider-use approval. Real account authorization,
+full-song playback and physical-phone behavior must be verified separately from automated/mock tests.

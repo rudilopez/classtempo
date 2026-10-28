@@ -57,7 +57,7 @@ function mixdeckServiceWorker(): Plugin {
       const precache = [...files.keys()].filter((path) =>
         !path.split('/').some((part) => part.startsWith('.')) &&
         !path.startsWith('guide/images/') && path !== 'apple-music-config.json' &&
-        !/(?:AppleMusic|StemsBenchmark|stems\.worker|separate(?:-wasm)?\.worker|ort-wasm|stems-runtime)/i.test(path),
+        !/(?:AppleMusic|Spotify|StemsBenchmark|stems\.worker|separate(?:-wasm)?\.worker|ort-wasm|stems-runtime)/i.test(path),
       ).sort();
       // A screenshot-only edit still needs a new cache; otherwise its lazily cached old copy would persist.
       const versionFiles = [...precache, ...[...files.keys()].filter((path) => path.startsWith('guide/images/'))].sort();

@@ -45,6 +45,8 @@ jobs:
       - run: npm run build
         env:
           VITE_APPLE_MUSIC_ENABLED: ${{ steps.apple-music.outputs.enabled }}
+          VITE_SPOTIFY_CLIENT_ID: ${{ vars.SPOTIFY_CLIENT_ID }}
+          VITE_SPOTIFY_REDIRECT_URI: https://rudilopez.github.io/classtempo/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

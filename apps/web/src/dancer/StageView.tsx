@@ -26,6 +26,8 @@ interface Props {
   /** Optional album cover for a picture-first song Stage; video always takes precedence. */
   artworkUrl?: string;
   artist?: string;
+  artworkTreatment?: 'ambient' | 'original';
+  sourceLink?: { label: string; href: string; logoUrl?: string };
   playing: boolean;
   /** Elapsed seconds (the 10 Hz display position). */
   position: number;
@@ -104,7 +106,7 @@ function exitFullscreen(): void {
  * leaving full screen (Esc, Android back), closes it.
  */
 export function StageView({
-  video, aspect, title, artworkUrl, artist, playing, position, cues, section, onTogglePlay, onRestart, onLaunch, onSetCue, onClose,
+  video, aspect, title, artworkUrl, artist, artworkTreatment = 'ambient', sourceLink, playing, position, cues, section, onTogglePlay, onRestart, onLaunch, onSetCue, onClose,
   duration = 0, practiceRange, onSeek, onOpenPractice,
   tempo = 100, onTempoChange, mirrored = false, zoom = 1, onMirroredChange, onZoomChange,
   onRestartSection, practiceName, onEndPractice, pendingLabel, talking = false, onToggleTalk, onRetryVideo, onVideoDetails,
@@ -231,7 +233,7 @@ export function StageView({
   return createPortal(
     <div
       ref={root}
-      className={`stage stage-classroom ${video ? 'stage-has-video' : hasArtwork ? 'stage-has-artwork' : 'stage-no-video'} ${tray === 'class' ? 'stage-class-order-open' : ''}`}
+      className={`stage stage-classroom ${video ? 'stage-has-video' : hasArtwork ? 'stage-has-artwork' : 'stage-no-video'} ${artworkTreatment === 'original' ? 'stage-original-artwork' : ''} ${tray === 'class' ? 'stage-class-order-open' : ''}`}
       style={aspect ? { ['--video-ar' as string]: String(aspect) } : undefined}
       role="dialog"
       aria-modal="true"
@@ -257,7 +259,7 @@ export function StageView({
           <VideoView element={video} playing={playing} onTap={onTogglePlay} mirrored={mirrored} zoom={zoom} className="stage-video" onRetry={onRetryVideo} onDetails={onVideoDetails} />
         ) : hasArtwork ? (
           <div className="stage-artwork">
-            {!artworkFailed && <img className="stage-artwork-backdrop" src={artworkUrl} alt="" aria-hidden="true" />}
+            {!artworkFailed && artworkTreatment === 'ambient' && <img className="stage-artwork-backdrop" src={artworkUrl} alt="" aria-hidden="true" />}
             <div className="stage-artwork-frame">
               {artworkFailed ? <div className="stage-artwork-fallback" role="img" aria-label="Album artwork unavailable"><span aria-hidden="true">♫</span></div>
                 : <img className="stage-artwork-image" src={artworkUrl} alt={`Album cover for ${title}`} onError={() => setFailedArtworkUrl(artworkUrl ?? null)} />}
@@ -265,6 +267,7 @@ export function StageView({
             <div className="stage-artwork-caption">
               <strong title={title}>{title}</strong>
               {artist && <span title={artist}>{artist}</span>}
+              {sourceLink && <a className="stage-source-link" href={sourceLink.href} target="_blank" rel="noopener noreferrer">{sourceLink.logoUrl && <img src={sourceLink.logoUrl} alt="Spotify" />}<span>{sourceLink.label}</span></a>}
             </div>
           </div>
         ) : (
@@ -272,6 +275,7 @@ export function StageView({
             <span className="stage-title">{title}</span>
             <span className="stage-section">{section ?? 'Start'}</span>
             <span className="stage-time">{formatTime(position)}</span>
+            {sourceLink && <a className="stage-source-link" href={sourceLink.href} target="_blank" rel="noopener noreferrer">{sourceLink.logoUrl && <img src={sourceLink.logoUrl} alt="Spotify" />}<span>{sourceLink.label}</span></a>}
           </div>
         )}
         {pendingLabel && <div className="stage-pending" role="status">{pendingLabel}</div>}
@@ -316,7 +320,7 @@ export function StageView({
         </div>}
         {onSeek && <VideoTimeline label={video ? 'Video position' : 'Song position'} position={position} duration={duration} cues={cues} practiceRange={practiceRange} onSeek={onSeek} disabled={controlsDisabled} />}
         <div className={`stage-video-dock ${hasArtwork && !onOpenPractice ? 'stage-artwork-dock' : ''}`} aria-label={video ? 'Video playback controls' : 'Song playback controls'}>
-          <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} disabled={videoFailed || playDisabled} aria-label={videoFailed ? 'Video unavailable' : pendingLabel ? 'Cancel playback countdown' : playing ? 'Pause' : 'Play'}>
+          <button className={`stage-play ${playing ? 'on' : ''}`} onClick={onTogglePlay} disabled={videoFailed || playDisabled} aria-label={videoFailed ? 'Video unavailable' : pendingLabel ? 'Cancel pending playback' : playing ? 'Pause' : 'Play'}>
             {videoFailed ? 'Error' : pendingLabel ? 'Cancel' : playing ? '❚❚ Pause' : '▶ Play'}
           </button>
           <button ref={cuesTrigger} className={tray === 'cues' ? 'on' : ''} aria-expanded={tray === 'cues'} aria-controls="stage-cues-tray" onClick={() => tray === 'cues' ? closeTray() : changeTray('cues')}>Cues</button>
