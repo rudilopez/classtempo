@@ -8,14 +8,10 @@ interface Props {
   requestedRate: number;
   playing: boolean;
   seeking: boolean;
-  disabled: boolean;
-  exitDisabled: boolean;
-  onRate: (rate: number) => void;
-  onExit: () => void;
 }
 
 /** Explicit listening experiment. No media samples, source URLs or credentials are read. */
-export function TempoTrial({ instance, trackId, requestedRate, playing, seeking, disabled, exitDisabled, onRate, onExit }: Props): React.ReactElement {
+export function TempoTrial({ instance, trackId, requestedRate, playing, seeking }: Props): React.ReactElement {
   const [details, setDetails] = useState(false);
   const [timing, setTiming] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
@@ -69,11 +65,8 @@ export function TempoTrial({ instance, trackId, requestedRate, playing, seeking,
     } catch { setCopyStatus('Could not copy details in this browser.'); }
   };
 
-  return <div className="apple-tempo-trial">
-    <div className="apple-tempo-trial-heading"><strong>Tempo listening test</strong><button type="button" onClick={() => setDetails(true)}>Details</button><button type="button" disabled={exitDisabled} onClick={onExit}>End test</button></div>
-    <div className="apple-tempo-rates" role="group" aria-label="Test Apple Music tempo">
-      {[0.7, 0.85, 1, 1.15, 1.3].map((rate) => <button key={rate} type="button" disabled={disabled} aria-pressed={requestedRate === rate} onClick={() => onRate(rate)}>{Math.round(rate * 100)}%</button>)}
-    </div>
+  return <>
+    <button type="button" className="apple-tempo-info" title="Apple Music tempo sound quality is still being tested" onClick={() => setDetails(true)}>Tempo test ⓘ</button>
     {details && <AppleMusicPicker title="Tempo listening test" onClose={() => setDetails(false)}>
       <p>This is a sound-quality test in the web player. Browser engines differ; clean audio is not confirmed yet.</p>
       <p>Listen to the same passage at 100%, then 85%, then 115%. Vocals should keep the same pitch and percussion should stay clear. Return to 100% if the sound distorts.</p>
@@ -85,5 +78,5 @@ export function TempoTrial({ instance, trackId, requestedRate, playing, seeking,
       {copyStatus && <p role="status">{copyStatus}</p>}
       <p>Details contain browser and playback settings only. No account credentials or audio are copied.</p>
     </AppleMusicPicker>}
-  </div>;
+  </>;
 }

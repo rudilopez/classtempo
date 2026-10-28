@@ -3,16 +3,17 @@ import type { MusicKitInstance, MusicTrack } from './client';
 export type AppleMusicSeekTrack = Pick<MusicTrack, 'id' | 'durationSeconds'>;
 export interface AppleMusicTransportOptions { tempoTrial?: boolean }
 
-const trialRates = new Set([0.7, 0.85, 1, 1.15, 1.3]);
+const TEMPO_RATE_MIN = 0.5;
+const TEMPO_RATE_MAX = 1.5;
 
 export interface AppleMusicTransport {
   /** Remains true until Apple's native operation settles, even after cancellation. */
   readonly seeking: boolean;
   /** A prepared paused queue position until native playback reaches that position. */
   readonly preparedPosition: number | null;
-  /** Requested speed for the explicit audition; ordinary playback always requests 1. */
+  /** Requested speed; adapters without tempo enabled always request 1. */
   readonly requestedRate: number;
-  /** Changes rate without starting playback. Non-original rates require the explicit trial. */
+  /** Changes rate in whole-percent steps without starting playback; range 0.5..1.5. */
   setTempoRate(rate: number): void;
   /** Ends the audition at original speed, paused, retaining the prepared cue position. */
   endTempoTrial(): void;
@@ -141,10 +142,15 @@ export function createAppleMusicTransport(instance: MusicKitInstance, options: A
     get requestedRate() { return requestedRate; },
     setTempoRate(rate) {
       assertAvailable();
-      if (!trialRates.has(rate)) throw new Error('Choose one of the available tempo settings.');
-      if (rate !== 1 && !tempoTrialEnabled) throw new Error('Apple Music tempo is available only in the listening trial.');
-      applyRate(rate);
-      requestedRate = rate;
+      if (!Number.isFinite(rate) || rate < TEMPO_RATE_MIN || rate > TEMPO_RATE_MAX) {
+        throw new Error('Choose a tempo between 50% and 150%.');
+      }
+      // Slider and nudge controls use whole percentages. Normalize arithmetic
+      // noise and fractional programmatic inputs before applying or storing.
+      const normalizedRate = Math.round(rate * 100) / 100;
+      if (normalizedRate !== 1 && !tempoTrialEnabled) throw new Error('Apple Music tempo is available only in the listening trial.');
+      applyRate(normalizedRate);
+      requestedRate = normalizedRate;
     },
     endTempoTrial() {
       if (disposed) return;

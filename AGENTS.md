@@ -93,18 +93,20 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Production Chrome authorization, read-only catalog/library access, paused selection, Play/Pause, seeking and
   teardown were verified on 2026-10-28 in the earlier connection screen. The owner confirmed clear audio at
   100%; playback beyond the preview range was observed. Slower playback warbled and faster playback changed
-  pitch. Reset the rate during initialization, song selection and Play; keep failed speed controls out of the
-  released player. That result rejects the tested browser path, not every possible provider integration.
+  pitch. That earlier listening failure is not superseded by controls responding or pitch flags being true.
+  The owner subsequently requested visible tempo controls in the ordinary player; preserve the listening-test
+  label until changed-speed quality passes actual device checks.
   Uninterrupted full-track completion and physical-iPhone streaming acceptance remain unverified.
   Apple Developer membership was verified active on 2026-10-28. The ClassTempo MusicKit Media ID and key were
   created, and all three signing credentials were stored as GitHub Actions repository secrets.
   Keep signing keys in deployment secrets, public configuration network-only, and sign-in/Play gesture-driven.
   Never promise streaming tempo, phrase repetition, stems or offline parity without actual device evidence.
-  The owner explicitly requires a web app across phones, not a native rewrite. The opt-in
-  `?tempo-test=1#apple-music` listening trial uses only public MusicKit rate controls and read-only media
-  diagnostics. Normal entry stays at 100%. Trial rates are not accepted production quality: browser timing
-  and pitch flags do not prove clean sound. Keep paused cues paused, reset new songs to 100%, and preserve
-  prepared cue offsets when ending the test. See docs/APPLE_MUSIC_TEMPO_TRIAL.md.
+  The owner explicitly requires a web app across phones, not a native rewrite. Apple Music shows the shared
+  50–150% slider, ±1% nudges and 50/75/90/100/110% presets without a special URL. The Tempo test info button
+  opens read-only pitch/rate/timing diagnostics. Use only public MusicKit rate controls. Initialize and open
+  new songs paused at 100%; Play/seek preserve the requested rate. Selecting 100% resets speed without
+  changing playback state or a prepared cue offset. Browser timing and pitch flags do not prove clean sound.
+  Keep Back 10s and Talk available. See docs/APPLE_MUSIC_TEMPO_TRIAL.md.
   Spotify is not integrated. See docs/APPLE_MUSIC_SETUP.md and docs/APPLE_MUSIC_FEASIBILITY.md.
 - Stems uses opt-in local Spleeter separation for audio files only, with a 4:30/100 MB preparation limit.
   Ordinary song/video playback has no duration cap. The owner confirmed preparation of the supplied song and
