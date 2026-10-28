@@ -244,6 +244,7 @@ export async function createSpotifyPlayer(
   let deviceId: string | null = null;
   let expectedId: string | null = null;
   let wantsPlaying = false;
+  let observedPlaying = false;
   let revision = 0;
   let starting = false;
   let polling = false;
@@ -253,7 +254,13 @@ export async function createSpotifyPlayer(
   let disallows: Record<string, unknown> = {};
   const listeners: [string, Listener][] = [];
   const emit = () => { if (!disposed) onSnapshot({ ...current, ready }); };
-  const quietPause = () => { try { void native.pause().catch(() => {}); } catch { /* Cleanup is best effort. */ } };
+  const needsPause = () => wantsPlaying || starting || observedPlaying;
+  const quietPause = (force = false) => {
+    // An unused SDK device has no media to pause. Spotify can answer an idle
+    // PAUSE with playback_error, so metadata/cue preparation must stay local.
+    if (!force && !needsPause()) return;
+    try { void native.pause().catch(() => {}); } catch { /* Cleanup is best effort. */ }
+  };
   let native: NativePlayer;
   try {
     native = new sdk.Player({ name: 'ClassTempo', enableMediaSession: true,
@@ -262,7 +269,10 @@ export async function createSpotifyPlayer(
         void getSpotifyAccessToken(lifetime.signal).then((token) => {
           if (!disposed) { report('token_provided'); callback(token); }
         }, () => {
-          if (!disposed) { report('token_failed'); wantsPlaying = false; quietPause(); onError('Reconnect to Spotify to continue playback.'); }
+          if (!disposed) {
+            report('token_failed'); const pauseNeeded = needsPause(); wantsPlaying = false; quietPause(pauseNeeded);
+            onError('Reconnect to Spotify to continue playback.');
+          }
         });
       },
     });
@@ -272,17 +282,18 @@ export async function createSpotifyPlayer(
   const acceptState = (value: unknown) => {
     if (disposed) return;
     const state = record(value);
-    if (!state) { current = { ready, playing: false, position: 0, duration: 0, trackId: null }; emit(); return; }
+    if (!state) { observedPlaying = false; current = { ready, playing: false, position: 0, duration: 0, trackId: null }; emit(); return; }
     const track = record(record(state.track_window)?.current_track);
     const id = text(track?.id, 22);
     const trackId = id && ID.test(id) ? id : null;
     const duration = finite(state.duration) && state.duration >= 0 ? state.duration / 1000 : 0;
     const position = finite(state.position) && state.position >= 0 ? Math.min(duration, state.position / 1000) : 0;
     const playing = state.paused === false;
+    observedPlaying = playing;
     disallows = record(state.disallows) ?? {};
     // A stale Play, Spotify autoplay, or an external queue must never revive an inactive selection.
     if (playing && (!wantsPlaying || !expectedId || trackId !== expectedId)) {
-      if (!wantsPlaying || !starting || !expectedId) { wantsPlaying = false; quietPause(); }
+      if (!wantsPlaying || !starting || !expectedId) { wantsPlaying = false; quietPause(true); }
     }
     current = { ready, playing: playing && wantsPlaying && trackId === expectedId, position, duration, trackId };
     emit();
@@ -293,7 +304,8 @@ export async function createSpotifyPlayer(
     const token = revision;
     void bounded(Promise.resolve().then(() => native.getCurrentState())).then((state) => { if (!disposed && token === revision) acceptState(state); }, () => {
       if (!disposed) {
-        ready = false; wantsPlaying = false; revision++; current.playing = false; quietPause(); emit();
+        const pauseNeeded = needsPause();
+        ready = false; wantsPlaying = false; revision++; current.playing = false; quietPause(pauseNeeded); emit();
         onError('Spotify stopped responding. Reconnect the player and try again.');
       }
     })
@@ -301,7 +313,8 @@ export async function createSpotifyPlayer(
   };
   const dispose = () => {
     if (disposed) return;
-    wantsPlaying = false; revision++; quietPause(); disposed = true; ready = false; lifetime.abort();
+    const pauseNeeded = needsPause();
+    wantsPlaying = false; revision++; quietPause(pauseNeeded); disposed = true; ready = false; lifetime.abort();
     report('disposed');
     if (pollTimer) clearInterval(pollTimer);
     for (const [name, listener] of listeners) { try { native.removeListener(name, listener); } catch { /* Continue teardown. */ } }
@@ -309,7 +322,7 @@ export async function createSpotifyPlayer(
   };
   const assertReady = () => { if (disposed || !ready || !deviceId) throw new Error('Spotify is not ready. Reconnect and try again.'); };
   const ownedLatePause = (id: string) => {
-    quietPause();
+    quietPause(true);
     // A delivered REST Play cannot be unsent. Pause only this instance's device if it completes after disposal.
     if (disposed) void apiRequest(`me/player/pause?device_id=${encodeURIComponent(id)}`, undefined, {}).catch(() => {});
   };
@@ -317,7 +330,7 @@ export async function createSpotifyPlayer(
     let settled = false;
     const fail = (message: string) => {
       if (disposed) return;
-      wantsPlaying = false; quietPause();
+      const pauseNeeded = needsPause(); wantsPlaying = false; quietPause(pauseNeeded);
       if (!settled) { settled = true; clearTimeout(timer); dispose(); reject(new Error(message)); }
       else { ready = false; current.playing = false; emit(); onError(message); }
     };
@@ -337,7 +350,16 @@ export async function createSpotifyPlayer(
     add('initialization_error', () => { report('initialization_error'); fail('This browser could not start protected Spotify playback.'); });
     add('authentication_error', () => { report('authentication_error'); fail('Reconnect to Spotify to continue playback.'); });
     add('account_error', () => { report('account_error'); fail('Spotify playback requires an eligible Premium account.'); });
-    add('playback_error', () => { wantsPlaying = false; quietPause(); if (!disposed) { report('playback_error'); onError('Spotify could not play this song. Choose another song or try again.'); } });
+    add('playback_error', () => {
+      if (disposed) return;
+      report('playback_error');
+      // Errors from an idle or intentionally paused device do not fail a song.
+      // Never answer this event with PAUSE: an inactive device can respond with
+      // another playback_error and create an unbounded feedback loop.
+      if (!wantsPlaying) return;
+      wantsPlaying = false; revision++; current.playing = false; emit();
+      onError('Spotify could not play this song. Choose another song or try again.');
+    });
     try {
       report('connect_called');
       void native.connect().then((connected) => {
@@ -362,7 +384,9 @@ export async function createSpotifyPlayer(
         await apiRequest(`me/player/play?device_id=${encodeURIComponent(id)}`, lifetime.signal,
           { uris: [track.uri], position_ms: Math.round(Math.max(0, Math.min(seconds, track.durationSeconds)) * 1000) },
           () => { if (disposed || token !== revision || !wantsPlaying) throw new Error('Spotify playback action cancelled.'); });
-        if (disposed || token !== revision) { if (disposed || !wantsPlaying) ownedLatePause(id); throw new Error('Spotify playback action cancelled.'); }
+        // The catch below compensates once if this delivered command outlived
+        // its intent. Do not issue an additional PAUSE before throwing here.
+        if (disposed || token !== revision) throw new Error('Spotify playback action cancelled.');
         poll();
       } catch (error) {
         if (token === revision) wantsPlaying = false;
@@ -371,9 +395,11 @@ export async function createSpotifyPlayer(
       } finally { starting = false; }
     },
     async pause() {
+      const pauseNeeded = needsPause();
       wantsPlaying = false; revision++;
       if (disposed) return;
       current.playing = false; emit();
+      if (!pauseNeeded) return;
       await bounded(Promise.resolve().then(() => native.pause()));
     },
     async resume() {
@@ -385,16 +411,16 @@ export async function createSpotifyPlayer(
         return native.resume();
       });
       // Observe the real SDK operation too: a timeout cannot cancel its later native completion.
-      void operation.then(() => { if (disposed || !wantsPlaying) quietPause(); }, () => {});
-      try { await bounded(operation); if (disposed || !wantsPlaying) quietPause(); }
-      catch { if (token === revision) { wantsPlaying = false; quietPause(); } throw new Error('Spotify could not resume. Try again.'); }
+      void operation.then(() => { if (disposed || !wantsPlaying) quietPause(true); }, () => {});
+      try { await bounded(operation); if (disposed || !wantsPlaying) quietPause(true); }
+      catch { if (token === revision) { wantsPlaying = false; quietPause(true); } throw new Error('Spotify could not resume. Try again.'); }
     },
     async seek(seconds) {
       assertReady();
       if (!finite(seconds) || !expectedId || current.trackId !== expectedId || disallows.seeking === true) throw new Error('Spotify cannot seek this song yet.');
       const token = revision;
       await bounded(Promise.resolve().then(() => native.seek(Math.round(Math.max(0, Math.min(seconds, current.duration)) * 1000))));
-      if (disposed || token !== revision) { if (!wantsPlaying) quietPause(); throw new Error('Spotify playback action cancelled.'); }
+      if (disposed || token !== revision) { if (!wantsPlaying) quietPause(true); throw new Error('Spotify playback action cancelled.'); }
       poll();
     },
     dispose,
