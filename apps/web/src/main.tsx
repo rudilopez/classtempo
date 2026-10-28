@@ -20,6 +20,7 @@ if (initialRoute === 'stems') window.addEventListener('hashchange', () => {
 function PlayerSources(): React.ReactElement {
   const [source, setSource] = useState(initialRoute);
   const [localVisited, setLocalVisited] = useState(initialRoute === 'player');
+  const [spotifyVisited, setSpotifyVisited] = useState(initialRoute === 'spotify');
   const [request, setRequest] = useState<LocalPlayerRequest>();
   useEffect(() => {
     const change = () => {
@@ -27,6 +28,7 @@ function PlayerSources(): React.ReactElement {
       // The memory benchmark still needs a fresh document without either playback engine.
       if (next === 'stems' || initialRoute === 'stems') { window.location.reload(); return; }
       if (next === 'player') setLocalVisited(true);
+      if (next === 'spotify') setSpotifyVisited(true);
       setSource(next);
     };
     window.addEventListener('hashchange', change);
@@ -43,8 +45,8 @@ function PlayerSources(): React.ReactElement {
     {source === 'apple-music' && <Suspense fallback={<p role="status">Opening Apple Music…</p>}>
       <AppleMusic onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={() => openLocal()} />
     </Suspense>}
-    {source === 'spotify' && <Suspense fallback={<p role="status">Opening Spotify…</p>}>
-      <Spotify onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={() => openLocal()}
+    {spotifyVisited && <Suspense fallback={source === 'spotify' ? <p role="status">Opening Spotify…</p> : null}>
+      <Spotify active={source === 'spotify'} onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={() => openLocal()}
         onOpenAppleMusic={() => { window.location.hash = 'apple-music'; }} />
     </Suspense>}
   </>;

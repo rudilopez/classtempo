@@ -36,11 +36,13 @@ let errors: ReturnType<typeof vi.fn<(message: string) => void>>;
 let snapshots: SpotifySnapshot[];
 let fetcher: ReturnType<typeof vi.fn<typeof fetch>>;
 let requestSdkToken: (callback: (value: string) => void) => void;
+let sdkMediaSessionEnabled: boolean | undefined;
 beforeEach(() => {
   vi.resetModules(); token.mockReset().mockResolvedValue('private-access-token');
   native = new NativePlayer(); errors = vi.fn(); snapshots = []; active = undefined;
-  vi.stubGlobal('Spotify', { Player: vi.fn(function (options: { getOAuthToken: typeof requestSdkToken }) {
-    requestSdkToken = options.getOAuthToken; return native;
+  sdkMediaSessionEnabled = undefined;
+  vi.stubGlobal('Spotify', { Player: vi.fn(function (options: { getOAuthToken: typeof requestSdkToken; enableMediaSession: boolean }) {
+    requestSdkToken = options.getOAuthToken; sdkMediaSessionEnabled = options.enableMediaSession; return native;
   }) });
   fetcher = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 })); vi.stubGlobal('fetch', fetcher);
 });
@@ -117,6 +119,10 @@ describe('Spotify browsing and metadata boundary', () => {
 });
 
 describe('Spotify owned SDK lifecycle', () => {
+  it('leaves Media Session ownership with ClassTempo rather than the retained SDK iframe', async () => {
+    await create();
+    expect(sdkMediaSessionEnabled).toBe(false);
+  });
   it('keeps unused-device selection, paused cues and disposal free of native playback commands', async () => {
     const player = await create();
     const { createSpotifyTransport } = await import('./transport');
