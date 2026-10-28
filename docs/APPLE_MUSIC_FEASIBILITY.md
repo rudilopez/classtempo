@@ -1,6 +1,6 @@
 # Apple Music feasibility — ClassTempo
 
-Status, 2026-10-28: **Mac tempo listening accepted; physical iPhone/iPad/Android listening and uninterrupted full-track completion outstanding**.
+Status, 2026-10-28: **Mac tempo listening accepted; iPhone 75% listening failed with warbling. Other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain unverified**.
 The signed-in Developer website confirmed active membership. The MusicKit-only Media ID
 `media.io.github.rudilopez.classtempo` and an associated Media Services key were created. All three signing
 credentials are stored as GitHub Actions repository secrets. The configured Pages deployment succeeded;
@@ -9,7 +9,8 @@ catalog/library browsing, paused selection, Play/Pause, seeking and return-to-lo
 audio at 100%, with playback observed beyond the preview range. Slower playback warbled and faster playback
 changed pitch in the earlier experiment. After the slider and presets returned, the owner confirmed on
 2026-10-28 that all tempos sounded great on Mac. **Playback info** retains read-only diagnostics. Songs still
-open paused at 100%. Physical iPhone/iPad/Android listening and uninterrupted full-track completion remain
+open paused at 100%. The subsequent iPhone check failed at 75% despite correct rate readings and enabled
+pitch preservation. Other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain
 unverified. Detailed evidence is recorded below.
 The owner then approved bringing normal-speed streaming into the familiar ClassTempo player first, with clean
 tempo investigation next. Imported files keep their existing engine and full local teaching features.
@@ -186,7 +187,12 @@ at 100%. The owner reported that this made the slider and presets disappear from
 The current revision removes that URL gate: the shared slider and presets are visible in the ordinary player,
 with Back 10s and Talk retained and diagnostics under Playback info. The owner then confirmed, “The slider
 and presets are back and all tempos sound great,” and identified the tested device as Mac. This is listening
-acceptance on that Mac; exact tested rates, browser version and output route were not specified. Physical
-iPhone/iPad/Android listening and uninterrupted full-track completion remain unverified. See
+acceptance on that Mac; exact tested rates, browser version and output route were not specified. The owner
+subsequently reported warbling on iPhone at 75%. The copied diagnostic reports iPhone OS 18_7 / Safari
+Version 27.0.1, requested/SDK/native rates of 0.75, active playback, readyState 4 and preservesPitch true.
+This is a failed listening check despite correctly applied speed and enabled pitch correction; it does not
+identify the installed pitch algorithm. Public MusicKit exposes no quality selector. The accompanying
+short-viewport layout failure is a separate repair and must not be described as fixing audio. Other iPhone
+rates, iPad/Android listening and uninterrupted full-track completion remain unverified. See
 [APPLE_MUSIC_TEMPO_TRIAL.md](APPLE_MUSIC_TEMPO_TRIAL.md) for primary sources, the iPhone Safari/Home Screen
 and Android Chrome checks, and the transport behavior that must remain intact. No native app is planned.

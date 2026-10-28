@@ -15,8 +15,9 @@ when returning to the local player were verified. The owner confirmed clear audi
 observed beyond the preview range. Slower playback
 warbled and faster playback changed pitch, so the first speed experiments were removed. The owner later
 requested visible slider/preset controls in the ordinary player. After their restoration, the owner confirmed
-all tempos sounded great on Mac. Playback info retains read-only diagnostics. Physical iPhone/iPad/Android
-listening and uninterrupted full-track completion remain unverified.
+all tempos sounded great on Mac. The subsequent iPhone listening check failed at 75%, with warbling despite
+matching requested/SDK/native rates and enabled pitch preservation. Playback info retains read-only diagnostics.
+Other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain unverified.
 See the dated evidence in [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 ## 1. Create the Apple identifier and key
