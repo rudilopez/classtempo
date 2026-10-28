@@ -347,8 +347,26 @@ The public Web Playback SDK owns protected audio. Catalog/library reads and star
 Web API with the SDK instance’s own ready device ID. Selecting a song or preparing a paused cue does not
 start or transfer playback. Explicit Play activates the SDK synchronously from the gesture before network work.
 The transport keeps a prepared offset until playback reaches it; pause/source changes invalidate pending work.
-Cleanup pauses and disconnects only the owned browser device. SDK state/events plus bounded polling drive the
-visible state. Provider errors are sanitized, and Spotify’s action restrictions are honored.
+Normal source changes suspend Spotify at its prepared paused offset instead of disconnecting its native SDK
+player. The router retains the Spotify component after its first visit and passes `active`; deactivation
+invalidates operations, aborts browsing, closes trays/dialogs, releases the wake lock and renders no interface
+or keyboard controls. It retains the selected track and list state for a later return. A fresh Apple Music
+route does not mount Spotify or initialize its SDK. Final teardown and explicit Disconnect affect only the
+owned browser device. SDK state/events plus bounded polling drive the visible state. Provider errors are
+sanitized, and Spotify’s action restrictions are honored.
+
+The native SDK is constructed with `enableMediaSession: false`. ClassTempo binds Spotify’s OS controls only
+while that source is active; callbacks check ownership and cleanup runs before another source binds handlers.
+An inactive retained player must not overwrite Apple Music/local metadata, shortcuts or OS commands.
+**Restart Spotify connection** reloads the document, preserving tab authorization and saved cue bookmarks,
+instead of constructing a second vendor SDK player in the same document. Normal source switches preserve
+selection and browsing state; an explicit reload discards temporary UI state.
+
+This lifecycle candidate follows an observed failure after returning from Apple Music: a second native player
+became ready, but REST Play failed with a sanitized generic error. The HTTP status and cause are unconfirmed.
+The retained-player implementation is not yet deployed or verified by a real source roundtrip. Earlier PR #41
+evidence establishes Mac 100% listening, cues, Stage, owned-playlist reads and natural full-track completion;
+it does not establish this candidate’s source recovery or physical-phone behavior.
 
 OAuth uses public client identity and Authorization Code with PKCE S256, random state and a one-use ten-minute
 session handoff. The callback removes authorization query fields before token exchange. Access/refresh tokens

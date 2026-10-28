@@ -3,10 +3,12 @@
 Status, October 28, 2026: the ClassTempo Spotify application is registered in Development mode, its exact
 production redirect and SDK/API selections are verified, and its public client ID is configured in GitHub
 Actions. The configured deployment succeeded, the owner manually approved ClassTempo’s OAuth consent, and the
-callback and private-library reads succeeded. After PR #40, a fresh ClassTempo document reached SDK readiness
-in 552 ms. A later paused-selection test exposed a playback-error feedback loop before first Play; the page
-was reloaded to stop it and a fix is in progress. Protected playback in ClassTempo remains unaccepted and
-unverified. YouTube is deferred. App registration and the owner’s acceptance of
+callback and private-library reads succeeded. After PR #41 corrected idle pause/error-handler behavior,
+ClassTempo played a complete real Spotify track at 100%, and the owner confirmed clear audio on Mac. Paused
+selection, playing/paused cues, Stage and owned-playlist browsing were verified in that browser. A subsequent
+Spotify → Apple Music → Spotify roundtrip failed to restart playback after constructing a second SDK player;
+a retained-player lifecycle candidate is implemented but not yet deployed or retested. Physical-phone acceptance
+remains pending. YouTube is deferred. App registration and the owner’s acceptance of
 Spotify’s registration agreement do not establish Spotify approval of ClassTempo’s use case.
 
 ## Product limits
@@ -34,19 +36,44 @@ The following records the verified setup separately from the remaining acceptanc
 | Products | Web API and Web Playback SDK selected and verified. |
 | Registration agreement | Accepted by the owner; the agent did not accept on the owner’s behalf. |
 | Public client ID | Stored as GitHub Actions repository variable `SPOTIFY_CLIENT_ID`; a client secret was neither viewed nor used. |
-| Deployment | [Actions run 40777058834](https://github.com/rudilopez/classtempo/actions/runs/40777058834) succeeded on `56b5138129ccaeb60ea941a002e56741ce6a0266` after setting the variable. Live `#spotify` enables Continue at 100%. |
-| Automated checks | Typecheck, 545 tests and production build passed for the idle-pause/error-loop correction, including paused cues before first Play, non-reentrant SDK errors and late REST completion cancellation. |
+| Deployment | [Actions run 40779762009](https://github.com/rudilopez/classtempo/actions/runs/40779762009) succeeded on `b5c69a60e1669c0ba155da42acd5671d7ad2f450` after PR #41. Live `#spotify` enables Continue at 100%. |
+| Automated checks | Typecheck, 552 tests and production build passed for the retained-player candidate, including inactive OS-handler guards, disabled native Media Session ownership, paused cues, non-reentrant SDK errors and late REST cancellation. Live source-roundtrip verification follows deployment. |
 | Premium membership | The signed-in owner’s Spotify Account Overview confirms Premium Family. |
 | Development users | User Management lists 0/5 explicit test users. The owner’s authorized Web API reads work without an explicit listed entry; this does not establish access for any other user. |
 | Real account authorization | Verified: the owner manually approved ClassTempo’s OAuth consent, the callback succeeded, and the authorized UI shows Disconnect. No client secret was accessed. |
 | Catalog and private-library reads | Verified: Search returned the requested “Que Fue Lo Que Me Hiciste” by Dalvin La Melodia; Saved songs returned 20 real saved tracks. Metadata access is separate from protected audio playback. |
-| Protected player startup | Verified in a fresh document after PR #40: `sdk_loaded` at 13 ms, `token_provided` at 232 ms, `connect_resolved` with `true` at 440 ms, and `ready` at 552 ms. Earlier initial/same-page Retry attempts timed out at 20 seconds; their cause remains unconfirmed. |
-| Paused song selection and cue | Verified: a real song opened paused and cue 1 could be set at zero. Pausing the empty SDK player before first Play emitted `playback_error`; the error handler’s additional pause calls produced repeated errors (the last 40 within 3 ms). The page was reloaded to stop the loop. Inactive-pause and error-callback reentrancy fixes are in progress. |
-| Real protected playback | Pending and unaccepted: the ClassTempo attempt remained at zero with Play shown; no successful subscribed-song playback or audible quality is established. |
+| Protected player startup | A fresh reload/reconnect after PR #41 reached a usable player. Earlier fresh-document diagnostics after PR #40 recorded `sdk_loaded` at 13 ms, `token_provided` at 232 ms, `connect_resolved` with `true` at 440 ms and `ready` at 552 ms. The cause of the original initial/same-page Retry 20-second timeouts remains unconfirmed. |
+| Paused song selection and cue | Verified after PR #41: a real song opened paused without `playback_error`; cue 1 at zero before first Play stayed paused and error-free. While playing, cue 1 sought to zero and kept playing; after Pause, cue 1 stayed at zero with Play shown. The test cue was cleared, leaving all eight slots empty. |
+| Idle-pause/error-loop correction | PR #41 corrected pausing an inactive SDK player and repeated pause calls from SDK error handlers. The earlier pre-Play `playback_error` feedback loop did not recur in the fresh selection/cue test. |
+| Real protected playback | Verified at 100% in ClassTempo on Mac before the source-lifecycle candidate: explicit Play ran the real “Que Fue Lo Que Me Hiciste” track with a 3:49.4 duration through natural completion. |
+| Listening acceptance | The owner answered “Yes, clear audio” for the Mac test at 100% before the source-lifecycle candidate. This establishes that listening result only, not physical-iPhone or other-device audio acceptance. |
+| Main player and Stage | Verified in the Mac browser, including a 390×664 phone-sized viewport: playback continued; Stage showed the cover and eight-button cue bar below it. Tools offered only Restart and Talk at fixed 100%. Leaving Stage preserved playback. This is responsive-layout evidence, not a physical-phone test. |
+| Natural full-track completion | Verified before the source-lifecycle candidate: the continuous run was observed at 3:41.4, then naturally returned to zero with Play shown at the 3:49.4 end. No next track started. |
+| Owned playlists | Verified before the source-lifecycle candidate: the provider playlist list returned 20 items; an owned playlist opened two track rows without errors while the selected song continued playing. |
+| Source roundtrip | Failed after PR #41: returning from Apple Music created a second native SDK player, which reached ready at 895 ms, but the subsequent REST Play failed with the sanitized generic error. The HTTP status and cause are unconfirmed. The retained-player candidate below still needs deployment and real roundtrip verification. |
 | First-party comparison | Spotify’s own web player played the same song with a 3:49 duration, progressed from 18 to 37 seconds and showed “This web browser” as its current device. It was paused and closed. This comparison does not establish ClassTempo playback or listening acceptance. |
 | Physical phones | Pending; iPhone/Android listening, interruptions and background behavior remain separate acceptance checks. |
 
 Do not mark pending rows complete from a successful app registration, deployment or consent screen alone.
+
+## Source lifecycle candidate
+
+This candidate is implemented on `codex/spotify-verified`; it is not yet deployed or accepted in a real source
+roundtrip. The Mac 100% audio, cue, Stage, playlist and full-track observations above belong to the earlier
+PR #41 baseline. Candidate checks and live retest results must be recorded separately.
+
+The router retains one Spotify React component after its first visit and passes an `active` prop. Normal source
+changes keep the native SDK player, selected track and list state. Deactivation invalidates pending actions,
+aborts browsing, prepares the current paused offset, closes trays/dialogs, releases the wake lock and clears
+its displayed awake state. It renders no Spotify interface or keyboard controls while inactive. A fresh
+`#apple-music` document never mounts Spotify or initializes its SDK.
+
+The retained SDK uses `enableMediaSession: false`. ClassTempo owns Spotify’s OS control bindings only while
+Spotify is active; guarded callbacks and cleanup prevent the hidden source from taking over Apple Music or
+local-file commands. Failed-player recovery uses **Restart Spotify connection**, which reloads the document
+while preserving tab authorization and saved cues, rather than constructing a second vendor player in the
+same document. Normal source changes retain the selected track/list; an explicit reload does not promise to
+preserve that temporary UI state.
 
 ## Account/app configuration
 
@@ -75,14 +102,14 @@ Tokens remain in sessionStorage. Disconnect invalidates pending auth/refresh and
 saved Spotify cues. For full grant revocation, remove ClassTempo in Spotify’s connected-app settings. The public
 privacy page explains the distinction. No imported file or Apple data is cleared.
 
-## Before claiming playback works
+## Regression and remaining acceptance
 
-Implementation verification, October 28, 2026: typecheck, all 534 tests and production build passed for PR #38,
-including the playlist-specific 403 explanation and cancellation regression tests. An earlier mocked SDK/API
+Implementation verification, October 28, 2026: typecheck, all 545 tests and production build passed for PR #41,
+including idle-pause/error-loop correction and cancellation regression tests. An earlier mocked SDK/API
 browser run verified paused song selection, first Play at a prepared cue, playing/paused cue behavior,
 pending-start cancellation, disconnect and source exit. Loaded-artwork main layouts passed at twelve sizes;
 Stage and the upfront choices passed at seven phone/tablet/desktop sizes. The unconfigured release screen
-keeps all choices visible at 360×640 and disables Continue. These checks use no real Spotify credentials or
+keeps all choices visible at 360×640 and disables Continue. These mock checks use no real Spotify credentials or
 protected audio and do not establish account eligibility, audible playback or physical-device acceptance.
 
 - Authorize a real eligible account, browse catalog/saved songs/playlists, select a track paused and explicitly Play.

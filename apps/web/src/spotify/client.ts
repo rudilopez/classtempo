@@ -263,7 +263,9 @@ export async function createSpotifyPlayer(
   };
   let native: NativePlayer;
   try {
-    native = new sdk.Player({ name: 'ClassTempo', enableMediaSession: true,
+    // ClassTempo binds OS controls only for the active source. A retained,
+    // paused SDK instance must not overwrite another provider's handlers.
+    native = new sdk.Player({ name: 'ClassTempo', enableMediaSession: false,
       getOAuthToken(callback) {
         if (!disposed) report('token_requested');
         void getSpotifyAccessToken(lifetime.signal).then((token) => {

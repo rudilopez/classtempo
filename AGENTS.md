@@ -146,7 +146,14 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   connection unavailable without configured client identity; do not claim developer configuration or a disclaimer
   grants classroom permission. Spotify requests public PKCE authorization, never a client secret in client code.
   Only explicit Play targets this SDK browser device; never transfer playback on connect/selection or issue global
-  active-device commands. Preserve paused selection and state-preserving cues, cancellation and source teardown.
+  active-device commands. Preserve paused selection and state-preserving cues, cancellation and source suspension.
+  Retain one Spotify component/native SDK player across normal source changes; use `active` to suspend intent,
+  browsing, trays and wake lock, preserve the prepared paused offset and selection/list state, and render no
+  Spotify interface/keyboard controls while inactive. Fresh Apple Music documents must not initialize Spotify.
+  Keep native `enableMediaSession: false`: ClassTempo binds guarded Spotify OS handlers only while active and
+  cleans them before another source takes ownership. Failed-player Restart reloads the document with auth/cues
+  retained instead of constructing a second SDK player. The lifecycle candidate still needs live roundtrip
+  acceptance; the earlier Mac 100% listening/full-track result does not validate this new lifecycle or phones.
   Spotify has no tempo changes, Practice, Stems, class plans or offline support; mark unavailable controls clearly.
   Disconnect removes Spotify tokens/lists/cues only. Keep its artwork original: no crop, blur, gradients/text/controls
   over it; display official Spotify attribution and links in player, results and Stage. No provider samples enter

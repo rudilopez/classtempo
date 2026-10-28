@@ -7,6 +7,7 @@ import { emptyCues, type CueSlots } from '../dancer/cueStore';
 import { ACCEPT_MEDIA } from '../dancer/media';
 import { StageView } from '../dancer/StageView';
 import { createWakeLock } from '../platform/wakeLock';
+import { setNowPlaying, setPlaybackState, setPosition } from '../platform/mediaSession';
 import { formatTime } from '../types';
 import spotifyLogo from '../assets/spotify-logo.svg';
 import { getSpotifyConfig } from './config';
@@ -16,6 +17,7 @@ import {
   type MusicTrack, type MusicPlaylist, type SpotifyPlayer, type SpotifySnapshot, type SpotifyStartupEvent,
 } from './client';
 import { createSpotifyTransport } from './transport';
+import { bindSpotifyMediaSession } from './mediaSession';
 import { clearSpotifyCues, loadSpotifyCues, saveSpotifyCues } from './cues';
 import '../shell.css';
 import '../dancer/dancer.css';
@@ -24,6 +26,7 @@ import '../appleMusic/appleMusic.css';
 import './spotify.css';
 
 interface Props {
+  active: boolean;
   onOpenFile: (file: File) => void;
   onOpenLocalLibrary: () => void;
   onOpenAppleMusic: () => void;
@@ -45,7 +48,7 @@ function SpotifyLink({ track, className = '' }: { track?: MusicTrack | null; cla
 }
 
 /** Spotify owns playback. This screen never sends its protected media to the local engine. */
-export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMusic }: Props): React.ReactElement {
+export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpenAppleMusic }: Props): React.ReactElement | null {
   const [config] = useState(getSpotifyConfig);
   const [accepted, setAccepted] = useState(false);
   const [authorized, setAuthorized] = useState(hasSpotifySession);
@@ -53,7 +56,6 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
   const [player, setPlayer] = useState<SpotifyPlayer | null>(null);
   const [setup, setSetup] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   const [setupError, setSetupError] = useState('');
-  const [retry, setRetry] = useState(0);
   const [startupEvents, setStartupEvents] = useState<SpotifyStartupEvent[]>([]);
   const [playback, setPlayback] = useState<SpotifySnapshot>(EMPTY);
   const [selected, setSelected] = useState<MusicTrack | null>(null);
@@ -81,6 +83,8 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
   const [failedArtwork, setFailedArtwork] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const alive = useRef(false);
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const operation = useRef(0);
   const cancelRequested = useRef(false);
   const browseRequest = useRef<AbortController | null>(null);
@@ -138,19 +142,34 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
       if (!cancelled) { setSetup('failed'); setSetupError(errorMessage(caught, 'Spotify could not start. Try connecting again.')); }
     });
     return () => { cancelled = true; current?.dispose(); };
-  }, [accepted, authorized, config, retry]);
+  }, [accepted, authorized, config]);
 
   const hasSong = authorized && selected !== null;
   const matchingTrack = selected !== null && playback.trackId === selected.id;
   const playing = hasSong && matchingTrack && playback.playing;
   const duration = selected?.durationSeconds ?? 0;
   const position = Math.max(0, Math.min(duration, transport?.preparedPosition ?? (matchingTrack ? playback.position : 0)));
+  const positionRef = useRef(position);
+  positionRef.current = position;
   const blocked = busy || transport?.pending === true || !hasSong || setup !== 'ready' || !playback.ready;
   const playDisabled = !hasSong || setup !== 'ready' || !playback.ready || cancelling || ((busy || transport?.pending === true) && !playing && !pendingPlay);
   const artworkUrl = selected?.artworkUrl && selected.artworkUrl !== failedArtwork ? selected.artworkUrl : undefined;
 
+  // Spotify's document-wide SDK frame supports one Player instance. Keep it
+  // paused between sources instead of constructing another vendor player.
+  useEffect(() => {
+    if (active) return;
+    operation.current++; cancelRequested.current = true; browseRequest.current?.abort();
+    if (transport) void transport.seek(positionRef.current, false).catch(() => {});
+    setStageOpen(false); setPickerOpen(false); setOptionsOpen(false); setRename(null);
+    setBusy(false); setPendingPlay(false); setCancelling(false); setLoading(false); setTalking(false); setScreenOn(false);
+    void wakeLock.disable();
+  }, [active, transport, wakeLock]);
+  useEffect(() => { if (active) setPickerOpen(true); }, [active]);
+
   const leave = (next: () => void): void => {
-    operation.current++; browseRequest.current?.abort(); transport?.cancel();
+    operation.current++; browseRequest.current?.abort();
+    if (transport) void transport.seek(positionRef.current, false).catch(() => {});
     next();
   };
   const openFile = (): void => fileInput.current?.click();
@@ -159,7 +178,7 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
     if (file) leave(() => onOpenFile(file));
   }} />;
   const connect = (): void => {
-    if (!config || authBusy) return;
+    if (!activeRef.current || !config || authBusy) return;
     setAuthBusy(true); setError('');
     void beginSpotifyAuth().catch((caught: unknown) => {
       if (alive.current) { setAuthBusy(false); setError(errorMessage(caught, 'Spotify sign-in could not open. Try again.')); }
@@ -176,7 +195,7 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
     setNotice('Disconnected. Spotify bookmarks on this device were removed.');
   };
   const browse = async (next: View, chosen: MusicPlaylist | null = null): Promise<void> => {
-    if (!authorized || (next === 'search' && !query.trim())) return;
+    if (!activeRef.current || !authorized || (next === 'search' && !query.trim())) return;
     browseRequest.current?.abort();
     const controller = new AbortController(); browseRequest.current = controller;
     setView(next); setPlaylist(chosen); setLoading(true); setSearched(true); setError('');
@@ -195,13 +214,15 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
     } finally { if (!controller.signal.aborted && alive.current) setLoading(false); }
   };
   const choose = (track: MusicTrack): void => {
-    if (busy || transport?.pending) return;
-    operation.current++; transport?.cancel();
+    if (!activeRef.current || busy || transport?.pending) return;
+    operation.current++;
+    if (transport) void transport.seek(0, false).catch(() => {});
     setSelected(track); setPlayback((previous) => ({ ...EMPTY, ready: previous.ready }));
     setCues(loadSpotifyCues(track, track.durationSeconds)); setUndoCues([]); setEditing(false);
     setTalking(false); setStageOpen(false); setError(''); setNotice(''); setPickerOpen(false);
   };
   const action = (run: () => Promise<void>, startsPlayback = false): void => {
+    if (!activeRef.current) return;
     const id = ++operation.current;
     setError(''); setNotice(''); setBusy(true);
     setPendingPlay(startsPlayback); setCancelling(false); cancelRequested.current = false;
@@ -219,7 +240,7 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
     }
   };
   const togglePlay = (): void => {
-    if (!transport || !selected || cancelling) return;
+    if (!activeRef.current || !transport || !selected || cancelling) return;
     if (pendingPlay) {
       // Keep this operation busy until its real completion. Cancellation revokes
       // transport intent immediately; a late Spotify response cannot restart it.
@@ -232,12 +253,12 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
     action(() => playing ? transport.pause() : transport.play(selected), !playing);
   };
   const seek = (seconds: number): void => {
-    if (!transport || blocked || !Number.isFinite(seconds)) return;
+    if (!activeRef.current || !transport || blocked || !Number.isFinite(seconds)) return;
     setTalking(false);
     action(() => transport.seek(Math.max(0, Math.min(duration, seconds)), playing));
   };
   const changeCues = (next: CueSlots, remember = true): void => {
-    if (!selected || blocked) return;
+    if (!activeRef.current || !selected || blocked) return;
     if (remember) setUndoCues((previous) => [...previous.slice(-9), cues]);
     setCues(next);
     if (!saveSpotifyCues(selected, duration, next)) setNotice('Cues work now, but could not be saved on this device.');
@@ -249,7 +270,7 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
     else seek(cue.time);
   };
   const toggleTalk = (): void => {
-    if (!transport || !selected || blocked) return;
+    if (!activeRef.current || !transport || !selected || blocked) return;
     if (talking) {
       setTalking(false);
       if (talkWasPlaying.current) action(() => transport.play(selected), true);
@@ -259,6 +280,7 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
     }
   };
   const toggleWake = (): void => {
+    if (!activeRef.current) return;
     if (screenOn) { setScreenOn(false); void wakeLock.disable(); }
     else void wakeLock.enable().then(setScreenOn);
   };
@@ -266,12 +288,13 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
     setStageOpen(false);
     requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.spotify-app .stage-open')?.focus());
   };
-  const shortcuts = useRef({ accepted, pickerOpen, optionsOpen, rename, stageOpen, pressCue, togglePlay, seek });
-  shortcuts.current = { accepted, pickerOpen, optionsOpen, rename, stageOpen, pressCue, togglePlay, seek };
+  const shortcuts = useRef({ active, accepted, playing, pendingPlay, pickerOpen, optionsOpen, rename, stageOpen, pressCue, togglePlay, seek });
+  shortcuts.current = { active, accepted, playing, pendingPlay, pickerOpen, optionsOpen, rename, stageOpen, pressCue, togglePlay, seek };
   useEffect(() => {
+    if (!active) return;
     const keydown = (event: KeyboardEvent): void => {
       const current = shortcuts.current;
-      if (!current.accepted || current.pickerOpen || current.optionsOpen || current.rename || event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (!current.active || !current.accepted || current.pickerOpen || current.optionsOpen || current.rename || event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target instanceof Element ? event.target : null;
       if (target?.closest('input, textarea, select, button, a, [contenteditable]:not([contenteditable="false"])')) return;
       if (/^[1-8]$/.test(event.key)) current.pressCue(Number(event.key) - 1);
@@ -282,7 +305,28 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
     };
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
-  }, []);
+  }, [active]);
+
+  useEffect(() => {
+    if (!active || !hasSong) return;
+    return bindSpotifyMediaSession({
+      isActive: () => activeRef.current,
+      play: () => { const current = shortcuts.current; if (!current.playing && !current.pendingPlay) current.togglePlay(); },
+      pause: () => { const current = shortcuts.current; if (current.playing || current.pendingPlay) current.togglePlay(); },
+      seek: (seconds) => shortcuts.current.seek(seconds),
+      restart: () => shortcuts.current.seek(0),
+    });
+  }, [active, hasSong]);
+  useEffect(() => {
+    if (!active || !selected) return;
+    setNowPlaying({ title: selected.name, artist: `${selected.artist} · Spotify`,
+      ...(artworkUrl ? { artwork: [{ src: artworkUrl }] } : {}) });
+  }, [active, selected, artworkUrl]);
+  useEffect(() => {
+    if (!active || !hasSong) return;
+    setPlaybackState(playing ? 'playing' : 'paused');
+    setPosition({ duration, position, rate: 1 });
+  }, [active, hasSong, playing, duration, position]);
 
   const feedback = <>{(error || setupError) && <p className="apple-music-error" role="alert">{error || setupError}</p>}{notice && <p className="apple-music-notice" role="status">{notice}</p>}</>;
   const limitations = <>
@@ -297,6 +341,8 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
     <p>For tempo controls, use Apple Music in ClassTempo. <a href={TRANSFER_GUIDE} target="_blank" rel="noopener noreferrer">How to transfer Spotify playlists to Apple Music ↗</a></p>
     <div><button type="button" onClick={openFile}>Open a file</button><button type="button" onClick={() => leave(onOpenLocalLibrary)}>Files &amp; classes</button></div>
   </div>;
+
+  if (!active) return null;
 
   if (!accepted) return <>
     <div className="app spotify-app"><header><Wordmark className="logo" /></header></div>
@@ -355,7 +401,7 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
       {feedback}
       {!authorized && <section className="apple-music-connect"><h3>Connect your Spotify account</h3><p>Sign in on Spotify’s secure page. Songs open paused, ready for you to press Play.</p><p className="apple-music-limits">Development access is limited to approved test accounts. <a href={PRIVACY_PAGE} target="_blank" rel="noopener noreferrer">Spotify connection privacy ↗</a></p><button type="button" className="apple-music-primary" disabled={authBusy || !config} onClick={connect}>{authBusy ? 'Opening Spotify…' : 'Connect Spotify'}</button></section>}
       {authorized && setup === 'loading' && <p role="status">Starting the Spotify player…</p>}
-      {authorized && (setup === 'failed' || (setup === 'ready' && !playback.ready)) && <button type="button" onClick={() => { setPlayer(null); setRetry((value) => value + 1); }}>Retry Spotify player</button>}
+      {authorized && (setup === 'failed' || (setup === 'ready' && !playback.ready)) && <button type="button" title="Reloads ClassTempo and keeps Spotify sign-in and saved cues" onClick={() => window.location.reload()}>Restart Spotify connection</button>}
       {authorized && <details className="spotify-connection-details"><summary>Connection details</summary><pre aria-label="Spotify connection details">{JSON.stringify({ app: 'ClassTempo', connection: startupEvents }, null, 2)}</pre></details>}
       {authorized && <section className="apple-music-browser" aria-label="Find Spotify songs">
         <div className="apple-music-tabs" role="group" aria-label="Spotify collection">
