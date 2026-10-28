@@ -78,7 +78,14 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   position and disables the active delay/mode without deleting presets; returning to Play must not revive a pass.
   Dialogs contain focus, restore background inert state and prevent global player shortcuts while open.
 - Apple Music has an isolated `#apple-music` connection test; the Library entry is enabled only in a configured
-  build. It is not part of the class player and has no authenticated desktop or physical-iPhone acceptance yet.
+  build. It is not part of the class player. Production Chrome authorization, read-only catalog/library access,
+  paused song selection, Play/Pause, seeking and stopping streaming when returning to the local player were
+  verified on 2026-10-28. The owner confirmed clear audio
+  at 100%; playback beyond the preview range was observed. Slower playback warbled and faster playback changed
+  pitch in the owner's listening check. Apple Music is therefore original-speed only: reset the rate during
+  initialization, song selection and Play, and do not expose the failed speed experiments. Tempo changes belong
+  to the local-file player. Uninterrupted full-track completion and physical-iPhone streaming acceptance remain
+  unverified.
   Apple Developer membership was verified active on 2026-10-28. The ClassTempo MusicKit Media ID and key were
   created, and all three signing credentials were stored as GitHub Actions repository secrets.
   Keep signing keys in deployment secrets, public configuration network-only, and sign-in/Play gesture-driven.

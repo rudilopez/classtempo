@@ -269,6 +269,12 @@ export async function playlistSongs(instance: MusicKitInstance, playlistId: stri
   return tracks(data.data);
 }
 
+/** Reset an earlier experiment before Play, without losing the initiating browser gesture. */
+export function playAtOriginalSpeed(instance: MusicKitInstance): void | Promise<unknown> {
+  instance.playbackRate = 1;
+  return instance.play();
+}
+
 /** Song IDs remain provider IDs, including i.* library IDs; they are never treated as local files. */
 export async function loadSelected(instance: MusicKitInstance, track: MusicTrack): Promise<void> {
   if (!text(track.id, 256)) throw new Error('Choose an Apple Music song.');
@@ -277,6 +283,7 @@ export async function loadSelected(instance: MusicKitInstance, track: MusicTrack
   // Guard the native operation, not the timeout wrapper. MusicKit has no cancellation API for setQueue.
   const operation = (async (): Promise<void> => {
     await instance.pause();
+    instance.playbackRate = 1;
     await instance.setQueue({ song: track.id, startPlaying: false });
   })();
   void operation.then(() => { loadingQueues.delete(instance); }, () => { loadingQueues.delete(instance); });

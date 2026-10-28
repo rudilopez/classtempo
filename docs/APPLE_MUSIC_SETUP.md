@@ -1,15 +1,20 @@
 # Apple Music setup for ClassTempo
 
-This prepares the separate MusicKit test screen. It does **not** establish working streaming playback,
-tempo control, stems, offline access or iPhone acceptance. Local songs, videos and classes remain independent.
+This configures the separate MusicKit test screen, which supports original-speed playback only. Tempo changes
+use local audio files. Setup alone does **not** establish playback, stems, offline access or iPhone acceptance.
+Local songs, videos and classes remain independent.
 Follow [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md) for the device test after setup.
 
 Current setup, 2026-10-28: Apple Developer membership is active. The MusicKit-only Media ID
 `media.io.github.rudilopez.classtempo` and its Media Services key have been created, and all three GitHub
 Actions repository secrets below are configured. Steps 1 and 2 are complete; do not create duplicate
-identifiers or keys for this setup. The configured deployment and Apple catalog authentication succeeded;
-the Library connection test opens Apple's sign-in window. Continue with listener sign-in and playback
-checks in step 3. Neither authenticated desktop playback nor physical-iPhone acceptance is established yet.
+identifiers or keys for this setup. The configured deployment and production Chrome subscriber authorization
+succeeded. Read-only catalog/library browsing, paused song selection, Play/Pause, seeking and stopping streaming
+when returning to the local player were verified. The owner confirmed clear audio at 100%, with playback
+observed beyond the preview range. Slower playback
+warbled and faster playback changed pitch, so the speed experiments were removed. Uninterrupted full-track
+completion and physical-iPhone acceptance remain unverified.
+See the dated evidence in [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 ## 1. Create the Apple identifier and key
 

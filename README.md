@@ -79,10 +79,14 @@ formats depend on the browser's decoder. A file may need to finish downloading f
 
 **The class player uses local files.** Subscription downloads are not ordinary media files that it can import.
 An isolated Apple Music connection test is available at `#apple-music`: explicit sign-in, catalog search, the
-first 25 library songs/playlists/tracks, one song queued paused, Play/Pause, seeking and optional speed checks.
-The configured Library entry and catalog API access were verified on 2026-10-28 after Apple account activation
-and credential setup. Subscriber authorization, full-track playback and physical-iPhone acceptance are not yet
-verified. See the
+first 25 library songs/playlists/tracks, one song queued paused, Play/Pause, Restart and seeking.
+Apple Music plays at **original speed only**. Open a local audio file for tempo changes that preserve pitch.
+Production Chrome authorization, catalog/library browsing, paused selection, Play/Pause and seeking were
+verified on 2026-10-28. Returning to the local player also stopped the stream. The owner confirmed clear audio
+at 100%, with playback observed beyond the preview
+range. Slower streaming playback warbled and faster playback changed pitch in the listening test, so those
+speed controls were removed. Uninterrupted full-track completion and physical-iPhone acceptance remain
+unverified. See the
 [setup instructions](docs/APPLE_MUSIC_SETUP.md) and [feasibility plan](docs/APPLE_MUSIC_FEASIBILITY.md).
 The test does not add streams to classes, prepare stems or save songs offline. Spotify is not integrated.
 

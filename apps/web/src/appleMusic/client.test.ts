@@ -212,8 +212,30 @@ describe('Apple Music lists', () => {
 });
 
 describe('Apple Music playback boundary', () => {
+  it('restores original speed before synchronously starting playback from the gesture', async () => {
+    const music = instance();
+    music.playbackRate = 0.75;
+    let rateAtPlay: number | undefined;
+    music.play.mockImplementation(() => { rateAtPlay = music.playbackRate; return Promise.resolve(); });
+    const { playAtOriginalSpeed } = await import('./client');
+    const playing = playAtOriginalSpeed(music);
+    expect(rateAtPlay).toBe(1);
+    expect(music.play).toHaveBeenCalledOnce();
+    await playing;
+  });
+
+  it('does not start playback if original speed cannot be restored', async () => {
+    const music = instance();
+    Object.defineProperty(music, 'playbackRate', { get: () => 1.1, set: () => { throw new Error('Rate unavailable'); } });
+    const { playAtOriginalSpeed } = await import('./client');
+    expect(() => playAtOriginalSpeed(music)).toThrow();
+    expect(music.play).not.toHaveBeenCalled();
+  });
+
   it('loads a single library or catalog song paused and never begins playback', async () => {
     const music = instance();
+    music.playbackRate = 1.1;
+    music.setQueue.mockImplementation(async () => { expect(music.playbackRate).toBe(1); });
     const { loadSelected } = await import('./client');
     const track: MusicTrack = { id: 'i.abc123', type: 'library-songs', name: 'Song', artist: 'Artist' };
     await loadSelected(music, track);
