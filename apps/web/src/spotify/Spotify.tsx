@@ -19,6 +19,7 @@ import {
 import { createSpotifyTransport } from './transport';
 import { bindSpotifyMediaSession } from './mediaSession';
 import { clearSpotifyCues, loadSpotifyCues, saveSpotifyCues } from './cues';
+import { revokeSpotifyTesterAccess, spotifyTesterInviteUrl } from './access';
 import '../shell.css';
 import '../dancer/dancer.css';
 import '../dancer/classroom.css';
@@ -194,6 +195,21 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
     setPendingPlay(false); setCancelling(false);
     setNotice('Disconnected. Spotify bookmarks on this device were removed.');
   };
+  const hideSpotify = (): void => {
+    operation.current++; cancelRequested.current = true; browseRequest.current?.abort();
+    transport?.dispose(); disconnectSpotify(); revokeSpotifyTesterAccess();
+    // A new document also releases the retained vendor player. Saved cues and other sources stay intact.
+    window.location.replace(import.meta.env.BASE_URL);
+  };
+  const copyTesterLink = (): void => {
+    const url = spotifyTesterInviteUrl();
+    try {
+      void navigator.clipboard.writeText(url).then(
+        () => { if (alive.current) setNotice('Tester link copied.'); },
+        () => { if (alive.current) setNotice('Copy the tester link below.'); },
+      );
+    } catch { setNotice('Copy the tester link below.'); }
+  };
   const browse = async (next: View, chosen: MusicPlaylist | null = null): Promise<void> => {
     if (!activeRef.current || !authorized || (next === 'search' && !query.trim())) return;
     browseRequest.current?.abort();
@@ -346,7 +362,7 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
 
   if (!accepted) return <>
     <div className="app spotify-app"><header><Wordmark className="logo" /></header></div>
-    <AppleMusicPicker title="Spotify" onClose={() => leave(onOpenLocalLibrary)}>
+    <AppleMusicPicker title="Spotify test access" onClose={() => leave(onOpenLocalLibrary)}>
       <div className="spotify-intro">
         <div className="spotify-intro-top"><SpotifyLink /><strong className="spotify-speed-badge">100%</strong><a href={PRIVACY_PAGE} target="_blank" rel="noopener noreferrer">Privacy ↗</a></div>
         <ul className="spotify-intro-limits">
@@ -361,6 +377,7 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
         <button type="button" className="spotify-intro-apple" onClick={() => leave(onOpenAppleMusic)}><span>Use Apple Music</span><small>Tempo controls</small></button>
         <a className="spotify-transfer-link" href={TRANSFER_GUIDE} target="_blank" rel="noopener noreferrer">Transfer Spotify playlists to Apple Music ↗</a>
         <div className="spotify-intro-files"><button type="button" onClick={openFile}>Open a file</button><button type="button" onClick={() => leave(onOpenLocalLibrary)}>Files &amp; classes</button></div>
+        <button type="button" onClick={hideSpotify}>Hide Spotify on this device</button>
         {filePicker}
       </div>
     </AppleMusicPicker>
@@ -423,7 +440,17 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
       </section>}
       <button type="button" onClick={() => { setPickerOpen(false); setOptionsOpen(true); }}>Spotify limits &amp; other options</button>
     </AppleMusicPicker>}
-    {optionsOpen && <AppleMusicPicker title="Spotify options" onClose={() => setOptionsOpen(false)}><SpotifyLink />{limitations}{alternatives}</AppleMusicPicker>}
+    {optionsOpen && <AppleMusicPicker title="Spotify options" onClose={() => setOptionsOpen(false)}><SpotifyLink />{limitations}{alternatives}
+      <section className="spotify-test-access" aria-label="Spotify test access">
+        <h3>Private test access</h3>
+        <p>The tester link reveals Spotify in this browser. Each tester still needs an approved Spotify Premium account.</p>
+        <a href={spotifyTesterInviteUrl()}>{spotifyTesterInviteUrl()}</a>
+        <button type="button" onClick={copyTesterLink}>Copy tester link</button>
+        {notice && <p role="status">{notice}</p>}
+        <button type="button" onClick={hideSpotify}>Hide Spotify on this device</button>
+        <p>Hides Spotify and disconnects this tab. Your saved cues, local files and Apple Music settings stay saved.</p>
+      </section>
+    </AppleMusicPicker>}
     {rename && <AppleMusicPicker title="Rename cue" onClose={() => setRename(null)}><form className="apple-music-rename" onSubmit={(event) => { event.preventDefault(); const name = rename.name.trim().slice(0, 40); if (!name) return; changeCues(cues.map((cue, index) => index === rename.index && cue ? { ...cue, name } : cue)); setRename(null); }}><label>Cue name<input value={rename.name} maxLength={40} onChange={(event) => setRename({ ...rename, name: event.target.value })} /></label><button type="submit" disabled={!rename.name.trim()}>Save name</button></form></AppleMusicPicker>}
     {stageOpen && selected && <StageView video={null} aspect={null} title={selected.name} artist={selected.artist} artworkUrl={artworkUrl} artworkTreatment="original" sourceLink={{ label: 'Open Spotify', href: selected.externalUrl, logoUrl: spotifyLogo }} playing={playing} position={position} duration={duration} cues={cues} section="Spotify · Original speed" tempo={100} pendingLabel={pendingPlay ? 'Starting…' : cancelling ? 'Stopping…' : null} onTogglePlay={togglePlay} onRestart={() => seek(0)} onLaunch={(index) => { const cue = cues[index]; if (cue) seek(cue.time); }} onSetCue={pressCue} onClose={closeStage} onSeek={seek} talking={talking} onToggleTalk={toggleTalk} disabled={blocked} playDisabled={playDisabled} cueActionLabel="Go to" />}
   </>;

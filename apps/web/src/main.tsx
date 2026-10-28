@@ -4,15 +4,20 @@ import { App } from './App';
 import type { LocalPlayerRequest } from './dancer/DancerMode';
 import { registerSW } from './pwa/registerSW';
 import { hasSpotifyCallback } from './spotify/auth';
+import { acceptSpotifyTesterInvite, hasSpotifyTesterAccess } from './spotify/access';
 import './styles.css';
 
 // A hash route works on the static Pages host. The model/runtime is loaded only after opening the lab.
 const StemsBenchmark = lazy(() => import('./stems/StemsBenchmark'));
 const AppleMusic = lazy(() => import('./appleMusic/AppleMusic'));
 const Spotify = lazy(() => import('./spotify/Spotify'));
-const route = (): 'stems' | 'apple-music' | 'spotify' | 'player' => window.location.hash === '#stems-benchmark' ? 'stems'
-  : window.location.hash === '#apple-music' ? 'apple-music'
-  : window.location.hash === '#spotify' || hasSpotifyCallback() ? 'spotify' : 'player';
+const route = (): 'stems' | 'apple-music' | 'spotify' | 'player' => {
+  acceptSpotifyTesterInvite();
+  if (window.location.hash === '#stems-benchmark') return 'stems';
+  if (window.location.hash === '#apple-music') return 'apple-music';
+  return hasSpotifyTesterAccess() && (window.location.hash === '#spotify' || hasSpotifyCallback())
+    ? 'spotify' : 'player';
+};
 const initialRoute = route();
 if (initialRoute === 'stems') window.addEventListener('hashchange', () => {
   if (route() !== 'stems') window.location.reload();

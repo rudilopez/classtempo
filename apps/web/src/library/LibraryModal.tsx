@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ACCEPT_MEDIA } from '../dancer/media';
+import { hasSpotifyTesterAccess } from '../spotify/access';
 import { normalizePracticeSettings, type PracticeSettings } from '../practice/settings';
 import { importSelection } from './importFlow';
 import { practiceClassEntry, savedClassPractices, type SavedClassPractice } from './classPreparation';
@@ -276,7 +277,7 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
           <button type="button" aria-pressed={view === 'classes'} disabled={busy || !!classDraft} onClick={() => { setView('classes'); setSelected(''); setCreatingClass(false); }}>Classes <span className="library-tab-count">{classes.length}</span></button>
           {import.meta.env.VITE_APPLE_MUSIC_ENABLED === 'true' && <button type="button" disabled={busy || !!classDraft}
             onClick={() => { window.location.hash = 'apple-music'; }}>Apple Music</button>}
-          <button type="button" disabled={busy || !!classDraft} onClick={() => { window.location.hash = 'spotify'; }}>Spotify</button>
+          {hasSpotifyTesterAccess() && <button type="button" disabled={busy || !!classDraft} onClick={() => { window.location.hash = 'spotify'; }}>Spotify</button>}
         </div>
         <div className="library-feedback" aria-live="polite">
           {busy && <p>{progress}</p>}
@@ -313,7 +314,7 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
               <button type="button" className="library-primary" disabled={busy} onClick={() => input.current?.click()}>+ Add media</button>
               <p className="library-import-help">Audio: choose Files. Video: choose Photos or Files.<br />Your first selection opens automatically and waits for Play.</p>
             </div>}
-            <p className="library-source-note">Local files only. This does not search or import Spotify or Apple Music downloads.</p>
+            <p className="library-source-note">Local files only. Subscription downloads cannot be imported as ordinary files.</p>
           </> : activeClass ? <>
             <button type="button" className="library-back" disabled={busy || editingClass} onClick={() => setSelected('')}>← All classes</button>
             <div className="library-class-detail-heading"><h3 ref={classHeading} tabIndex={-1}>{editingClass ? 'Edit class' : activeClass.name}</h3>
