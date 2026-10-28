@@ -100,6 +100,11 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   created, and all three signing credentials were stored as GitHub Actions repository secrets.
   Keep signing keys in deployment secrets, public configuration network-only, and sign-in/Play gesture-driven.
   Never promise streaming tempo, phrase repetition, stems or offline parity without actual device evidence.
+  The owner explicitly requires a web app across phones, not a native rewrite. The opt-in
+  `?tempo-test=1#apple-music` listening trial uses only public MusicKit rate controls and read-only media
+  diagnostics. Normal entry stays at 100%. Trial rates are not accepted production quality: browser timing
+  and pitch flags do not prove clean sound. Keep paused cues paused, reset new songs to 100%, and preserve
+  prepared cue offsets when ending the test. See docs/APPLE_MUSIC_TEMPO_TRIAL.md.
   Spotify is not integrated. See docs/APPLE_MUSIC_SETUP.md and docs/APPLE_MUSIC_FEASIBILITY.md.
 - Stems uses opt-in local Spleeter separation for audio files only, with a 4:30/100 MB preparation limit.
   Ordinary song/video playback has no duration cap. The owner confirmed preparation of the supplied song and

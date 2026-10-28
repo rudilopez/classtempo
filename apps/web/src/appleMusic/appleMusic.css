@@ -20,6 +20,13 @@
 .apple-music-source > strong { color: var(--a); font-size: 11px; }
 .apple-music-tool-buttons { display: flex; gap: 6px; }
 .apple-music-tool-buttons button { min-height: 44px; font-size: 12px; padding: 5px 8px; white-space: nowrap; }
+.apple-tempo-trial { width: 100%; min-width: 0; }
+.apple-tempo-trial-heading { display: flex; gap: 6px; align-items: center; font-size: 11px; }
+.apple-tempo-trial-heading strong { margin-right: auto; color: var(--dim); }
+.apple-tempo-trial-heading button { min-height: 44px; padding: 0 6px; font-size: 11px; background: transparent; border: 0; }
+.apple-tempo-rates { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+.apple-tempo-rates button { min-height: 44px; min-width: 44px; padding: 0; font-size: 13px; }
+.apple-tempo-rates button[aria-pressed='true'] { background: var(--a); color: #062b24; border-color: var(--a); }
 .apple-music-app .cues { gap: 6px; }
 .apple-music-cue-heading { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border: 1px solid var(--a); border-radius: 999px; color: #082b28; background: var(--a); font-size: 13px; font-weight: 800; }
 .apple-music-app .cues-head > button:last-child { margin-left: auto; min-height: 44px; font-size: 12px; padding-inline: 8px; white-space: nowrap; }

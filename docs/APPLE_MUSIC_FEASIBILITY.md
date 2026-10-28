@@ -81,9 +81,10 @@ deployment. Keep unproven tempo and practice controls out of the released stream
 
 Keep physical-iPhone acceptance separate from desktop and mock checks. Streaming tempo and phrase repetition
 require a supported implementation and new timing plus listening tests before their controls can return.
-The failed browser listening test does not establish that all native or provider-partner paths fail. Evaluate a
-small native MusicKit prototype before a rewrite; keep the shared ClassTempo interface as the product target.
-Preserve local-file teaching sessions while investigating.
+The failed Chrome listening test does not establish the result on other phone browsers. The owner explicitly
+requires ClassTempo to remain web-based across phones; a native prototype or rewrite is not the intended
+roadmap. Evaluate the supported browser path with physical-device listening while preserving local-file
+teaching sessions and original-speed streaming as the safe default.
 
 ## Classroom use and Spotify
 
@@ -173,3 +174,9 @@ Stage. Playing music jumps and continues; paused music jumps and stays paused. E
 This supersedes both always-pause and always-start behavior. A cue before a stream's first Play must select
 the position without starting audio. Verify both states, first-Play behavior, Pause/source-change cancellation
 and Stage. Keep physical-iPhone acceptance separate from desktop and automated results.
+
+Web-only tempo investigation, 2026-10-28: an explicit `?tempo-test=1#apple-music` audition uses the existing
+player with bounded rate presets and read-only pitch/rate/timing diagnostics. The normal app remains at
+100%. This is an unaccepted listening trial, not a claim that warbling or pitch changes are fixed. See
+[APPLE_MUSIC_TEMPO_TRIAL.md](APPLE_MUSIC_TEMPO_TRIAL.md) for primary sources, the iPhone Safari/Home Screen
+and Android Chrome checks, and the transport behavior that must remain intact. No native app is planned.
