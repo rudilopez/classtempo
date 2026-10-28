@@ -14,6 +14,7 @@ import { formatTime } from '../types';
 import { AppleMusicPicker } from './AppleMusicPicker';
 import { loadAppleMusicCues, saveAppleMusicCues } from './cues';
 import { createAppleMusicTransport } from './transport';
+import { TempoTrial } from './TempoTrial';
 import '../shell.css';
 import '../dancer/dancer.css';
 import '../dancer/classroom.css';
@@ -59,9 +60,11 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   const [rename, setRename] = useState<{ index: number; name: string } | null>(null);
   const [screenOn, setScreenOn] = useState(false);
   const [talking, setTalking] = useState(false);
+  const [tempoTrial, setTempoTrial] = useState(() => new URLSearchParams(window.location.search).get('tempo-test') === '1');
+  const initialTempoTrial = useRef(tempoTrial);
   const talkWasPlaying = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const transportPlayer = useMemo(() => instance ? createAppleMusicTransport(instance) : null, [instance]);
+  const transportPlayer = useMemo(() => instance ? createAppleMusicTransport(instance, { tempoTrial: initialTempoTrial.current }) : null, [instance]);
   const [wakeLock] = useState(() => {
     const lock = createWakeLock({ onChange: (held) => { setScreenOn(held); if (!held) void lock.disable(); } });
     return lock;
@@ -254,6 +257,17 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   const shownTrack = selected;
   const blocked = busy || seeking || setup !== 'ready' || !hasSong;
   const playDisabled = busy || !hasSong || (seeking && !playback.isPlaying);
+  const tempoPercent = Math.round((transportPlayer?.requestedRate ?? 1) * 100);
+  const endTempoTrial = (): void => {
+    if (busy || seeking || transportPlayer?.seeking) return;
+    transport.current++; transportPlayer?.endTempoTrial(); setTalking(false);
+    initialTempoTrial.current = false;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('tempo-test'); window.history.replaceState(null, '', url);
+    setTempoTrial(false);
+    if (instance) setPlayback(snapshot(instance));
+    setNotice('Tempo test ended. Paused at original speed.');
+  };
 
   const togglePlay = (): void => {
     if (!transportPlayer || !hasSong || busy) return;
@@ -360,7 +374,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       </div></div></header>
       <main className="dancer-main">
         <section className={`dancer apple-music-dancer ${editing ? 'editing' : ''}`} aria-label="Apple Music player">
-          <div className="dancer-clock"><span className="elapsed">{formatTime(position)}</span><span className="total">/ {formatTime(duration)}</span><span className="bpm"><span className="big">100%</span><span className="unit">tempo</span></span></div>
+          <div className="dancer-clock"><span className="elapsed">{formatTime(position)}</span><span className="total">/ {formatTime(duration)}</span><span className="bpm"><span className="big">{tempoPercent}%</span><span className="unit">{tempoTrial ? 'test' : 'tempo'}</span></span></div>
           <div className="dancer-media-panel">
             <div className="dancer-track-info"><NowPlayingLabel /><div className="dancer-track-title" title={shownTrack?.name}>{busy ? 'Opening song…' : shownTrack?.name ?? 'Choose a song from your library'}</div>{shownTrack && <div className="apple-music-artist">{shownTrack.artist}</div>}</div>
             <div className="apple-music-artwork">
@@ -370,9 +384,9 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
             <div className="apple-music-timeline"><input type="range" min="0" max={Math.max(1, duration)} step="1" value={position} aria-label="Song position" disabled={blocked || !duration} onChange={(event) => seek(Number(event.target.value))} /></div>
           </div>
           <PlayerTransport playing={playback.isPlaying} disabled={blocked} playDisabled={playDisabled} onTogglePlay={togglePlay} onRestart={() => seek(0)} onStage={() => { setEditing(false); setStageOpen(true); }} />
-          <div className="class-tempo-panel apple-music-tools">
-            <div className="apple-music-source"><span>♫ Apple Music</span><strong>Original speed</strong></div>
-            <div className="apple-music-tool-buttons"><button type="button" disabled={blocked} onClick={() => seek(position - 10)}>↶ Back 10s</button><button type="button" disabled={blocked} className={talking ? 'on' : ''} aria-pressed={talking} title="Pause while you speak; tap again to resume" onClick={toggleTalk}>{talking ? 'Finish talking' : 'Talk'}</button></div>
+          <div className={`class-tempo-panel apple-music-tools ${tempoTrial ? 'has-tempo-trial' : ''}`}>
+            {tempoTrial ? <TempoTrial instance={instance} trackId={selected?.id ?? null} requestedRate={transportPlayer?.requestedRate ?? 1} playing={playback.isPlaying} seeking={seeking} disabled={blocked} exitDisabled={busy || seeking} onRate={(rate) => action(() => transportPlayer?.setTempoRate(rate))} onExit={endTempoTrial} /> : <div className="apple-music-source"><span>♫ Apple Music</span><strong>Original speed</strong></div>}
+            {!tempoTrial && <div className="apple-music-tool-buttons"><button type="button" disabled={blocked} onClick={() => seek(position - 10)}>↶ Back 10s</button><button type="button" disabled={blocked} className={talking ? 'on' : ''} aria-pressed={talking} title="Pause while you speak; tap again to resume" onClick={toggleTalk}>{talking ? 'Finish talking' : 'Talk'}</button></div>}
           </div>
           <div className={`cues ${undoCues.length ? 'has-undo' : ''}`}>
             <div className="cues-head"><span className="apple-music-cue-heading">Cues</span><span className="cues-hint">{editing ? 'Tap to move' : 'Tap empty to set'}</span>{undoCues.length > 0 && <button type="button" className="cues-undo" disabled={blocked} onClick={() => { const previous = undoCues[undoCues.length - 1]; if (previous) { changeCues(previous, false); setUndoCues((items) => items.slice(0, -1)); } }}>Undo</button>}<button type="button" disabled={blocked} onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit cues'}</button></div>
@@ -417,6 +431,6 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       </section>}
     </AppleMusicPicker>}
     {rename && <AppleMusicPicker title="Rename cue" onClose={() => setRename(null)}><form className="apple-music-rename" onSubmit={(event) => { event.preventDefault(); const name = rename.name.trim().slice(0, 40); if (!name) return; changeCues(cues.map((cue, index) => index === rename.index && cue ? { ...cue, name } : cue)); setRename(null); }}><label>Cue name<input value={rename.name} maxLength={40} onChange={(event) => setRename({ ...rename, name: event.target.value })} /></label><button type="submit" disabled={!rename.name.trim()}>Save name</button></form></AppleMusicPicker>}
-    {stageOpen && hasSong && shownTrack && <StageView video={null} aspect={null} title={shownTrack.name} playing={playback.isPlaying} position={position} duration={duration} cues={cues} section="Apple Music · 100%" onTogglePlay={togglePlay} onRestart={() => seek(0)} onLaunch={(index) => { const cue = cues[index]; if (cue) seek(cue.time); }} onClose={closeStage} onSeek={seek} cueActionLabel="Go to" disabled={blocked} playDisabled={playDisabled} />}
+    {stageOpen && hasSong && shownTrack && <StageView video={null} aspect={null} title={shownTrack.name} playing={playback.isPlaying} position={position} duration={duration} cues={cues} section={`Apple Music · ${tempoPercent}%${tempoTrial ? ' test' : ''}`} onTogglePlay={togglePlay} onRestart={() => seek(0)} onLaunch={(index) => { const cue = cues[index]; if (cue) seek(cue.time); }} onClose={closeStage} onSeek={seek} cueActionLabel="Go to" disabled={blocked} playDisabled={playDisabled} />}
   </>;
 }

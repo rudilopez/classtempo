@@ -104,9 +104,10 @@ named practices, class plans and stems. Uninterrupted full-track completion rema
 
 Verify source switching, direct file Open, the Apple Music picker, shared Stage, cues and asynchronous seek
 cancellation in the new interface, then verify uninterrupted original-speed playback, lock-screen behavior and
-phone output on the actual target platform. Clean streaming tempo research follows this release. A small native
-MusicKit experiment may test a different supported path; a full rewrite is not justified without a listening
-pass. Any renewed streaming tempo or phrase-control work needs timing and listening tests before exposing
+phone output on the actual target platform. The owner clarified that ClassTempo must remain web-based across
+phones; native app work is outside the intended solution. An explicitly opted-in
+[web tempo listening trial](APPLE_MUSIC_TEMPO_TRIAL.md) compares supported browser playback paths.
+Any renewed streaming tempo or phrase-control work needs timing and listening tests before exposing
 controls again. Do not equate MusicKit playback support with access
 to raw audio or parity with local-file processing. Spotify is not a promised integration. Platform terms and
 permitted classroom music use are independent of whether a technical integration plays a song.
