@@ -101,8 +101,9 @@ clear audio at 100%, and playback beyond the preview range was observed. Slower 
 playback changed pitch. Original-speed streaming shipped first. The owner then requested the slider and
 presets in the ordinary player. After their restoration, the owner confirmed all tempos sounded great on Mac
 on 2026-10-28. Playback info retains read-only diagnostics. Local files retain their independent engine, named
-practices, class plans and stems. Physical iPhone/iPad/Android listening and uninterrupted full-track completion
-remain unverified. Follow
+practices, class plans and stems. The subsequent iPhone check failed at 75%: warbling remained despite correct
+rate readings and enabled pitch preservation. Other iPhone rates, iPad/Android listening and uninterrupted
+full-track completion remain unverified. Layout fixes do not resolve this audio-quality failure. Follow
 [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 Verify source switching, direct file Open, the Apple Music picker, shared Stage, cues and asynchronous seek

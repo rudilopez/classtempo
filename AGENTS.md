@@ -39,6 +39,9 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   1366×1024. No horizontal overflow. The main portrait player fits without page scrolling; library/practice
   dialogs scroll internally. Touch targets remain at least 44 px and full cue pads at least 72 px. Video Stage
   uses a compact horizontal row of 44 px numbered cue buttons, per the owner's requested layout. Respect safe areas.
+  For Apple Music, also check Safari-sized usable viewports 360×640, 390×664 and 402×690/714/734. Verify
+  panel containment and actual control overlap, not only document scroll dimensions. Keep seek inside Now Playing
+  and Cues below the tempo tools; a full-screen desktop viewport is not equivalent to visible phone browser bars.
 - One player only: Open accepts audio/video and detects the actual file type. Library Add saves the selection
   and opens its first file paused. Picker cancellation preserves the track. Class Auto-next is off by default;
   Next & play is an explicit advance/start action, and Again restarts the current exercise.
@@ -96,7 +99,10 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   pitch in that earlier experiment. After the slider and presets returned, the owner confirmed on 2026-10-28
   that all tempos sounded great on Mac. This is listening acceptance on the tested Mac, not proof for every
   browser or device. Playback info retains read-only diagnostics without a test-only label.
-  Uninterrupted full-track completion and physical iPhone/iPad/Android listening remain unverified.
+  The owner subsequently reported warbling on iPhone at 75%; requested, SDK and native rates all read 0.75,
+  with readyState 4 and preservesPitch true. That iPhone listening check failed despite correct rate/flags.
+  Other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain unverified.
+  Keep phone layout repairs separate from audio-quality claims; public MusicKit exposes no quality selector.
   Apple Developer membership was verified active on 2026-10-28. The ClassTempo MusicKit Media ID and key were
   created, and all three signing credentials were stored as GitHub Actions repository secrets.
   Keep signing keys in deployment secrets, public configuration network-only, and sign-in/Play gesture-driven.

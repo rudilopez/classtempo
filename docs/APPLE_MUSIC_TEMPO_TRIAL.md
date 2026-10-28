@@ -1,8 +1,8 @@
 # Apple Music tempo: playback and device acceptance
 
-Status, 2026-10-28: **Mac tempo listening accepted; physical iPhone/iPad/Android listening and uninterrupted full-track completion outstanding.** ClassTempo remains a web app for phones. A native app, Xcode setup or separate app installation is not the intended solution.
+Status, 2026-10-28: **Mac tempo listening accepted; iPhone 75% listening failed with warbling. Other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain unverified.** ClassTempo remains a web app for phones. A native app, Xcode setup or separate app installation is not the intended solution.
 
-The earlier Chrome experiment changed playback speed, but the owner heard warbling when slower and a pitch change when faster. Original-speed Apple Music playback was clear. After the slider and presets returned, the owner reported, “The slider and presets are back and all tempos sound great,” and identified the tested device as Mac. This accepts the latest listening experience on that Mac; the exact rates, browser version and output route were not specified. It does not establish the result on physical iPhone Safari, the Home Screen app, iPad or Android Chrome. Each Apple Music song opens paused at 100%. The slider and presets remain visible, with read-only diagnostics under Playback info.
+The earlier Chrome experiment changed playback speed, but the owner heard warbling when slower and a pitch change when faster. Original-speed Apple Music playback was clear. After the slider and presets returned, the owner reported, “The slider and presets are back and all tempos sound great,” and identified the tested device as Mac. This accepts the latest listening experience on that Mac; the exact rates, browser version and output route were not specified. It does not establish the result on physical iPhone Safari, the Home Screen app, iPad or Android Chrome. A subsequent physical-iPhone check failed at 75% as detailed below. Each Apple Music song opens paused at 100%. The slider and presets remain visible, with read-only diagnostics under Playback info.
 
 ## What the web player can control
 
@@ -65,12 +65,27 @@ At each candidate rate, verify these behaviors in the ordinary player and Stage:
 
 A new speed path must retain the state-preserving cue behavior accepted for the existing player. Do not restore the historical always-play cue workaround to make a tempo test seem successful.
 
+## Physical-iPhone failure at 75% — 2026-10-28
+
+After Mac acceptance, the owner reported slow-tempo warbling on the iPhone. The copied playback diagnostic reports:
+
+- Browser: iPhone OS `18_7`, Safari `Version/27.0.1`, `AppleWebKit/605.1.15`.
+- Requested rate, MusicKit-reported rate and native audio rate: all `0.75`.
+- Playback active, audio not paused or muted, volume `1`, `readyState: 4`.
+- `preservesPitch: true`; no timing sample was supplied.
+
+The 75% iPhone listening check **failed**. These readings rule out a mismatched rate or disabled pitch flag at capture time; they do not establish artifact-free stretching, uninterrupted buffering or the installed pitch algorithm. The 250 ms application poll reads state and does not repeatedly write the rate. The supported MusicKit interface exposes no quality/algorithm selector. Do not claim a new audio fix from a CSS repair or from these correct diagnostic values.
+
+The accompanying screenshot also shows the seek line and Cues header overlapping neighboring controls in Safari's shorter usable viewport. That layout repair is separate from this audio-quality failure. Mac acceptance remains valid for the reported Mac test; it does not override the iPhone result.
+
+The overlap was reproduced at 402×714. Fixed row minima allowed the title/seek content to overflow, while a shrinking Cues region pushed its header upward. The CSS repair uses intrinsic control rows and compact short-viewport spacing. The seven standard sizes plus 360×640, 390×664 and 402×690/714/734 passed panel-containment and overlap checks in Chrome, with controls at least 44 px and full cue pads at least 72 px. Desktop Safari responsive views at 402×714 and 360×640 were also visually checked. This is browser layout evidence, not physical-iPhone acceptance or an audio fix.
+
 ## Acceptance and next decision
 
-On 2026-10-28 the owner confirmed that the slider and presets were back and all tempos sounded great, then identified the device as Mac. The test-only UI wording was removed; Playback info retains diagnostics. Physical iPhone/iPad/Android listening and uninterrupted full-track completion remain unverified. The prior hidden-link trial's local tests covered gating, rate errors, pending Play/Pause/seek cancellation, new-song reset and fresh paused cue offsets. Its removed browser fixture verified paused selection, 85% after simulated startup reset, timing readout and paused exit; seven layouts fit with at least 44 px controls and 88 px phone cue pads. Those are prior-interface UI/transport results; the owner's later listening report is the separate Mac audio-quality evidence.
+On 2026-10-28 the owner confirmed that the slider and presets were back and all tempos sounded great, then identified the device as Mac. The test-only UI wording was removed; Playback info retains diagnostics. The subsequent iPhone 75% check failed; other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain unverified. The prior hidden-link trial's local tests covered gating, rate errors, pending Play/Pause/seek cancellation, new-song reset and fresh paused cue offsets. Its removed browser fixture verified paused selection, 85% after simulated startup reset, timing readout and paused exit; seven layouts fit with at least 44 px controls and 88 px phone cue pads. Those are prior-interface UI/transport results; the owner's later listening report is the separate Mac audio-quality evidence.
 
 The visible-control revision was checked through the ordinary route with no query parameter. A removed simulated-transport fixture verified slider/preset selection, 75% surviving playback startup, 100% reset while continuing playback, and paused Stage nudges reflected back in the main player. All seven required viewports fit; slider/buttons remain at least 44 px high and full cue pads at least 72 px. The smallest portrait and phone-landscape views were visually inspected for overlap. These are UI/transport results, not streaming listening acceptance.
 
 Extending acceptance beyond the tested Mac needs both transport checks and listening results for the target phone/tablet and browser combinations. Record failures honestly by device and rate; do not silently substitute 100% while displaying a requested different speed.
 
-If a browser cannot produce clean playback through the supported MusicKit controls, keep that browser at original speed and describe the limitation. A native rewrite or protected-audio processing workaround is outside the owner's web-only direction. The next product decision must follow the actual listening results, not the presence of a slider or an upstream algorithm name.
+At the reported failing iPhone rate, 100% streaming or an ordinary local file through the independent stretch engine are fallbacks. Preserve the requested controls; never silently clamp a chosen rate to 100% or describe a fallback as an audio fix. A native rewrite or protected-audio processing workaround is outside the owner's web-only direction. The next product decision must follow the actual listening results, not the presence of a slider or an upstream algorithm name.

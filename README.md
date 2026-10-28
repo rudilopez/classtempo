@@ -104,8 +104,9 @@ The earlier connection screen's production Chrome authorization, catalog/library
 Play/Pause, seeking and teardown were verified on 2026-10-28. The owner confirmed clear audio at 100%, with
 playback observed beyond the preview range. Slower playback warbled and faster playback changed pitch, so those
 speed controls were initially removed. After the slider and presets returned, the owner confirmed that all
-tempos sounded great on Mac on 2026-10-28. Physical iPhone/iPad/Android listening and uninterrupted full-track
-completion remain unverified; Mac acceptance does not establish those results. See the
+tempos sounded great on Mac on 2026-10-28. The subsequent iPhone check failed at 75%: the owner heard warbling
+although the requested, SDK and native rates matched and pitch preservation was enabled. Other iPhone rates,
+iPad/Android listening and uninterrupted full-track completion remain unverified. See the
 [setup instructions](docs/APPLE_MUSIC_SETUP.md) and [feasibility plan](docs/APPLE_MUSIC_FEASIBILITY.md).
 
 Local media and settings stay on this device; there is no local-media upload service or cloud sync. The optional
