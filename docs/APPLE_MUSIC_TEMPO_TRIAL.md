@@ -1,6 +1,6 @@
 # Apple Music tempo: playback and device acceptance
 
-Status, 2026-10-28: **Mac tempo listening accepted; iPhone 75% listening failed with warbling. Other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain unverified.** ClassTempo remains a web app for phones. A native app, Xcode setup or separate app installation is not the intended solution.
+Status, 2026-10-28: **Mac tempo listening accepted; iPhone 75% still warbles with a 256 kbps target and a full reported buffer. Local-engine isolation remains untested. Other iPhone rates, iPad/Android listening and uninterrupted full-track completion remain unverified.** ClassTempo remains a web app for phones. A native app, Xcode setup or separate app installation is not the intended solution.
 
 The earlier Chrome experiment changed playback speed, but the owner heard warbling when slower and a pitch change when faster. Original-speed Apple Music playback was clear. After the slider and presets returned, the owner reported, “The slider and presets are back and all tempos sound great,” and identified the tested device as Mac. This accepts the latest listening experience on that Mac; the exact rates, browser version and output route were not specified. It does not establish the result on physical iPhone Safari, the Home Screen app, iPad or Android Chrome. A subsequent physical-iPhone check failed at 75% as detailed below. Each Apple Music song opens paused at 100%. The slider and presets remain visible, with read-only diagnostics under Playback info.
 
@@ -85,23 +85,41 @@ The accompanying screenshot also shows the seek line and Cues header overlapping
 
 The overlap was reproduced at 402×714. Fixed row minima allowed the title/seek content to overflow, while a shrinking Cues region pushed its header upward. The CSS repair uses intrinsic control rows and compact short-viewport spacing. The seven standard sizes plus 360×640, 390×664 and 402×690/714/734 passed panel-containment and overlap checks in Chrome, with controls at least 44 px and full cue pads at least 72 px. Desktop Safari responsive views at 402×714 and 360×640 were also visually checked. This is browser layout evidence, not physical-iPhone acceptance or an audio fix.
 
-## Next candidate: higher-quality stream and buffered replay
+## Higher-quality stream and full-buffer result
 
-The next revision requests **HIGH / 256 kbps at configuration, before any queue is loaded**, through the public MusicKit API. This is a candidate to improve the source presented to Safari, not a confirmed warbling fix. In the official SDK snapshot inspected on 2026-10-28, `BitrateCalculator` defaults to `STANDARD` and automatically recalculates only when `navigator.connection.downlink` exists. ClassTempo previously supplied no bitrate. That creates a plausible client-dependent source-quality difference; it does not prove that the failed iPhone stream was actually 64 kbps. The inspected SDK SHA-256 is `21908b72bdcdeea3ec91fa40b105d0b9a2ba07c2a3fe32ea77edcd26e735012c`; the hosted SDK can change independently of ClassTempo.
+The deployed candidate requests **HIGH / 256 kbps at configuration, before any queue is loaded**, through the public MusicKit API. In the official SDK snapshot inspected on 2026-10-28, `BitrateCalculator` defaults to `STANDARD` and automatically recalculates only when `navigator.connection.downlink` exists. ClassTempo previously supplied no bitrate. That supplied a plausible client-dependent source-quality difference; it did not prove that the earlier failed iPhone stream was actually 64 kbps. The inspected SDK SHA-256 is `21908b72bdcdeea3ec91fa40b105d0b9a2ba07c2a3fe32ea77edcd26e735012c`; the hosted SDK can change independently of ClassTempo.
 
-The owner's suggestion to wait for more of the song is testable as **buffered playback**, not as an app-managed download. The current public MusicKit reference provides a `bufferedProgressDidChange` event but no documented full-song download or prefetch operation. Read-only [`HTMLMediaElement.buffered`](https://html.spec.whatwg.org/multipage/media.html#dom-media-buffered) reports ranges currently available. [`readyState: 4`](https://html.spec.whatwg.org/multipage/media.html#dom-media-readystate) means the browser estimates it has enough data to continue; it does not require the full track to be buffered. Buffers may plateau or be evicted. Waiting also does not change the browser's pitch algorithm.
+The owner reported that this candidate **still warbles**. The supplied `web-tempo-v2` phone diagnostic records:
 
-The candidate also records the independent local AudioContext's state without changing its lifecycle. A fresh page loaded directly at `#apple-music` does not create the local engine; entering Apple Music after visiting the normal local player retains that engine. Compare these routes as a separate variable. Current [WebKit shared-buffer selection](https://github.com/WebKit/WebKit/blob/main/Source/WebCore/platform/audio/cocoa/MediaSessionManagerCocoa.mm#L164) considers WebAudio sessions even when their samples are separate from native media; [historical iPhone measurements](https://bugs.webkit.org/show_bug.cgi?id=231110#c1) confirm that a separate AudioContext can change the shared hardware buffer. This justifies the comparison, not a claim that it causes this warbling. A suspended context would not, by itself, prove that WebKit released any shared buffer preference, so this revision does not suspend it or claim such an effect.
+| Reading | Captured value |
+| --- | --- |
+| Requested / reported / native rate | `0.75` |
+| Target stream bitrate | `256` kbps; actual delivered bitrate remains unmeasured |
+| Position / duration | `7.056675747472746` / `245.317` seconds |
+| Buffered range | `[0.000001, 245.3172345600907]` seconds |
+| Buffered ahead | `238.2605318438445` seconds |
+| Media state | `networkState: 1`, `readyState: 4`, `preservesPitch: true` |
+| Independent local AudioContext | Created, `running`, sample rate `48000` Hz |
+| Recent events | One `ratechange` near position `0.98`; no `waiting` after startup |
+| Timing, song title/version, output route | Not supplied |
 
-For the next physical-iPhone check, keep the same song, output route and passage:
+The reported buffer covers the track through its end at capture time. **A full-song wait gate cannot solve this captured failure: the data was already reported buffered.** This does not establish permanent/offline availability, identify Safari's pitch algorithm, or rule out every possible performance problem. The target-256 candidate did not pass listening. The duration is about 245 seconds, unlike the earlier Mac track's 229 seconds, so this is not evidence of an identical song/version comparison. The recent events also do not show repeated rate writes or post-startup waiting.
 
-1. Load the [direct Apple Music route](https://rudilopez.github.io/classtempo/#apple-music) and fully reload the page before visiting the local player. Confirm Playback info reports that the local engine was not created. Select the song again so the next-item bitrate preference takes effect, and confirm a 256 kbps target. Listen to the passage at 100%, then 75%, and copy details if it warbles.
-2. Pause and inspect the buffer ahead. Allow up to 45 seconds for at least 20 source-seconds ahead, then explicitly press Play at 75%. If the buffer stops growing or its reading is unavailable, record that instead of waiting indefinitely.
-3. Seek back within a range that is still reported buffered and replay the same passage at 75%. Compare the sound with step 1, recording any waiting/stalled events separately from continuous watery or wobbling sound.
-4. Separately, visit the normal local player, return through Library → Apple Music, and repeat the same passage at 75%. Copy details to compare the reported local AudioContext state. Do not change bitrate, output route or passage during this comparison.
-5. Record **clear / improved / unchanged**, the rate, target bitrate, buffered ranges, local context state and device/output route. A listening pass on this phone is required before calling the candidate a fix. Restore 100% with the existing preset when finished.
+The current public MusicKit reference provides a `bufferedProgressDidChange` event but no documented full-song download or prefetch operation. Read-only [`HTMLMediaElement.buffered`](https://html.spec.whatwg.org/multipage/media.html#dom-media-buffered) reports ranges currently available. [`readyState: 4`](https://html.spec.whatwg.org/multipage/media.html#dom-media-readystate) alone does not establish a full buffer; this capture's actual ranges do. Buffers may later be evicted. Do not repeat the full-buffer wait experiment as though this evidence were missing.
 
-If the same passage still warbles with ample data buffered and no playback stalls, that weighs against network starvation as the main cause; it does not identify a specific Safari algorithm. Do not add a significant-tempo-change download gate without evidence that waiting improves the sound. Keep the web player and requested rates intact; no protected samples, native rewrite or local-file substitution are part of this candidate.
+## Remaining isolation check: restart Apple Music cleanly
+
+The v2 capture's local AudioContext was created and running, so **the no-local-engine comparison has not been tested**. A fresh page loaded directly at `#apple-music` does not create the local engine; entering Apple Music after visiting the normal local player retains that engine. Current [WebKit shared-buffer selection](https://github.com/WebKit/WebKit/blob/main/Source/WebCore/platform/audio/cocoa/MediaSessionManagerCocoa.mm#L164) considers WebAudio sessions even when their samples are separate from native media; [historical iPhone measurements](https://bugs.webkit.org/show_bug.cgi?id=231110#c1) confirm that a separate AudioContext can change the shared hardware buffer. This justifies isolation, not a claim that it causes this warbling. Suspending a context would not, by itself, prove that WebKit released a shared buffer preference.
+
+The new **Playback info → Restart Apple Music cleanly** action makes the comparison explicit. It stores only selected-track metadata in a single-use `sessionStorage` handoff that expires after five minutes, fully reloads the `#apple-music` page, and reopens the song **paused at 100%**. Existing cues restore through the song's normal provider identity. No credentials, audio or automatic playback are stored in that handoff. This is a diagnostic path, not a claimed audio fix.
+
+For the remaining physical-iPhone check, keep the same selected song, output route and passage:
+
+1. Choose **Playback info → Restart Apple Music cleanly**. After the song reopens paused, confirm Playback info shows **Not started** for the local engine and a **256 kbps** target.
+2. Explicitly press Play, listen at **100%**, then choose **75%** and compare the same passage. Do not visit the local player before this comparison.
+3. Record **clear / improved / unchanged** and copy playback details while listening. Record the song title/version and speaker/headphone route separately; those were absent from the previous capture.
+
+If the clean path still warbles, retain that result rather than calling isolation a fix. Keep the web player and requested rates intact; no protected samples, native rewrite or local-file substitution are part of this check.
 
 ## Acceptance and next decision
 

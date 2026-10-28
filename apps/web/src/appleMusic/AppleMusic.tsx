@@ -15,6 +15,7 @@ import { AppleMusicPicker } from './AppleMusicPicker';
 import { loadAppleMusicCues, saveAppleMusicCues } from './cues';
 import { createAppleMusicTransport } from './transport';
 import { TempoTrial } from './TempoTrial';
+import { saveCleanRestart, takeCleanRestart } from './cleanRestart';
 import { TempoControl } from '../dancer/TempoControl';
 import '../shell.css';
 import '../dancer/dancer.css';
@@ -108,6 +109,28 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       current = music;
       // Reopening this screen never resumes playback by itself.
       try { await music.pause(); music.playbackRate = 1; } catch { throw new Error('Apple Music could not initialize playback. Reload the connection to try again.'); }
+      if (disposed) return;
+      // Only the live setup consumes this one-shot handoff: StrictMode's discarded
+      // setup must not take it. The fresh document has never mounted the local engine.
+      const restartTrack = takeCleanRestart();
+      if (restartTrack) {
+        if (!music.isAuthorized) {
+          setNotice('Reconnect to Apple Music, then choose the song again. Playback has not started.');
+        } else {
+          setBusy(true);
+          try {
+            await loadSelected(music, restartTrack);
+            if (disposed) { quietPause(music, true); return; }
+            const next = snapshot(music);
+            setSelected(restartTrack);
+            setCues(loadAppleMusicCues(restartTrack, next.duration || restartTrack.durationSeconds || 0));
+            setUndoCues([]); setEditing(false); setTalking(false); setStageOpen(false);
+            setPickerOpen(false);
+          } catch {
+            if (!disposed) setError('Apple Music restarted, but the song could not reopen. Choose it again from Library.');
+          } finally { if (!disposed) setBusy(false); }
+        }
+      }
       if (disposed) return;
       setInstance(music); setPlayback(snapshot(music)); setSetup('ready');
     }).catch((caught: unknown) => {
@@ -257,6 +280,23 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   const blocked = busy || seeking || setup !== 'ready' || !hasSong;
   const playDisabled = busy || !hasSong || (seeking && !playback.isPlaying);
   const tempoPercent = Math.round((transportPlayer?.requestedRate ?? 1) * 100);
+  const cleanRestart = (): boolean => {
+    if (!instance || !selected || blocked || accountPending.current) return false;
+    // Preserve the selection before interrupting playback. Storage failure must not
+    // turn a diagnostic action into a lost song or an unannounced source switch.
+    if (!saveCleanRestart(selected)) return false;
+    transport.current++; transportPlayer?.cancel(); quietPause(instance, true);
+    try {
+      // A hash change alone retains the AudioContext. Reload after setting the route
+      // so the new document starts directly in Apple Music without mounting App.
+      window.history.replaceState(null, '', `${import.meta.env.BASE_URL}#apple-music`);
+      window.location.reload();
+      return true;
+    } catch {
+      takeCleanRestart(); // Do not leave a delayed restore request after a refused reload.
+      return false;
+    }
+  };
   const changeTempo = (percent: number): void => {
     if (!transportPlayer || blocked || transportPlayer.seeking) return;
     action(() => transportPlayer.setTempoRate(percent / 100));
@@ -379,7 +419,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
           <PlayerTransport playing={playback.isPlaying} disabled={blocked} playDisabled={playDisabled} onTogglePlay={togglePlay} onRestart={() => seek(0)} onStage={() => { setEditing(false); setStageOpen(true); }} />
           <div className="class-tempo-panel apple-music-tools">
             <TempoControl value={tempoPercent} onChange={changeTempo} disabled={blocked} inputId="apple-music-tempo" keyLocked={false} />
-            <div className="apple-music-tool-buttons"><button type="button" disabled={blocked} onClick={() => seek(position - 10)}>↶ Back 10s</button><button type="button" disabled={blocked} className={talking ? 'on' : ''} aria-pressed={talking} title="Pause while you speak; tap again to resume" onClick={toggleTalk}>{talking ? 'Finish talking' : 'Talk'}</button><TempoTrial instance={instance} trackId={selected?.id ?? null} requestedRate={transportPlayer?.requestedRate ?? 1} playing={playback.isPlaying} seeking={seeking} /></div>
+            <div className="apple-music-tool-buttons"><button type="button" disabled={blocked} onClick={() => seek(position - 10)}>↶ Back 10s</button><button type="button" disabled={blocked} className={talking ? 'on' : ''} aria-pressed={talking} title="Pause while you speak; tap again to resume" onClick={toggleTalk}>{talking ? 'Finish talking' : 'Talk'}</button><TempoTrial instance={instance} trackId={selected?.id ?? null} requestedRate={transportPlayer?.requestedRate ?? 1} playing={playback.isPlaying} seeking={seeking} onCleanRestart={cleanRestart} restartDisabled={blocked} /></div>
           </div>
           <div className={`cues ${undoCues.length ? 'has-undo' : ''}`}>
             <div className="cues-head"><span className="apple-music-cue-heading">Cues</span><span className="cues-hint">{editing ? 'Tap to move' : 'Tap empty to set'}</span>{undoCues.length > 0 && <button type="button" className="cues-undo" disabled={blocked} onClick={() => { const previous = undoCues[undoCues.length - 1]; if (previous) { changeCues(previous, false); setUndoCues((items) => items.slice(0, -1)); } }}>Undo</button>}<button type="button" disabled={blocked} onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit cues'}</button></div>

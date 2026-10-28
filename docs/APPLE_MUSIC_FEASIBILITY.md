@@ -218,3 +218,19 @@ player retains it. Compare these paths separately without assuming any shared Sa
 The owner's iPhone 75% failure remains unresolved pending listening; the accepted Mac experience is preserved
 as a separate baseline. This investigation stays in the web player without protected-sample access, a native
 rewrite or substituting local files for the requested streaming workflow.
+
+## Follow-up: full-buffer failure and pending engine isolation — 2026-10-28
+
+The owner reported “Still warbles” after the HIGH/256 kbps candidate. The subsequent physical-iPhone
+`web-tempo-v2` report confirms a 256 kbps target, requested/SDK/native rate 0.75, `preservesPitch: true`,
+`readyState: 4`, `networkState: 1`, position 7.0567 s, duration 245.317 s and 238.2605 s buffered ahead
+through the track end. It also reports the local AudioContext created and running at 48000 Hz. Thus
+waiting for the whole song is not a solution for this captured failure, but a clean page without the
+local engine remains untested. The exact song/version and output route were not supplied; do not
+assume the prior 229-second Mac track.
+
+Playback info now offers **Restart Apple Music cleanly** when a local context exists. It explicitly reloads
+the document, restores selected-song metadata via a five-minute one-shot session handoff, and reopens
+the song paused at 100% with its saved cues. Confirm **Local audio engine: Not started**, then explicitly
+Play and compare 75% before attributing the failure solely to Safari's algorithm. This is a reproducible
+isolation action, not an accepted audio fix. See APPLE_MUSIC_TEMPO_TRIAL.md for the exact evidence.
