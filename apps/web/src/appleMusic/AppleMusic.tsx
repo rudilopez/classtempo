@@ -53,6 +53,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   const [searched, setSearched] = useState(false);
   const [playback, setPlayback] = useState<Playback>(EMPTY);
   const [selected, setSelected] = useState<MusicTrack | null>(null);
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(true);
   const [stageOpen, setStageOpen] = useState(false);
   const [seeking, setSeeking] = useState(false);
@@ -278,6 +279,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   const duration = playback.duration || selected?.durationSeconds || 0;
   const position = Math.max(0, Math.min(duration, transportPlayer?.preparedPosition ?? playback.currentTime));
   const shownTrack = selected;
+  const artworkUrl = shownTrack?.artworkUrl !== failedArtworkUrl ? shownTrack?.artworkUrl : undefined;
   const blocked = busy || seeking || setup !== 'ready' || !hasSong;
   const playDisabled = busy || !hasSong || (seeking && !playback.isPlaying);
   const tempoPercent = Math.round((transportPlayer?.requestedRate ?? 1) * 100);
@@ -409,10 +411,10 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       <main className="dancer-main">
         <section className={`dancer apple-music-dancer ${editing ? 'editing' : ''}`} aria-label="Apple Music player">
           <div className="dancer-clock"><span className="elapsed">{formatTime(position)}</span><span className="total">/ {formatTime(duration)}</span><span className="bpm"><span className="big">{tempoPercent}%</span><span className="unit">tempo</span></span></div>
-          <div className="dancer-media-panel">
+          <div className={`dancer-media-panel ${artworkUrl ? 'has-artwork' : ''}`}>
             <div className="dancer-track-info"><NowPlayingLabel /><div className="dancer-track-title" title={shownTrack?.name}>{busy ? 'Opening song…' : shownTrack?.name ?? 'Choose a song from your library'}</div>{shownTrack && <div className="apple-music-artist">{shownTrack.artist}</div>}</div>
             <div className="apple-music-artwork">
-              {shownTrack?.artworkUrl ? <img src={shownTrack.artworkUrl} alt={`${shownTrack.album || shownTrack.name} artwork`} /> : <span aria-hidden="true">♫</span>}
+              {artworkUrl ? <img src={artworkUrl} alt={`${shownTrack?.album || shownTrack?.name} artwork`} onError={() => setFailedArtworkUrl(artworkUrl)} /> : <span aria-hidden="true">♫</span>}
               {!hasSong && <button type="button" onClick={() => setPickerOpen(true)}>Choose Apple Music song</button>}
             </div>
             <div className="apple-music-timeline"><input type="range" min="0" max={Math.max(1, duration)} step="1" value={position} aria-label="Song position" disabled={blocked || !duration} onChange={(event) => seek(Number(event.target.value))} /></div>
@@ -465,6 +467,6 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       </section>}
     </AppleMusicPicker>}
     {rename && <AppleMusicPicker title="Rename cue" onClose={() => setRename(null)}><form className="apple-music-rename" onSubmit={(event) => { event.preventDefault(); const name = rename.name.trim().slice(0, 40); if (!name) return; changeCues(cues.map((cue, index) => index === rename.index && cue ? { ...cue, name } : cue)); setRename(null); }}><label>Cue name<input value={rename.name} maxLength={40} onChange={(event) => setRename({ ...rename, name: event.target.value })} /></label><button type="submit" disabled={!rename.name.trim()}>Save name</button></form></AppleMusicPicker>}
-    {stageOpen && hasSong && shownTrack && <StageView video={null} aspect={null} title={shownTrack.name} playing={playback.isPlaying} position={position} duration={duration} cues={cues} section="Apple Music" tempo={tempoPercent} onTempoChange={changeTempo} onTogglePlay={togglePlay} onRestart={() => seek(0)} onLaunch={(index) => { const cue = cues[index]; if (cue) seek(cue.time); }} onClose={closeStage} onSeek={seek} cueActionLabel="Go to" disabled={blocked} playDisabled={playDisabled} />}
+    {stageOpen && hasSong && shownTrack && <StageView video={null} aspect={null} title={shownTrack.name} artworkUrl={shownTrack.artworkUrl} artist={shownTrack.artist} playing={playback.isPlaying} position={position} duration={duration} cues={cues} section="Apple Music" tempo={tempoPercent} onTempoChange={changeTempo} onTogglePlay={togglePlay} onRestart={() => seek(0)} onLaunch={(index) => { const cue = cues[index]; if (cue) seek(cue.time); }} onSetCue={pressCue} talking={talking} onToggleTalk={toggleTalk} onClose={closeStage} onSeek={seek} cueActionLabel="Go to" disabled={blocked} playDisabled={playDisabled} />}
   </>;
 }

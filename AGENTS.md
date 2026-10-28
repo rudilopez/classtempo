@@ -87,8 +87,12 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Dialogs contain focus, restore background inert state and prevent global player shortcuts while open.
 - Apple Music is a music source in the familiar ClassTempo player, not a separate connection-test product.
   The owner approved the same-player experience at normal speed first, with clean streaming tempo research
-  next. Reuse the shared branding, Now Playing, transport and Stage presentation. Browsing belongs in a picker
-  that closes after selection; songs open paused. Source switches must stop the old source, cancel pending
+  next. Reuse the shared branding, Now Playing, transport and Stage presentation.
+  Apple Music artwork fills the Now Playing card with a readable gradient, within the existing phone footprint.
+  Artwork Stage shows the full uncropped cover over a blurred same-art backdrop; its compact dock, seek line
+  and cue/tool trays stay below the image. Preserve local audio/video behavior and keep artwork changes out of
+  the audio engine and transport.
+  Browsing belongs in a picker that closes after selection; songs open paused. Source switches must stop the old source, cancel pending
   practice/class work, close its dialogs and prevent delayed callbacks from reviving it. Streaming playback
   stays inside MusicKit; never disguise a stream as a local File or feed protected samples into the local engine.
   Saved Apple Music cues must preserve playback state like local-file cues in the player and Stage. A paused

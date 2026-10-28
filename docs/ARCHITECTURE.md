@@ -12,6 +12,12 @@ branding, Now Playing, transport and Stage presentation. Search, library songs a
 that closes after a paused song selection. Switching sources must silence the old source and cancel its pending
 work; matching the visual controls does not make streaming a local File.
 
+Apple Music artwork fills the existing Now Playing card behind a readability gradient without enlarging the
+phone layout. `StageView` accepts optional `artworkUrl`/`artist` props: the cover uses `object-fit: contain`
+over a blurred same-art backdrop, with a compact dock, seek line and cue/tool trays below the image.
+Artwork styling is scoped separately; local audio/video layouts, provider transport and audio engines remain
+unchanged.
+
 `main.tsx` changes between local and Apple Music sources without reloading the document. Once opened, the local
 `App` remains mounted but hidden and inactive during streaming, preserving its loaded file while cancelling
 practice/class transitions, closing its dialogs and releasing Keep awake. Apple Music unmounts and stops its
@@ -153,7 +159,8 @@ playback; editing an existing position/name or clearing it requires Edit. Undo i
 creation as well. A saved cue keeps the current playing/paused state. Within an active practice range it
 preserves the mode and continues the run from the cue only when already playing; while paused it only moves
 the position. Cues outside the range explicitly switch to full track without starting a paused track. Video
-Stage can set empty slots from its numbered strip and select saved cues; audio Stage shows saved-cue pads.
+and artwork Stage can set empty slots from the numbered strip and select saved cues; audio Stage without
+artwork shows saved-cue pads.
 
 ## Library, class sets and backups
 
@@ -289,7 +296,9 @@ Video Stage uses a flexing picture, 44 px seek target and 48 px dock for Play, C
 Cues opens a horizontal strip of 44 px numbered buttons below the picture, including empty slots that set a cue
 when tapped. Tools also sits below the picture; neither panel obscures it. Short landscape combines seeking and
 the dock in one row. The active practice name and End action remain reachable. Panel toggles do not remount the
-native video; keyboard events on controls do not trigger global playback shortcuts. Audio Stage remains separate.
+native video; keyboard events on controls do not trigger global playback shortcuts. Audio Stage without
+artwork remains separate; artwork Stage shares the compact dock while omitting unavailable Practice and
+video-only Mirror/Fit controls.
 
 The production service worker caches normal app assets, worklets and WASM. Updates install in the background
 without forcibly reloading an active class. Registration checks again after returning to the foreground, with
