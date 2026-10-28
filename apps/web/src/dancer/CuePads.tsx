@@ -13,14 +13,14 @@ interface Props {
   cues: readonly (Cue | null)[];
   editing: boolean;
   disabled: boolean;
-  /** Launches a set pad, or sets an empty one; while editing, (re)sets any pad. */
+  /** Goes to a set pad, or sets an empty one; while editing, (re)sets any pad. */
   onPress: (index: number) => void;
   onClear: (index: number) => void;
   onRename: (index: number) => void;
 }
 
 /** 4×2 grid of big, touch-friendly cue pads. */
-export function CuePads({ cues, editing, disabled, onPress, onClear, onRename, launchLabel = 'Launch' }: Props) {
+export function CuePads({ cues, editing, disabled, onPress, onClear, onRename, launchLabel = 'Go to cue' }: Props) {
   return (
     <div className="pads">
       {Array.from({ length: CUE_SLOTS }, (_, i) => {

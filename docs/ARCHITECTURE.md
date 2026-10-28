@@ -36,11 +36,11 @@ No provider samples enter the local engine, stems, IndexedDB media store, class 
 Streaming cues use `classtempo.apple-music.cues.<type>.<encoded provider ID>`; filename/duration local cue keys
 remain unchanged. These bookmarks store only positions/names and are not part of the local-file backup.
 MusicKit seeks are asynchronous. The transport refuses overlapping seeks and keeps its native-operation lock
-until the underlying promise settles, even if the adapter is disposed. A saved cue is a seek-and-play action,
-matching local cue launches in the player and Stage: it keeps music playing, or starts from the cue when
-paused, without a second Play tap. Pause, source changes, authorization loss and teardown must invalidate
-pending cue playback so a late SDK completion cannot restart it. Talk uses pause/resume for streaming rather
-than the local audio gain node. Streaming practice repeats and local class integration are not enabled by
+until the underlying promise settles, even if the adapter is disposed. A saved cue preserves playback state,
+matching local cues in the player and Stage: it keeps music playing, or stays paused at the cue until Play.
+A freshly queued, uninitialized stream must also accept a cue without starting audio. Pause, source changes,
+authorization loss and teardown must invalidate pending cue work so a late SDK completion cannot restart it.
+Talk uses pause/resume for streaming rather than the local audio gain node. Streaming practice repeats and local class integration are not enabled by
 reusing the same presentation.
 
 Apple account activation, MusicKit identifier/key creation and repository-secret setup were completed on
@@ -130,9 +130,10 @@ snapshot. Class settings change only through explicit editing/capture; session s
 Cue storage remains `mixdeck.dancer.cues.<name>|<duration.toFixed(2)>`. Existing users' cues therefore survive the
 product rename. Eight slots store `{ time, name }` or null. An empty pad sets a cue immediately without changing
 playback; editing an existing position/name or clearing it requires Edit. Undo is available after a one-tap
-creation as well. A cue launch within an active practice range starts a new run at that cue without disabling
-its mode; launches outside the range explicitly switch to full track. Video Stage can set empty slots from
-its numbered strip and launch saved cues; audio Stage retains its launch-only pads.
+creation as well. A saved cue keeps the current playing/paused state. Within an active practice range it
+preserves the mode and continues the run from the cue only when already playing; while paused it only moves
+the position. Cues outside the range explicitly switch to full track without starting a paused track. Video
+Stage can set empty slots from its numbered strip and select saved cues; audio Stage shows saved-cue pads.
 
 ## Library, class sets and backups
 

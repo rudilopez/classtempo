@@ -71,9 +71,12 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   session loads paused and never resumes a countdown or starts playback without a new action.
 - Save File/Blob and library metadata atomically. A successful load is not a successful offline save. Report
   failures; a metadata backup never proves the media exists. Browser storage may be evicted or cleared.
-- Empty cue pads set the current position with one tap; changing an existing cue requires Edit. Preserve Undo.
+- Empty cue pads set the current position with one tap without changing playback. Saved cues preserve state
+  in local files, Apple Music and Stage: jump and continue if playing; jump and remain paused if not playing.
+  Only Play starts a paused track. Changing an existing cue requires Edit. Preserve Undo.
   Practice footer actions must commit the visible range directly; no separate Add-section prerequisite. A cue
-  inside an active range keeps repeating; leaving it must visibly explain the switch to full-track playback.
+  inside an active range keeps the practice settings and continues repeating only if already playing; leaving
+  it must visibly explain the switch to full-track playback.
   Named practices retain independent playback snapshots. End practice cancels timers, pauses at the current
   position and disables the active delay/mode without deleting presets; returning to Play must not revive a pass.
   Dialogs contain focus, restore background inert state and prevent global player shortcuts while open.
@@ -83,9 +86,9 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   that closes after selection; songs open paused. Source switches must stop the old source, cancel pending
   practice/class work, close its dialogs and prevent delayed callbacks from reviving it. Streaming playback
   stays inside MusicKit; never disguise a stream as a local File or feed protected samples into the local engine.
-  Saved Apple Music cues must launch playback like local-file cues in the player and Stage: jump and keep
-  playing, or start from the cue when paused, without another Play tap. A later Pause or source change must
-  cancel pending cue playback. Keep cue identity separate from filename-based local keys. Do not imply that
+  Saved Apple Music cues must preserve playback state like local-file cues in the player and Stage. A paused
+  cue must never start audio, including before the stream has initialized. A later Pause or source change must
+  cancel pending cue work. Keep cue identity separate from filename-based local keys. Do not imply that
   matching controls establish streaming practice, class plans, stems, waveform/BPM analysis or offline support.
   Production Chrome authorization, read-only catalog/library access, paused selection, Play/Pause, seeking and
   teardown were verified on 2026-10-28 in the earlier connection screen. The owner confirmed clear audio at
