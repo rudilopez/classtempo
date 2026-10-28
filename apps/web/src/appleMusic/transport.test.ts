@@ -4,7 +4,7 @@ import { createAppleMusicTransport } from './transport';
 
 function instance() {
   return {
-    isAuthorized: true as boolean, isPlaying: false, playbackState: 0,
+    isAuthorized: true as boolean, isPlaying: false as boolean, playbackState: 0,
     currentPlaybackTime: 0, currentPlaybackDuration: 120, playbackRate: 0.75,
     nowPlayingItem: null as unknown,
     authorize: vi.fn(async () => undefined), unauthorize: vi.fn(async () => undefined),
@@ -58,33 +58,135 @@ describe('Apple Music transport', () => {
     await expect(transport.seek(NaN)).rejects.toThrow('valid position');
   });
 
-  it('waits for pause before seeking a cue and never starts playback', async () => {
+  it('launches a cue without stopping an already playing stream', async () => {
     const music = instance();
-    const pause = deferred();
-    music.pause.mockReturnValueOnce(pause.promise);
+    music.isPlaying = true;
     const transport = createAppleMusicTransport(music);
-    const choosing = transport.seekPaused(40);
-    expect(music.pause).toHaveBeenCalledOnce();
-    expect(transport.seeking).toBe(true);
-    expect(music.seekToTime).not.toHaveBeenCalled();
-    pause.resolve();
-    await choosing;
+    const choosing = transport.launchCue(40);
     expect(music.seekToTime).toHaveBeenCalledExactlyOnceWith(40);
+    expect(transport.seeking).toBe(true);
+    expect(music.playbackRate).toBe(1);
+    expect(music.pause).not.toHaveBeenCalled();
+    await choosing;
     expect(music.play).not.toHaveBeenCalled();
+    expect(music.isPlaying).toBe(true);
   });
 
-  it('cancels a cue waiting for Pause without a late seek', async () => {
+  it('starts a paused cue in the same gesture without waiting for the seek', async () => {
     const music = instance();
-    const pause = deferred();
-    music.pause.mockReturnValueOnce(pause.promise);
+    const seek = deferred();
+    music.seekToTime.mockReturnValueOnce(seek.promise);
+    music.play.mockImplementation(() => {
+      expect(music.seekToTime).toHaveBeenCalledExactlyOnceWith(40);
+      expect(music.playbackRate).toBe(1);
+      music.isPlaying = true;
+    });
     const transport = createAppleMusicTransport(music);
-    const choosing = transport.seekPaused(40);
-    const rejected = expect(choosing).rejects.toThrow('cancelled');
-    transport.cancel();
+    const choosing = transport.launchCue(40);
+    expect(music.play).toHaveBeenCalledOnce();
     expect(transport.seeking).toBe(true);
-    pause.resolve();
+    expect(music.pause).not.toHaveBeenCalled();
+    seek.resolve();
+    await choosing;
+    expect(music.play).toHaveBeenCalledOnce();
+    expect(music.isPlaying).toBe(true);
+  });
+
+  it.each(['pause', 'cancel', 'dispose'] as const)('keeps %s final when a cue seek and Play settle later', async (action) => {
+    const music = instance();
+    const seek = deferred();
+    const play = deferred();
+    music.seekToTime.mockReturnValueOnce(seek.promise);
+    music.play.mockReturnValueOnce(play.promise);
+    const transport = createAppleMusicTransport(music);
+    const choosing = transport.launchCue(40);
+    const rejected = expect(choosing).rejects.toThrow('cancelled');
+    transport[action]();
+    expect(transport.seeking).toBe(true);
+    expect(music.pause).toHaveBeenCalledOnce();
+    seek.resolve();
+    play.resolve();
     await rejected;
-    expect(music.seekToTime).not.toHaveBeenCalled();
+    expect(music.seekToTime).toHaveBeenCalledExactlyOnceWith(40);
+    expect(music.play).toHaveBeenCalledOnce();
+    expect(music.pause).toHaveBeenCalledTimes(2);
+    expect(transport.seeking).toBe(false);
+  });
+
+  it('stops wrong-position playback when the cue seek fails after Play succeeds', async () => {
+    const music = instance();
+    const seek = deferred();
+    music.seekToTime.mockReturnValueOnce(seek.promise);
+    const transport = createAppleMusicTransport(music);
+    const choosing = transport.launchCue(40);
+    const rejected = expect(choosing).rejects.toThrow('seek failed');
+    expect(music.play).toHaveBeenCalledOnce();
+    seek.reject(new Error('seek failed'));
+    await rejected;
+    expect(music.pause).toHaveBeenCalledOnce();
+    expect(transport.seeking).toBe(false);
+  });
+
+  it('holds the native seek lock when cue Play fails before seeking finishes', async () => {
+    const music = instance();
+    const seek = deferred();
+    music.seekToTime.mockReturnValueOnce(seek.promise);
+    music.play.mockRejectedValueOnce(new Error('Play refused'));
+    const transport = createAppleMusicTransport(music);
+    await expect(transport.launchCue(40)).rejects.toThrow('Play refused');
+    expect(music.pause).toHaveBeenCalledOnce();
+    expect(transport.seeking).toBe(true);
+    await expect(transport.launchCue(70)).rejects.toThrow('still seeking');
+    seek.resolve();
+    await seek.promise;
+    expect(transport.seeking).toBe(false);
+  });
+
+  it('does not let an old failed cue pause a newer explicit Play', async () => {
+    const music = instance();
+    const seek = deferred();
+    const play = deferred();
+    music.seekToTime.mockReturnValueOnce(seek.promise);
+    music.play.mockReturnValueOnce(play.promise);
+    const transport = createAppleMusicTransport(music);
+    const choosing = transport.launchCue(40);
+    const rejected = expect(choosing).rejects.toThrow('old Play failed');
+    transport.cancel();
+    seek.resolve();
+    await seek.promise;
+    transport.play();
+    play.reject(new Error('old Play failed'));
+    await rejected;
+    expect(music.play).toHaveBeenCalledTimes(2);
+    expect(music.pause).toHaveBeenCalledOnce();
+  });
+
+  it('does not let a cancelled cue completion pause a new source Play after remount', async () => {
+    const music = instance();
+    const seek = deferred();
+    const play = deferred();
+    music.seekToTime.mockReturnValueOnce(seek.promise);
+    music.play.mockReturnValueOnce(play.promise);
+    const old = createAppleMusicTransport(music);
+    const choosing = old.launchCue(40);
+    const rejected = expect(choosing).rejects.toThrow('cancelled');
+    old.dispose();
+    const next = createAppleMusicTransport(music);
+    seek.resolve();
+    await seek.promise;
+    next.play();
+    play.resolve();
+    await rejected;
+    expect(music.play).toHaveBeenCalledTimes(2);
+    expect(music.pause).toHaveBeenCalledOnce();
+  });
+
+  it('does not start an invalid cue or start after a synchronous seek failure', async () => {
+    const music = instance();
+    const transport = createAppleMusicTransport(music);
+    await expect(transport.launchCue(NaN)).rejects.toThrow('valid position');
+    music.seekToTime.mockImplementationOnce(() => { throw new Error('seek unavailable'); });
+    await expect(transport.launchCue(40)).rejects.toThrow('seek unavailable');
     expect(music.play).not.toHaveBeenCalled();
     expect(transport.seeking).toBe(false);
   });

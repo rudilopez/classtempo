@@ -83,8 +83,10 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   that closes after selection; songs open paused. Source switches must stop the old source, cancel pending
   practice/class work, close its dialogs and prevent delayed callbacks from reviving it. Streaming playback
   stays inside MusicKit; never disguise a stream as a local File or feed protected samples into the local engine.
-  Keep cue identity separate from filename-based local keys. Do not imply that matching controls establish
-  streaming practice, class plans, stems, waveform/BPM analysis or offline support.
+  Saved Apple Music cues must launch playback like local-file cues in the player and Stage: jump and keep
+  playing, or start from the cue when paused, without another Play tap. A later Pause or source change must
+  cancel pending cue playback. Keep cue identity separate from filename-based local keys. Do not imply that
+  matching controls establish streaming practice, class plans, stems, waveform/BPM analysis or offline support.
   Production Chrome authorization, read-only catalog/library access, paused selection, Play/Pause, seeking and
   teardown were verified on 2026-10-28 in the earlier connection screen. The owner confirmed clear audio at
   100%; playback beyond the preview range was observed. Slower playback warbled and faster playback changed

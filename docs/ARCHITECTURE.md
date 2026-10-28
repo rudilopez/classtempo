@@ -36,10 +36,12 @@ No provider samples enter the local engine, stems, IndexedDB media store, class 
 Streaming cues use `classtempo.apple-music.cues.<type>.<encoded provider ID>`; filename/duration local cue keys
 remain unchanged. These bookmarks store only positions/names and are not part of the local-file backup.
 MusicKit seeks are asynchronous. The transport refuses overlapping seeks and keeps its native-operation lock
-until the underlying promise settles, even if the adapter is disposed. Selecting a cue pauses first, then
-seeks and requires another explicit Play; no seek completion starts playback. Talk uses pause/resume for
-streaming rather than the local audio gain node. Streaming practice repeats and local class integration are
-not enabled by reusing the same presentation.
+until the underlying promise settles, even if the adapter is disposed. A saved cue is a seek-and-play action,
+matching local cue launches in the player and Stage: it keeps music playing, or starts from the cue when
+paused, without a second Play tap. Pause, source changes, authorization loss and teardown must invalidate
+pending cue playback so a late SDK completion cannot restart it. Talk uses pause/resume for streaming rather
+than the local audio gain node. Streaming practice repeats and local class integration are not enabled by
+reusing the same presentation.
 
 Apple account activation, MusicKit identifier/key creation and repository-secret setup were completed on
 2026-10-28. The earlier connection screen verified production Chrome subscriber authorization, read-only

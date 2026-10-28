@@ -85,10 +85,11 @@ Apple's streaming player underneath; imported songs and videos keep their existi
 to saved local media. Switching sources pauses the source you leave; returning does not restart an old delay
 or class transition.
 
-Apple Music cues save positions on this device: tap an empty pad to set one, or use Edit cues to move, rename
-or clear it. Tapping a saved streaming cue moves to that position **paused**; tap Play to continue. This avoids
-starting audio from a delayed seek completion. Talk pauses streaming and resumes only if it was playing when
-Talk began. Streaming cues use provider IDs and do not replace cues saved for local files.
+Apple Music cues work like local-file cues: tap an empty pad to save the current position, or tap a saved cue
+to **play from that point**. Music keeps playing when you jump; from pause, the cue starts playback. There is
+no extra Play step. Edit cues moves, renames or clears cues, with Undo for changes. Talk pauses streaming and
+resumes only if it was playing when Talk began. Streaming cues use provider IDs and do not replace cues saved
+for local files.
 
 Apple Music plays at **original speed only** and requires internet and an active subscription. Saved local
 classes, named practices, pitch-preserving tempo changes and stems continue to use imported files. Subscription

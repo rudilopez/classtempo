@@ -8,8 +8,8 @@ export interface AppleMusicTransport {
   pause(): void | Promise<unknown>;
   /** Seeks without changing whether the song is playing. Overlapping seeks are refused. */
   seek(seconds: number): Promise<void>;
-  /** Cue selection: pause, then seek, and require a new explicit Play gesture. */
-  seekPaused(seconds: number): Promise<void>;
+  /** Jump and play like a local cue. A paused start invokes Play in the initiating gesture. */
+  launchCue(seconds: number): Promise<void>;
   /** Invalidates deferred work and pauses; does not pretend to cancel a native seek. */
   cancel(): void;
   dispose(): void;
@@ -33,7 +33,19 @@ export function createAppleMusicTransport(instance: MusicKitInstance): AppleMusi
     if (disposed) throw new Error('This player is closed. Open Apple Music again.');
     if (!instance.isAuthorized) throw new Error('Connect Apple Music before playing.');
   };
-  const seek = (seconds: number, pauseFirst: boolean): Promise<void> => {
+  const startPlaying = (): void | Promise<unknown> => {
+    intent.wantsPlaying = true;
+    try {
+      const playing = playAtOriginalSpeed(instance);
+      // A Play already in flight must not undo a later Pause or teardown. Shared
+      // intent also prevents an old adapter from pausing a new explicit Play.
+      if (playing) return Promise.resolve(playing).then((result) => {
+        if (!intent.wantsPlaying) quietPause();
+        return result;
+      });
+    } catch (error) { intent.wantsPlaying = false; throw error; }
+  };
+  const seek = (seconds: number, launch: boolean): Promise<void> => {
     try {
       assertAvailable();
       if (seekingInstances.has(instance)) throw new Error('The song is still seeking. Try again when it is ready.');
@@ -42,26 +54,40 @@ export function createAppleMusicTransport(instance: MusicKitInstance): AppleMusi
       if (!Number.isFinite(duration) || duration <= 0) throw new Error('Wait for the song to load before seeking.');
       const position = Math.min(duration, Math.max(0, seconds));
       const token = ++generation;
+      const wasPlaying = instance.isPlaying;
       seekingInstances.add(instance);
-      let operation: Promise<void>;
-      try {
-        if (pauseFirst) {
+      const failed = (error: unknown): never => {
+        // A failed launch must not leave music playing at the wrong position, but
+        // a late failure must never pause a newer song/source/playback action.
+        if (launch && !disposed && token === generation) {
           intent.wantsPlaying = false;
-          // Pause is invoked in the original gesture. A delayed completion may seek only
-          // while this action is still current; it can never resume audio by itself.
-          operation = Promise.resolve(instance.pause()).then(() => {
-            if (disposed || token !== generation) throw new Error('Playback action cancelled.');
-            assertAvailable();
-            return instance.seekToTime(position);
-          });
-        } else operation = instance.seekToTime(position);
+          quietPause();
+        }
+        throw error;
+      };
+      let nativeSeek: Promise<void>;
+      try {
+        if (launch) instance.playbackRate = 1;
+        nativeSeek = instance.seekToTime(position);
       } catch (error) {
         seekingInstances.delete(instance);
-        return Promise.reject(error);
+        return Promise.reject(error).catch(failed);
       }
-      return operation.then(() => {
+      // Only the native seek settling can release this lock. A failed Play may
+      // finish sooner, and disposing this adapter does not cancel Apple's seek.
+      const seeking = nativeSeek.finally(() => { seekingInstances.delete(instance); });
+      let playing: void | Promise<unknown> = undefined;
+      try {
+        if (launch) {
+          intent.wantsPlaying = true;
+          // Never pause an active stream. For a paused cue, seek and Play are both
+          // invoked synchronously from the tap, preserving browser permission.
+          if (!wasPlaying) playing = startPlaying();
+        }
+      } catch (error) { playing = Promise.reject(error); }
+      return Promise.all([seeking, playing]).then(() => {
         if (disposed || token !== generation) throw new Error('Playback action cancelled.');
-      }).finally(() => { seekingInstances.delete(instance); });
+      }).catch(failed);
     } catch (error) { return Promise.reject(error); }
   };
 
@@ -75,15 +101,8 @@ export function createAppleMusicTransport(instance: MusicKitInstance): AppleMusi
     play() {
       assertAvailable();
       if (seekingInstances.has(instance)) throw new Error('The song is still seeking. Tap Play when it is ready.');
-      intent.wantsPlaying = true;
-      try {
-        const playing = playAtOriginalSpeed(instance);
-        // A Play already in flight must not undo a later Pause or teardown.
-        if (playing) return Promise.resolve(playing).then((result) => {
-          if (!intent.wantsPlaying) quietPause();
-          return result;
-        });
-      } catch (error) { intent.wantsPlaying = false; throw error; }
+      generation++;
+      return startPlaying();
     },
     pause() {
       if (disposed) return;
@@ -92,7 +111,7 @@ export function createAppleMusicTransport(instance: MusicKitInstance): AppleMusi
       return instance.pause();
     },
     seek: (seconds) => seek(seconds, false),
-    seekPaused: (seconds) => seek(seconds, true),
+    launchCue: (seconds) => seek(seconds, true),
     cancel,
     dispose() { disposed = true; cancel(); },
   };

@@ -41,7 +41,7 @@ A configured build exposes **Library → Apple Music**. Without credentials, tha
 direct `#apple-music` route explains the missing setup. Apple's SDK loads only after valid config arrives.
 Connect invokes `authorize()` directly in a tap; cancellation is not treated as authorization. Catalog search,
 library songs, playlists and playlist tracks are read-only and limited visibly to their first 25 items. Selecting
-a song queues it paused; Play is a second explicit gesture. No local file identity, practice or class record is
+a song queues it paused; Play or a saved cue starts it with a second explicit gesture. No local file identity, practice or class record is
 created for the stream. Disconnect clears visible account lists; stale requests cannot restore them.
 
 Play/Pause, Restart and seeking use MusicKit directly. Initialization, song selection and
@@ -50,8 +50,10 @@ failure below; the UI directs tempo changes to local audio files. The implementa
 controls, without patching a private player or extracting protected streaming samples. Phrase repetition,
 native speaker routing and integration into local class sets are not implemented. Streaming cue bookmarks must
 use provider identity; they must not overwrite filename-based cues for imported media. Empty pads save the
-position; a saved cue pauses and seeks, then waits for a new Play gesture. Edit cues and Undo work on the
-streaming bookmarks. They stay in this browser and are not included in the local-media settings backup.
+position; a saved cue jumps there and plays, matching local-file cues in the player and Stage. A cue keeps
+an already playing song playing and starts a paused song from the cue without an extra Play tap. Pending
+cue actions must respect a later Pause, source change or teardown. Edit cues and Undo work on the streaming
+bookmarks. They stay in this browser and are not included in the local-media settings backup.
 Talk pauses streaming and resumes only if it was previously playing. Keep awake and Stage reuse the existing
 presentation and platform helpers. Open accepts a local file directly; Files & classes returns to the local
 library. These source transitions require their own browser and device checks below.
@@ -66,9 +68,11 @@ deployment. Keep unproven tempo and practice controls out of the released stream
 1. Sign in, search the catalog and read the user's library/playlist without changing it.
 2. Play a full subscribed track from a tap over the instructor's actual Bluetooth/AirPlay speaker connection. Record iOS version, browser versus installed PWA, SDK version, account/subscription status, and connection.
 3. Confirm original-speed clarity throughout the track, including after Pause, Resume and Restart.
-4. Seek beyond the preview range, use cue bookmarks and switch tracks. Confirm a selected song remains paused
-   until Play. Test Stage and source switching: leaving Apple Music must stop the stream, and returning to a
-   local file must not restart an old practice delay or class transition.
+4. Seek beyond the preview range, use cue bookmarks and switch tracks. A song selected from Library must
+   remain paused until Play or a saved cue is tapped. Test cue launches both while playing and paused, in the
+   player and Stage: playback must continue from the cue without an extra Play tap. Pause during a pending
+   cue jump must stay paused. Test source switching: leaving Apple Music must stop the stream, and returning
+   to a local file must not restart an old practice delay or class transition.
 5. Lock/unlock, use headphone controls, interrupt with a call, leave/return to the app, and disconnect/reconnect the speaker. Confirm state follows actual audible playback.
 6. Disable networking. Report exactly what the provider supports; do not label a subscription download as a locally cached ClassTempo file.
 7. Sign out and expire/revoke the token. Confirm recoverable errors and that no stale timer starts playback.
@@ -134,7 +138,7 @@ with a MusicKit stub confirmed that a seeded 0.75 rate resets to 1, selection st
 high at 360×780, 390×844, 430×932, 844×390, 768×1024, 1180×820 and 1366×1024. These are local mock UI checks,
 not real streaming-audio or physical-device acceptance.
 
-Shared-player implementation checks on 2026-10-28:
+Initial shared-player implementation checks on 2026-10-28 (before the cue-behavior correction):
 
 - After the final source edits, typecheck, all 366 tests and the production build passed.
 - A local MusicKit stub drove the real shared interface at 360×780, 390×844, 430×932, 844×390,
@@ -150,6 +154,12 @@ Shared-player implementation checks on 2026-10-28:
   playback worked. Switching through Library to Apple Music paused the local song at 5.2 seconds and
   preserved the loaded song.
 
-These checks cover the real UI and a real local audio file, with streaming simulated by the local stub.
-They do not establish the new interface's production streaming behavior, uninterrupted full-track completion,
-or physical-iPhone acceptance. The earlier real MusicKit evidence above remains a separate result.
+These pre-release checks cover the real UI and a real local audio file, with streaming simulated by the local
+stub. They do not establish production streaming behavior, uninterrupted full-track completion, or
+physical-iPhone acceptance. The earlier real MusicKit evidence above remains a separate result.
+
+Cue-behavior correction, 2026-10-28: the first shared-player release deliberately paused when selecting a
+saved Apple Music cue. The owner rejected that difference from local-file playback. Current cue launches
+must jump and play in one action; the old pause-on-cue result is historical evidence, not the intended behavior.
+Verify the corrected launch from both playing and paused states, cancellation by Pause/source changes, and
+Stage. Keep actual iPhone acceptance separate from desktop and automated results.

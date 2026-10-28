@@ -89,6 +89,8 @@ the integration must use the familiar ClassTempo player, or an identical player,
 first at normal speed; investigate clean tempo next**. A separate connection-test interface is not the product
 goal. Apple Music browsing belongs in a picker; song selection closes it and returns to paused Now Playing.
 Shared presentation does not require routing protected streams through the local audio engine.
+Saved Apple Music cues must behave like local cues: jump and play in one tap, from either playing or paused,
+in the regular player and Stage. Verify that Pause and source changes cancel pending cue playback.
 
 Apple Developer membership is active, the MusicKit media identifier/key are created, and signing credentials
 are stored in GitHub Actions repository secrets. The earlier connection screen established production Chrome
