@@ -34,7 +34,7 @@ interface Props {
   section: string | null;
   onTogglePlay: () => void;
   onRestart: () => void;
-  /** Launches an existing cue. Audio Stage shows only these set pads. */
+  /** Goes to an existing cue without changing playback state. Audio Stage shows only these set pads. */
   onLaunch: (index: number) => void;
   /** Sets an empty video Stage cue without moving existing cues or changing playback. */
   onSetCue?: (index: number) => void;
@@ -104,7 +104,7 @@ export function StageView({
   duration = 0, practiceRange, onSeek, onOpenPractice,
   tempo = 100, onTempoChange, mirrored = false, zoom = 1, onMirroredChange, onZoomChange,
   onRestartSection, practiceName, onEndPractice, pendingLabel, talking = false, onToggleTalk, onRetryVideo, onVideoDetails,
-  classControls, disabled = false, playDisabled = disabled, cueActionLabel = 'Launch',
+  classControls, disabled = false, playDisabled = disabled, cueActionLabel = 'Go to',
 }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const [tray, setTray] = useState<'cues' | 'tools' | 'class' | null>(null);
@@ -260,13 +260,13 @@ export function StageView({
         {classStrip}
         {tray && tray !== 'class' && <div ref={trayRoot} id={`stage-${tray}-tray`} className={`stage-video-panel stage-video-${tray}-panel`} role="region" aria-label={tray === 'cues' ? 'Cue controls' : 'Video tools'}>
           {tray === 'cues' ? <>
-            <p className="stage-cue-help">Tap + to set · Tap a saved number to play</p>
+            <p className="stage-cue-help">Tap + to set · Tap a saved number to jump</p>
             <div className="stage-cue-strip">
               {Array.from({ length: CUE_SLOTS }, (_, index) => {
                 const cue = cues[index] ?? null;
                 return <button key={index} className={`stage-cue-number ${cue ? 'set' : 'empty'}`} style={{ ['--pad' as string]: padColor(index) }}
                   onClick={() => cue ? onLaunch(index) : onSetCue?.(index)} disabled={controlsDisabled || (!cue && !onSetCue)}
-                  aria-label={cue ? `Play cue ${index + 1}: ${cue.name} at ${formatTime(cue.time)}` : `Set cue ${index + 1} at current position`}
+                  aria-label={cue ? `Go to cue ${index + 1}: ${cue.name} at ${formatTime(cue.time)}` : `Set cue ${index + 1} at current position`}
                   title={cue ? `${cue.name} · ${formatTime(cue.time)}` : 'Set a cue at the current position'}>
                   <span>{index + 1}</span>{!cue && <small aria-hidden="true">+</small>}
                 </button>;

@@ -41,7 +41,7 @@ A configured build exposes **Library → Apple Music**. Without credentials, tha
 direct `#apple-music` route explains the missing setup. Apple's SDK loads only after valid config arrives.
 Connect invokes `authorize()` directly in a tap; cancellation is not treated as authorization. Catalog search,
 library songs, playlists and playlist tracks are read-only and limited visibly to their first 25 items. Selecting
-a song queues it paused; Play or a saved cue starts it with a second explicit gesture. No local file identity, practice or class record is
+a song queues it paused; only an explicit Play starts it. No local file identity, practice or class record is
 created for the stream. Disconnect clears visible account lists; stale requests cannot restore them.
 
 Play/Pause, Restart and seeking use MusicKit directly. Initialization, song selection and
@@ -50,9 +50,10 @@ failure below; the UI directs tempo changes to local audio files. The implementa
 controls, without patching a private player or extracting protected streaming samples. Phrase repetition,
 native speaker routing and integration into local class sets are not implemented. Streaming cue bookmarks must
 use provider identity; they must not overwrite filename-based cues for imported media. Empty pads save the
-position; a saved cue jumps there and plays, matching local-file cues in the player and Stage. A cue keeps
-an already playing song playing and starts a paused song from the cue without an extra Play tap. Pending
-cue actions must respect a later Pause, source change or teardown. Edit cues and Undo work on the streaming
+position; a saved cue jumps there while preserving playback state, matching local-file cues in the player
+and Stage. A playing song keeps playing; a paused song stays paused at the cue until Play. This includes
+a song whose native stream has not initialized yet. Pending cue actions must respect a later Pause, source
+change or teardown. Edit cues and Undo work on the streaming
 bookmarks. They stay in this browser and are not included in the local-media settings backup.
 Talk pauses streaming and resumes only if it was previously playing. Keep awake and Stage reuse the existing
 presentation and platform helpers. Open accepts a local file directly; Files & classes returns to the local
@@ -69,9 +70,10 @@ deployment. Keep unproven tempo and practice controls out of the released stream
 2. Play a full subscribed track from a tap over the instructor's actual Bluetooth/AirPlay speaker connection. Record iOS version, browser versus installed PWA, SDK version, account/subscription status, and connection.
 3. Confirm original-speed clarity throughout the track, including after Pause, Resume and Restart.
 4. Seek beyond the preview range, use cue bookmarks and switch tracks. A song selected from Library must
-   remain paused until Play or a saved cue is tapped. Test cue launches both while playing and paused, in the
-   player and Stage: playback must continue from the cue without an extra Play tap. Pause during a pending
-   cue jump must stay paused. Test source switching: leaving Apple Music must stop the stream, and returning
+   remain paused until Play is tapped. Test saved cues both while playing and paused, in the player and Stage:
+   a playing song must continue from the cue; a paused song must move there and stay silent until Play. Also
+   test a cue immediately after opening a song, before its first Play. Pause during a pending cue jump must
+   stay paused. Test source switching: leaving Apple Music must stop the stream, and returning
    to a local file must not restart an old practice delay or class transition.
 5. Lock/unlock, use headphone controls, interrupt with a call, leave/return to the app, and disconnect/reconnect the speaker. Confirm state follows actual audible playback.
 6. Disable networking. Report exactly what the provider supports; do not label a subscription download as a locally cached ClassTempo file.
@@ -158,17 +160,16 @@ These pre-release checks cover the real UI and a real local audio file, with str
 stub. They do not establish production streaming behavior, uninterrupted full-track completion, or
 physical-iPhone acceptance. The earlier real MusicKit evidence above remains a separate result.
 
-Cue-behavior correction, 2026-10-28: the first shared-player release deliberately paused when selecting a
-saved Apple Music cue. The owner rejected that difference from local-file playback. Current cue launches
-must jump and play in one action; the old pause-on-cue result is historical evidence, not the intended behavior.
-Verify the corrected launch from both playing and paused states, cancellation by Pause/source changes, and
-Stage. Keep actual iPhone acceptance separate from desktop and automated results.
+Historical cue corrections, 2026-10-28: the first shared-player release always paused at saved Apple Music
+cues. The next release changed cues to always start playback. That second behavior was verified in Chrome:
+production playback continued through a saved five-second cue in “Alma Rota” and resumed from it in Stage
+after pausing, with native rate 1. It also handled catalog duration being available before native duration by
+starting MusicKit before seeking. Its typecheck, 381 tests and build passed; delayed-start cancellation,
+keyboard actions and the seven required viewport sizes were checked. These are prior-release results, not
+acceptance of the current behavior below.
 
-Correction validation: production Chrome played through a saved five-second cue in “Alma Rota” and resumed
-from that cue in Stage after pausing, with native playback rate 1. A newly queued song exposed an additional
-SDK state: catalog duration was available but native duration was zero until first Play. Cue launch now starts
-MusicKit inside the tap, then seeks after initialization only if that action has not been cancelled. The full
-suite passes 381 tests, typecheck and build, including initialization, cancellation and late-failure cases.
-The local real-UI test with delayed Play also confirmed immediate Pause can cancel a pending cue start;
-keyboard cue/transport actions and all seven required player viewport sizes passed their relevant checks.
-Live first-cue initialization and physical-iPhone behavior require separate confirmation.
+The owner then clarified the intended rule: **cues preserve playback state** in local files, Apple Music and
+Stage. Playing music jumps and continues; paused music jumps and stays paused. Empty pads only save a cue.
+This supersedes both always-pause and always-start behavior. A cue before a stream's first Play must select
+the position without starting audio. Verify both states, first-Play behavior, Pause/source-change cancellation
+and Stage. Keep physical-iPhone acceptance separate from desktop and automated results.

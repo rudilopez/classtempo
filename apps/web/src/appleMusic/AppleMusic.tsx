@@ -52,8 +52,6 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   const [pickerOpen, setPickerOpen] = useState(true);
   const [stageOpen, setStageOpen] = useState(false);
   const [seeking, setSeeking] = useState(false);
-  const [cueStarting, setCueStarting] = useState(false);
-  const cueStart = useRef<number | null>(null);
   const [seekRecovery, setSeekRecovery] = useState(false);
   const [cues, setCues] = useState<CueSlots>(emptyCues);
   const [undoCues, setUndoCues] = useState<CueSlots[]>([]);
@@ -74,7 +72,6 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   const accountOperation = useRef(0);
   const accountPending = useRef(false);
   const expiresAt = useRef(0);
-  const clearCueStart = (): void => { cueStart.current = null; setCueStarting(false); };
 
   useEffect(() => () => { transportPlayer?.dispose(); }, [transportPlayer]);
   useEffect(() => {
@@ -84,15 +81,15 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   }, [notice]);
   useEffect(() => { if (error) setStageOpen(false); }, [error]);
   useEffect(() => {
-    if (!seeking && !cueStarting) { setSeekRecovery(false); return; }
+    if (!seeking) { setSeekRecovery(false); return; }
     const timeout = window.setTimeout(() => {
-      if (!transportPlayer?.seeking && cueStart.current === null) return;
-      transport.current++; clearCueStart(); transportPlayer?.cancel();
+      if (!transportPlayer?.seeking) return;
+      transport.current++; transportPlayer?.cancel();
       setSeekRecovery(true); setStageOpen(false); setPickerOpen(true);
-      setError('Apple Music is taking longer to start or seek. Reload the connection, or choose Files & classes.');
+      setError('Apple Music is taking longer to seek. Reload the connection, or choose Files & classes.');
     }, 15_000);
     return () => window.clearTimeout(timeout);
-  }, [seeking, cueStarting, transportPlayer]);
+  }, [seeking, transportPlayer]);
   useEffect(() => () => { void wakeLock.disable(); }, [wakeLock]);
 
   useEffect(() => {
@@ -100,7 +97,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
     let disposed = false;
     let current: MusicKitInstance | null = null;
     const abort = new AbortController();
-    setSetup('loading'); setError(''); setAccessExpired(false); clearCueStart();
+    setSetup('loading'); setError(''); setAccessExpired(false);
     void getAppleMusicConfig(abort.signal).then(async (config) => {
       if (disposed) return;
       expiresAt.current = config.expiresAt;
@@ -117,7 +114,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       setSetup('failed');
     });
     return () => {
-      disposed = true; alive.current = false; cueStart.current = null; abort.abort(); requests.current++; transport.current++; accountOperation.current++;
+      disposed = true; alive.current = false; abort.abort(); requests.current++; transport.current++; accountOperation.current++;
       if (current) quietPause(current, true);
     };
   }, [retry]);
@@ -127,7 +124,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
     let wasAuthorized = instance.isAuthorized;
     let expired = false;
     const clearAccount = () => {
-      requests.current++; transport.current++; clearCueStart(); transportPlayer?.cancel();
+      requests.current++; transport.current++; transportPlayer?.cancel();
       setTracks([]); setPlaylists([]); setPlaylist(null); setSelected(null); setSearched(false);
       setCues(emptyCues()); setUndoCues([]); setEditing(false); setRename(null); setStageOpen(false); setTalking(false); setPickerOpen(true);
       if (!accountPending.current) setBusy(false);
@@ -141,14 +138,14 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       if (!expired && expiresAt.current <= Date.now() / 1000 + 60) {
         expired = true;
         setAccessExpired(true);
-        requests.current++; transport.current++; accountOperation.current++; clearCueStart();
+        requests.current++; transport.current++; accountOperation.current++;
         accountPending.current = false; setBusy(false); setLoading(false);
         transportPlayer?.cancel(); quietPause(instance); setRename(null); setStageOpen(false); setPickerOpen(true);
         setError('Apple Music access needs to be renewed. Return to local files, or reopen this screen after the app is updated.');
       }
     };
     const failure = () => {
-      transport.current++; clearCueStart();
+      transport.current++;
       transportPlayer?.cancel(); quietPause(instance); setRename(null); setStageOpen(false); setTalking(false);
       if (!accountPending.current) setBusy(false);
       setError('Apple Music could not play this song. Check your connection and subscription, then choose the song again.');
@@ -185,7 +182,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
     if (!instance || accountPending.current || transportPlayer?.seeking) return;
     const id = ++accountOperation.current;
     accountPending.current = true;
-    requests.current++; transport.current++; clearCueStart();
+    requests.current++; transport.current++;
     setBusy(true); setLoading(false); setError('');
     transportPlayer?.cancel(); quietPause(instance, true);
     let signingOut: Promise<void>;
@@ -223,7 +220,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   const choose = async (track: MusicTrack): Promise<void> => {
     if (!instance || busy || accessExpired || accountPending.current || transportPlayer?.seeking) return;
     const id = ++transport.current;
-    clearCueStart(); transportPlayer?.cancel();
+    transportPlayer?.cancel();
     setBusy(true); setError(''); setNotice('');
     try {
       await loadSelected(instance, track);
@@ -253,35 +250,30 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
 
   const hasSong = !!selected && playback.isAuthorized && !accessExpired;
   const duration = playback.duration || selected?.durationSeconds || 0;
-  const position = Math.max(0, Math.min(duration, playback.currentTime));
+  const position = Math.max(0, Math.min(duration, transportPlayer?.preparedPosition ?? playback.currentTime));
   const shownTrack = selected;
-  const blocked = busy || seeking || cueStarting || setup !== 'ready' || !hasSong;
-  // A cue's Play may still be waiting on Apple. Keep Pause reachable immediately,
-  // before the SDK's isPlaying flag catches up, so the user can revoke that start.
-  const playingOrStarting = playback.isPlaying || cueStarting;
-  const playDisabled = busy || !hasSong || (seeking && !playingOrStarting);
+  const blocked = busy || seeking || setup !== 'ready' || !hasSong;
+  const playDisabled = busy || !hasSong || (seeking && !playback.isPlaying);
 
   const togglePlay = (): void => {
     if (!transportPlayer || !hasSong || busy) return;
     setTalking(false);
-    if (playback.isPlaying || cueStart.current !== null) { clearCueStart(); action(() => transportPlayer.pause()); }
+    if (playback.isPlaying) { action(() => transportPlayer.pause()); }
     else if (!seeking && !transportPlayer.seeking) action(() => transportPlayer.play());
   };
-  const seek = (seconds: number, cue = false): void => {
+  const seek = (seconds: number): void => {
     if (!transportPlayer || blocked || transportPlayer.seeking || !Number.isFinite(seconds)) return;
     setTalking(false); setSeeking(true); setSeekRecovery(false);
     const id = ++transport.current;
-    if (cue) { cueStart.current = id; setCueStarting(true); }
     setError(''); setNotice('');
     const target = Math.max(0, Math.min(duration, seconds));
-    void (cue ? transportPlayer.launchCue(target) : transportPlayer.seek(target)).then(() => {
+    void transportPlayer.seek(target, selected ? { id: selected.id, durationSeconds: duration } : undefined).then(() => {
       if (!alive.current || id !== transport.current || !instance) return;
       setPlayback(snapshot(instance));
     }).catch(() => {
       if (alive.current && id === transport.current) setError('Could not move to that position. Try again while connected.');
     }).finally(() => {
       if (!alive.current || id !== transport.current) return;
-      if (cueStart.current === id) clearCueStart();
       setSeeking(transportPlayer.seeking); setSeekRecovery(false);
     });
   };
@@ -299,7 +291,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
     if (!cue || editing) {
       const saved = changeCues(cues.map((item, slot) => slot === index ? { time: position, name: item?.name || `Cue ${index + 1}` } : item));
       if (saved) setNotice(`Cue ${index + 1} set at ${formatTime(position)}.`);
-    } else seek(cue.time, true);
+    } else seek(cue.time);
   };
   const toggleTalk = (): void => {
     if (!transportPlayer || blocked) return;
@@ -335,7 +327,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       if (event.key.length === 1 && event.key >= '1' && event.key <= '8') {
         if (!event.repeat) {
           const index = Number(event.key) - 1;
-          if (latest.stageOpen) { const cue = latest.cues[index]; if (cue) latest.seek(cue.time, true); }
+          if (latest.stageOpen) { const cue = latest.cues[index]; if (cue) latest.seek(cue.time); }
           else latest.pressCue(index);
         }
       } else if (event.key === ' ') {
@@ -377,15 +369,15 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
             </div>
             <div className="apple-music-timeline"><input type="range" min="0" max={Math.max(1, duration)} step="1" value={position} aria-label="Song position" disabled={blocked || !duration} onChange={(event) => seek(Number(event.target.value))} /></div>
           </div>
-          <PlayerTransport playing={playingOrStarting} disabled={blocked} playDisabled={playDisabled} onTogglePlay={togglePlay} onRestart={() => seek(0)} onStage={() => { setEditing(false); setStageOpen(true); }} />
+          <PlayerTransport playing={playback.isPlaying} disabled={blocked} playDisabled={playDisabled} onTogglePlay={togglePlay} onRestart={() => seek(0)} onStage={() => { setEditing(false); setStageOpen(true); }} />
           <div className="class-tempo-panel apple-music-tools">
             <div className="apple-music-source"><span>♫ Apple Music</span><strong>Original speed</strong></div>
             <div className="apple-music-tool-buttons"><button type="button" disabled={blocked} onClick={() => seek(position - 10)}>↶ Back 10s</button><button type="button" disabled={blocked} className={talking ? 'on' : ''} aria-pressed={talking} title="Pause while you speak; tap again to resume" onClick={toggleTalk}>{talking ? 'Finish talking' : 'Talk'}</button></div>
           </div>
           <div className={`cues ${undoCues.length ? 'has-undo' : ''}`}>
             <div className="cues-head"><span className="apple-music-cue-heading">Cues</span><span className="cues-hint">{editing ? 'Tap to move' : 'Tap empty to set'}</span>{undoCues.length > 0 && <button type="button" className="cues-undo" disabled={blocked} onClick={() => { const previous = undoCues[undoCues.length - 1]; if (previous) { changeCues(previous, false); setUndoCues((items) => items.slice(0, -1)); } }}>Undo</button>}<button type="button" disabled={blocked} onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit cues'}</button></div>
-            <CuePads cues={cues} editing={editing} disabled={blocked} onPress={pressCue} onClear={(index) => changeCues(cues.map((cue, slot) => slot === index ? null : cue))} onRename={(index) => setRename({ index, name: cues[index]?.name || '' })} />
-            <p className="apple-music-cue-help">Tap a saved cue to jump there and play.</p>
+            <CuePads cues={cues} launchLabel="Go to cue" editing={editing} disabled={blocked} onPress={pressCue} onClear={(index) => changeCues(cues.map((cue, slot) => slot === index ? null : cue))} onRename={(index) => setRename({ index, name: cues[index]?.name || '' })} />
+            <p className="apple-music-cue-help">Cues keep playing or stay paused.</p>
           </div>
           <div className="apple-music-capabilities">{!pickerOpen && (error || notice || seeking) ? <div className="apple-music-feedback">{feedback}{seeking && !error && <p role="status">Moving to position…</p>}</div> : <p>Tempo changes, Practice and Stems use <button type="button" onClick={openFile} disabled={busy}>local files</button>.</p>}</div>
         </section>
@@ -425,6 +417,6 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       </section>}
     </AppleMusicPicker>}
     {rename && <AppleMusicPicker title="Rename cue" onClose={() => setRename(null)}><form className="apple-music-rename" onSubmit={(event) => { event.preventDefault(); const name = rename.name.trim().slice(0, 40); if (!name) return; changeCues(cues.map((cue, index) => index === rename.index && cue ? { ...cue, name } : cue)); setRename(null); }}><label>Cue name<input value={rename.name} maxLength={40} onChange={(event) => setRename({ ...rename, name: event.target.value })} /></label><button type="submit" disabled={!rename.name.trim()}>Save name</button></form></AppleMusicPicker>}
-    {stageOpen && hasSong && shownTrack && <StageView video={null} aspect={null} title={shownTrack.name} playing={playingOrStarting} position={position} duration={duration} cues={cues} section="Apple Music · 100%" onTogglePlay={togglePlay} onRestart={() => seek(0)} onLaunch={(index) => { const cue = cues[index]; if (cue) seek(cue.time, true); }} onClose={closeStage} onSeek={seek} disabled={blocked} playDisabled={playDisabled} />}
+    {stageOpen && hasSong && shownTrack && <StageView video={null} aspect={null} title={shownTrack.name} playing={playback.isPlaying} position={position} duration={duration} cues={cues} section="Apple Music · 100%" onTogglePlay={togglePlay} onRestart={() => seek(0)} onLaunch={(index) => { const cue = cues[index]; if (cue) seek(cue.time); }} onClose={closeStage} onSeek={seek} cueActionLabel="Go to" disabled={blocked} playDisabled={playDisabled} />}
   </>;
 }

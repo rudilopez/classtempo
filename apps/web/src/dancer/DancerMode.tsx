@@ -835,30 +835,13 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
     play();
   };
 
-  /** Jump to `seconds` and play: cue launch, and lock-screen / headphone previous and next. */
-  const launch = (seconds: number) => {
+  /** Cues and lock-screen / headphone navigation preserve the current playback state. */
+  const goToCue = (seconds: number) => {
     if (failedVideoFile || classBusyRef.current || loadingRef.current) return;
-    practiceController.current?.cancel();
-    talkResume.current = false;
-    if (playerRef.current?.kind === 'video' && talking) { setTalking(false); talkResume.current = false; }
-    const p = playerRef.current;
-    classRun.current++;
-    classArmed.current = true;
-    const settings = practiceRef.current;
-    const section = selectedPracticeSection(settings);
-    if (settings.mode !== 'off' && section && p?.track) {
-      if (seconds >= section.start && seconds < section.end) {
-        practiceController.current?.start({ settings: { ...settings, delaySeconds: 0 }, duration: p.track.duration, position: seconds,
-          prepare: () => { engine.unlock(); if (p.kind === 'audio') void keepAlive.start(); } });
-        return;
-      }
-      updatePractice({ ...settings, mode: 'off' }, false);
-      showToast('Cue is outside the practice range. Full track is now on.');
-    }
-    startPlayback((p) => {
-      p.jumpTo(seconds);
-      positionRef.current = p.position;
-    });
+    if (playerRef.current?.kind === 'video' && talking) setTalking(false);
+    // The normal seek path cancels pending delays/gaps and class transitions, keeps
+    // a playing practice inside its range, and never starts a paused player.
+    seek(seconds);
   };
 
   const cueTimes = (): (number | null)[] => song?.cues.map((c) => c?.time ?? null) ?? [];
@@ -868,19 +851,15 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
     const p = playerRef.current;
     if (p instanceof VideoDeck && p.error) return;
     const selected = selectedPracticeSection(practiceRef.current);
-    if (selected && p?.track && practiceRef.current.mode !== 'off') {
-      if (p.kind === 'video') { setTalking(false); talkResume.current = false; }
-      practiceController.current?.start({ settings: { ...practiceRef.current, delaySeconds: 0 }, duration: p.track.duration, position: selected.start,
-        prepare: () => { engine.unlock(); if (p.kind === 'audio') void keepAlive.start(); } });
-    }
-    else if (p) launch(previousCueTime(cueTimes(), p.position));
+    if (selected && p?.track && practiceRef.current.mode !== 'off') goToCue(selected.start);
+    else if (p) goToCue(previousCueTime(cueTimes(), p.position));
   };
 
   const nextCue = () => {
     const p = playerRef.current;
     if (!p) return;
     const t = nextCueTime(cueTimes(), p.position);
-    if (t !== null) launch(t);
+    if (t !== null) goToCue(t);
   };
 
   const changeTempo = (percent: number) => {
@@ -1175,7 +1154,7 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
   };
 
   /**
-   * Launch a set pad; set an empty one; while editing, (re)set any pad to the current position. `launchOnly`
+   * Go to a set pad without changing play state; set an empty one; while editing, (re)set any pad. `launchOnly`
    * (Stage view) never sets or moves a cue.
    */
   const pressPad = (i: number, launchOnly = false) => {
@@ -1186,10 +1165,10 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
       const time = p.position; // live, not the last ~50 ms report
       editCues((cues) => cues.map((c, j) => (j === i ? { time, name: c?.name ?? `Cue ${i + 1}` } : c)));
       void requestPersistentStorage(); // once per page load: keep saved cues from being evicted
-      showToast(`Cue ${i + 1} ${cue ? 'moved' : 'set'} at ${formatTime(time)}. Tap it to play from here.`);
+      showToast(`Cue ${i + 1} ${cue ? 'moved' : 'set'} at ${formatTime(time)}. Tap it to return here.`);
       return;
     }
-    if (cue) launch(cue.time);
+    if (cue) goToCue(cue.time);
   };
 
   const clearPad = (i: number) => editCues((cues) => cues.map((c, j) => (j === i ? null : c)));
@@ -1529,7 +1508,7 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
               <span className="dim cues-hint">Press a pad to move it here · ✕ clears · ✎ renames</span>
             ) : (
               <span className="dim cues-hint">
-                <span className="hint-long">Tap an empty pad to set · Tap a saved cue to play</span>
+                <span className="hint-long">Tap an empty pad to set · Tap a saved cue to jump</span>
                 <span className="hint-short">Tap empty to set</span>
               </span>
             ))}
@@ -1542,7 +1521,7 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
             </button>}
           </div>
           {cuePanel === 'cues'
-            ? <CuePads cues={song?.cues ?? NO_CUES} editing={editing} disabled={!ready} onPress={pressPad} onClear={clearPad} onRename={renamePad} />
+            ? <CuePads cues={song?.cues ?? NO_CUES} launchLabel="Go to cue" editing={editing} disabled={!ready} onPress={pressPad} onClear={clearPad} onRename={renamePad} />
             : <StemsPanel kind={song?.kind ?? null} state={preparedStems.state}
               active={preparedStems.state.phase === 'ready' && player === preparedStems.deck.current}
               disabled={loading || !!failedVideoFile} mix={stemMix} focus={drumFocus}
@@ -1598,6 +1577,7 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
           onTogglePlay={togglePlay}
           onRestart={restart}
           onLaunch={(i) => pressPad(i, true)}
+          cueActionLabel="Go to"
           onSetCue={(i) => pressPad(i)}
           onClose={closeStage}
           tempo={tempo}

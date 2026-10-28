@@ -30,8 +30,9 @@ classes, Stage, stems, offline use and backups. The guide opens in a separate ta
    editor and Stage, pauses at the current position and returns to normal Play without deleting saved practices.
    Tap Play to continue the full track at the current tempo, without the practice delay. ✕ discards unsaved edits.
 5. Select **Cues** in the **Cues / Stems** header. Tap an **empty cue pad** to save the current position immediately, even while playing. Tap a saved cue to
-   play from it. **Edit cues** moves, renames or clears existing cues; Undo restores recent changes. Launching a
-   cue inside the active practice range keeps repeating; a cue outside it switches to full-track playback with
+   jump to it: music keeps playing if it was playing, or stays paused if it was paused. Tap **Play** when ready.
+   **Edit cues** moves, renames or clears existing cues; Undo restores recent changes. A cue inside the active
+   practice range keeps its settings and continues only if already playing; a cue outside it selects the full track with
    visible feedback. **Stems → Prepare stems** separates a local song into Vocal, Instruments, Bass and Drums.
    Preparation is optional; the first run downloads about 80 MB of model weights plus the runtime. Tap **Use stems**,
    mute parts, or choose **Acapella**, **Instrumental** or **All**. **Original** returns to the original recording
@@ -44,7 +45,7 @@ classes, Stage, stems, offline use and backups. The guide opens in a separate ta
 6. The regular player keeps its picture, tempo and cue pads visible together. Tap **Stage** to make video large,
    above a compact **Play · Cues · Practice · Tools · Exit** bar and seek line. In Stage, **Cues** opens one
    horizontally scrollable row of numbered buttons below the picture. Tap an empty number to save a cue, or a
-   saved number to play from it. Tools also opens below the picture. Close either panel to give that space back
+   saved number to jump there while keeping the current playing or paused state. Tools also opens below the picture. Close either panel to give that space back
    to the video. Full-picture Fit stays the default, and **End practice** stays reachable.
 
 Full songs/videos added to a class start at 100%, without a repeat or delay inherited from earlier practice.
@@ -86,8 +87,8 @@ to saved local media. Switching sources pauses the source you leave; returning d
 or class transition.
 
 Apple Music cues work like local-file cues: tap an empty pad to save the current position, or tap a saved cue
-to **play from that point**. Music keeps playing when you jump; from pause, the cue starts playback. There is
-no extra Play step. Edit cues moves, renames or clears cues, with Undo for changes. Talk pauses streaming and
+to **jump to that point without changing playback state**. Playing music keeps playing; paused music stays
+paused until you tap **Play**. This also applies in Stage. Edit cues moves, renames or clears cues, with Undo for changes. Talk pauses streaming and
 resumes only if it was playing when Talk began. Streaming cues use provider IDs and do not replace cues saved
 for local files.
 

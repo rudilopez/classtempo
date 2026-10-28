@@ -16,7 +16,7 @@ live site, separately from this checklist:
 - Native video loading without a duplicate audio decode, explicit readiness/errors and same-element Stage transitions.
 - The regular player retains full controls and a Cues/Stems header; Stems has opt-in local audio separation.
   Only video Stage maximizes the picture above compact playback/seeking controls. Cues opens a numbered row
-  below the picture for setting/launching cues; Tools also opens below it. End practice remains reachable.
+  below the picture for setting/selecting cues; Tools also opens below it. End practice remains reachable.
 - Keep awake, Stage playback controls, video mirror/zoom and Talk (audio attenuates; native video pauses).
 - Media lists all saved songs/videos with type badges, recents, saved-media search, import-and-open, local-copy removal and honest save failures.
 - Classes separates Edit class preparation from Teach class playback; backup utilities stay collapsed.
@@ -25,7 +25,8 @@ live site, separately from this checklist:
   Full-file exercises use fresh 100%/no-practice defaults. Actual-file checks run before entering a class.
 - Named cue-based A–B practices with independent saved tempo/repeat/delay/video options, direct Start/Save actions,
   active-name/pass progress, and End practice in the player/editor/Stage to restore normal Play without losing presets.
-- One-tap empty cues with Undo; existing-cue changes require Edit. Stable saved-cue keys preserve existing work.
+- One-tap empty cues with Undo; existing-cue changes require Edit. Saved cues preserve the playing/paused
+  state in the player and Stage. Stable saved-cue keys preserve existing work.
 - JSON export/restore for class sets, cue data and practice settings, excluding media files.
 - Existing lock-screen/headphone controls and interruption recovery retained.
 - Visual user guide at `guide.html`, linked from Library, with searchable topics and enlarged screenshots.
@@ -89,8 +90,9 @@ the integration must use the familiar ClassTempo player, or an identical player,
 first at normal speed; investigate clean tempo next**. A separate connection-test interface is not the product
 goal. Apple Music browsing belongs in a picker; song selection closes it and returns to paused Now Playing.
 Shared presentation does not require routing protected streams through the local audio engine.
-Saved Apple Music cues must behave like local cues: jump and play in one tap, from either playing or paused,
-in the regular player and Stage. Verify that Pause and source changes cancel pending cue playback.
+Saved Apple Music cues must behave like local cues in the regular player and Stage: jump and continue when
+playing; jump and stay paused when paused. Verify this before the first Play as well as after playback, and
+verify that Pause and source changes cancel pending cue work.
 
 Apple Developer membership is active, the MusicKit media identifier/key are created, and signing credentials
 are stored in GitHub Actions repository secrets. The earlier connection screen established production Chrome
