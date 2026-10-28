@@ -94,8 +94,8 @@ for local files.
 
 Apple Music shows the familiar **50–150% tempo slider**, ±1% buttons and **50/75/90/100/110% presets** in the
 regular player; no special test link is needed. Each song opens paused at 100%. The **100%** preset restores
-original speed while keeping the current playing or paused state. **Tempo test** opens listening instructions
-and diagnostics: clean changed-speed audio is **not yet confirmed** on phones. Back 10s and Talk remain available.
+original speed while keeping the current playing or paused state. **Playback info** opens read-only rate,
+pitch and timing diagnostics. Back 10s and Talk remain available.
 Streaming requires internet and an active subscription. Saved classes, named practices and stems still use
 imported files. Subscription downloads are not ordinary files ClassTempo can import or save offline.
 Spotify is not integrated.
@@ -103,9 +103,9 @@ Spotify is not integrated.
 The earlier connection screen's production Chrome authorization, catalog/library browsing, paused selection,
 Play/Pause, seeking and teardown were verified on 2026-10-28. The owner confirmed clear audio at 100%, with
 playback observed beyond the preview range. Slower playback warbled and faster playback changed pitch, so those
-speed controls were initially removed. The visible controls now support further listening checks; they do not
-establish that the sound-quality issue is fixed. Uninterrupted full-track completion and physical-iPhone acceptance remain
-unverified; the shared interface does not establish them. See the
+speed controls were initially removed. After the slider and presets returned, the owner confirmed that all
+tempos sounded great on Mac on 2026-10-28. Physical iPhone/iPad/Android listening and uninterrupted full-track
+completion remain unverified; Mac acceptance does not establish those results. See the
 [setup instructions](docs/APPLE_MUSIC_SETUP.md) and [feasibility plan](docs/APPLE_MUSIC_FEASIBILITY.md).
 
 Local media and settings stay on this device; there is no local-media upload service or cloud sync. The optional

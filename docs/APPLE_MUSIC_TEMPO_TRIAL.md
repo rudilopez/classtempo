@@ -1,8 +1,8 @@
-# Apple Music tempo: web listening trial
+# Apple Music tempo: playback and device acceptance
 
-Status, 2026-10-28: **visible tempo controls in the ordinary player; changed-speed audio quality is not accepted.** ClassTempo remains a web app for phones. A native app, Xcode setup or separate app installation is not the intended solution.
+Status, 2026-10-28: **Mac tempo listening accepted; physical iPhone/iPad/Android listening and uninterrupted full-track completion outstanding.** ClassTempo remains a web app for phones. A native app, Xcode setup or separate app installation is not the intended solution.
 
-The earlier Chrome experiment changed playback speed, but the owner heard warbling when slower and a pitch change when faster. Original-speed Apple Music playback was clear. That result rejects the tested Chrome experience; it does not establish the result on physical iPhone Safari, the Home Screen app, or Android Chrome. Each Apple Music song opens paused at 100%. The slider and presets are visible for testing, with a Tempo test info button; they do not prove that the listening failure has been resolved.
+The earlier Chrome experiment changed playback speed, but the owner heard warbling when slower and a pitch change when faster. Original-speed Apple Music playback was clear. After the slider and presets returned, the owner reported, “The slider and presets are back and all tempos sound great,” and identified the tested device as Mac. This accepts the latest listening experience on that Mac; the exact rates, browser version and output route were not specified. It does not establish the result on physical iPhone Safari, the Home Screen app, iPad or Android Chrome. Each Apple Music song opens paused at 100%. The slider and presets remain visible, with read-only diagnostics under Playback info.
 
 ## What the web player can control
 
@@ -23,11 +23,11 @@ Open ClassTempo normally, then choose Library → Apple Music:
 
 [ClassTempo Apple Music player](https://rudilopez.github.io/classtempo/#apple-music)
 
-The player always shows the familiar **50–150% slider**, **−1% / +1%** nudges and **50%, 75%, 90%, 100%, 110%** presets. The earlier `tempo-test=1` link is no longer required. Controls begin at **100%** for each new song. The range is available for testing, not an accepted audio-quality range.
+The player always shows the familiar **50–150% slider**, **−1% / +1%** nudges and **50%, 75%, 90%, 100%, 110%** presets. The earlier `tempo-test=1` link is no longer required. Controls begin at **100%** for each new song. The Mac listening pass does not establish every rate on every device.
 
-The trial uses the public MusicKit playback rate. It reapplies the latest requested rate after a current Play/seek operation completes, because provider startup can reset it. It does not patch private SDK fields, change the SDK-owned audio pipeline, extract protected samples, or route streaming audio through ClassTempo's local engine. Native media properties are inspected read-only for diagnostics. Local-file tempo processing remains independent.
+The player uses the public MusicKit playback rate. It reapplies the latest requested rate after a current Play/seek operation completes, because provider startup can reset it. It does not patch private SDK fields, change the SDK-owned audio pipeline, extract protected samples, or route streaming audio through ClassTempo's local engine. Native media properties are inspected read-only for diagnostics. Local-file tempo processing remains independent.
 
-Back 10s and Talk remain available. **Tempo test** opens instructions, a 12-second approximate timing check and **Copy test details**. Tap the **100%** preset to restore original speed without changing the current playing or paused state, or losing a cue prepared before first Play. There is no End test action that hides the controls. Choosing a different song starts paused at 100%.
+Back 10s and Talk remain available. **Playback info** opens read-only diagnostics, a 12-second approximate timing check and **Copy playback details**. Tap the **100%** preset to restore original speed without changing the current playing or paused state, or losing a cue prepared before first Play. There is no End test action that hides the controls. Choosing a different song starts paused at 100%.
 
 The diagnostics separate:
 
@@ -67,10 +67,10 @@ A new speed path must retain the state-preserving cue behavior accepted for the 
 
 ## Acceptance and next decision
 
-No device or changed-speed quality pass is recorded for these controls yet. The prior hidden-link trial's local tests covered gating, rate errors, pending Play/Pause/seek cancellation, new-song reset and fresh paused cue offsets. Its removed browser fixture verified paused selection, 85% after simulated startup reset, timing readout and paused exit; seven layouts fit with at least 44 px controls and 88 px phone cue pads. Those are prior-interface results. Recheck the current slider/preset layout and transport separately; neither revision establishes audible quality.
+On 2026-10-28 the owner confirmed that the slider and presets were back and all tempos sounded great, then identified the device as Mac. The test-only UI wording was removed; Playback info retains diagnostics. Physical iPhone/iPad/Android listening and uninterrupted full-track completion remain unverified. The prior hidden-link trial's local tests covered gating, rate errors, pending Play/Pause/seek cancellation, new-song reset and fresh paused cue offsets. Its removed browser fixture verified paused selection, 85% after simulated startup reset, timing readout and paused exit; seven layouts fit with at least 44 px controls and 88 px phone cue pads. Those are prior-interface UI/transport results; the owner's later listening report is the separate Mac audio-quality evidence.
 
 The visible-control revision was checked through the ordinary route with no query parameter. A removed simulated-transport fixture verified slider/preset selection, 75% surviving playback startup, 100% reset while continuing playback, and paused Stage nudges reflected back in the main player. All seven required viewports fit; slider/buttons remain at least 44 px high and full cue pads at least 72 px. The smallest portrait and phone-landscape views were visually inspected for overlap. These are UI/transport results, not streaming listening acceptance.
 
-The release decision needs both transport checks and listening results for the supported phone/browser combinations. Record failures honestly by device and rate; do not silently substitute 100% while displaying a requested different speed.
+Extending acceptance beyond the tested Mac needs both transport checks and listening results for the target phone/tablet and browser combinations. Record failures honestly by device and rate; do not silently substitute 100% while displaying a requested different speed.
 
 If a browser cannot produce clean playback through the supported MusicKit controls, keep that browser at original speed and describe the limitation. A native rewrite or protected-audio processing workaround is outside the owner's web-only direction. The next product decision must follow the actual listening results, not the presence of a slider or an upstream algorithm name.

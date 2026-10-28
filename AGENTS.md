@@ -93,16 +93,16 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Production Chrome authorization, read-only catalog/library access, paused selection, Play/Pause, seeking and
   teardown were verified on 2026-10-28 in the earlier connection screen. The owner confirmed clear audio at
   100%; playback beyond the preview range was observed. Slower playback warbled and faster playback changed
-  pitch. That earlier listening failure is not superseded by controls responding or pitch flags being true.
-  The owner subsequently requested visible tempo controls in the ordinary player; preserve the listening-test
-  label until changed-speed quality passes actual device checks.
-  Uninterrupted full-track completion and physical-iPhone streaming acceptance remain unverified.
+  pitch in that earlier experiment. After the slider and presets returned, the owner confirmed on 2026-10-28
+  that all tempos sounded great on Mac. This is listening acceptance on the tested Mac, not proof for every
+  browser or device. Playback info retains read-only diagnostics without a test-only label.
+  Uninterrupted full-track completion and physical iPhone/iPad/Android listening remain unverified.
   Apple Developer membership was verified active on 2026-10-28. The ClassTempo MusicKit Media ID and key were
   created, and all three signing credentials were stored as GitHub Actions repository secrets.
   Keep signing keys in deployment secrets, public configuration network-only, and sign-in/Play gesture-driven.
   Never promise streaming tempo, phrase repetition, stems or offline parity without actual device evidence.
   The owner explicitly requires a web app across phones, not a native rewrite. Apple Music shows the shared
-  50–150% slider, ±1% nudges and 50/75/90/100/110% presets without a special URL. The Tempo test info button
+  50–150% slider, ±1% nudges and 50/75/90/100/110% presets without a special URL. The Playback info button
   opens read-only pitch/rate/timing diagnostics. Use only public MusicKit rate controls. Initialize and open
   new songs paused at 100%; Play/seek preserve the requested rate. Selecting 100% resets speed without
   changing playback state or a prepared cue offset. Browser timing and pitch flags do not prove clean sound.

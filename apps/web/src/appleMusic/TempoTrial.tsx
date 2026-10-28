@@ -10,7 +10,7 @@ interface Props {
   seeking: boolean;
 }
 
-/** Explicit listening experiment. No media samples, source URLs or credentials are read. */
+/** Read-only playback diagnostics. No media samples, source URLs or credentials are read. */
 export function TempoTrial({ instance, trackId, requestedRate, playing, seeking }: Props): React.ReactElement {
   const [details, setDetails] = useState(false);
   const [timing, setTiming] = useState('');
@@ -66,15 +66,14 @@ export function TempoTrial({ instance, trackId, requestedRate, playing, seeking 
   };
 
   return <>
-    <button type="button" className="apple-tempo-info" title="Apple Music tempo sound quality is still being tested" onClick={() => setDetails(true)}>Tempo test ⓘ</button>
-    {details && <AppleMusicPicker title="Tempo listening test" onClose={() => setDetails(false)}>
-      <p>This is a sound-quality test in the web player. Browser engines differ; clean audio is not confirmed yet.</p>
-      <p>Listen to the same passage at 100%, then 85%, then 115%. Vocals should keep the same pitch and percussion should stay clear. Return to 100% if the sound distorts.</p>
+    <button type="button" className="apple-tempo-info" title="View Apple Music playback settings" onClick={() => setDetails(true)}>Playback info</button>
+    {details && <AppleMusicPicker title="Playback info" onClose={() => setDetails(false)}>
+      <p>View your browser's playback settings or copy details to help troubleshoot an issue.</p>
       <p>Requested: <strong>{Math.round(requestedRate * 100)}%</strong> · Apple reports: <strong>{Math.round((instance?.playbackRate ?? 1) * 100)}%</strong></p>
       <p>Pitch preservation: <strong>{media().some((item) => item.preservesPitch === false) ? 'Off on a media element' : media().some((item) => item.preservesPitch === true) ? 'Browser enabled' : 'Not reported yet'}</strong>. This setting alone does not prove sound quality.</p>
       <button type="button" disabled={!playing || seeking || timer.current !== null} onClick={checkTiming}>Check timing for 12 seconds</button>
       {timing && <p role="status">{timing}</p>}
-      <button type="button" onClick={copy}>Copy test details</button>
+      <button type="button" onClick={copy}>Copy playback details</button>
       {copyStatus && <p role="status">{copyStatus}</p>}
       <p>Details contain browser and playback settings only. No account credentials or audio are copied.</p>
     </AppleMusicPicker>}
