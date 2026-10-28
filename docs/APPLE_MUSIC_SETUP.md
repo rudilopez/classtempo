@@ -4,6 +4,13 @@ This prepares the separate MusicKit test screen. It does **not** establish worki
 tempo control, stems, offline access or iPhone acceptance. Local songs, videos and classes remain independent.
 Follow [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md) for the device test after setup.
 
+Current setup, 2026-10-28: Apple Developer membership is active. The MusicKit-only Media ID
+`media.io.github.rudilopez.classtempo` and its Media Services key have been created, and all three GitHub
+Actions repository secrets below are configured. Steps 1 and 2 are complete; do not create duplicate
+identifiers or keys for this setup. The configured deployment and Apple catalog authentication succeeded;
+the Library connection test opens Apple's sign-in window. Continue with listener sign-in and playback
+checks in step 3. Neither authenticated desktop playback nor physical-iPhone acceptance is established yet.
+
 ## 1. Create the Apple identifier and key
 
 Use the enrolled Apple Developer account as Account Holder or Admin:
