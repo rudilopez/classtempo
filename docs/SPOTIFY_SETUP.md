@@ -3,9 +3,10 @@
 Status, October 28, 2026: the ClassTempo Spotify application is registered in Development mode, its exact
 production redirect and SDK/API selections are verified, and its public client ID is configured in GitHub
 Actions. The configured deployment succeeded, the owner manually approved ClassTempo’s OAuth consent, and the
-callback and private-library reads succeeded. The protected SDK device did not become ready within 20 seconds
-on the initial attempt or one same-page Retry; playback is blocked and remains unverified while startup is
-investigated. YouTube is deferred. App registration and the owner’s acceptance of
+callback and private-library reads succeeded. After PR #40, a fresh ClassTempo document reached SDK readiness
+in 552 ms. A later paused-selection test exposed a playback-error feedback loop before first Play; the page
+was reloaded to stop it and a fix is in progress. Protected playback in ClassTempo remains unaccepted and
+unverified. YouTube is deferred. App registration and the owner’s acceptance of
 Spotify’s registration agreement do not establish Spotify approval of ClassTempo’s use case.
 
 ## Product limits
@@ -34,13 +35,15 @@ The following records the verified setup separately from the remaining acceptanc
 | Registration agreement | Accepted by the owner; the agent did not accept on the owner’s behalf. |
 | Public client ID | Stored as GitHub Actions repository variable `SPOTIFY_CLIENT_ID`; a client secret was neither viewed nor used. |
 | Deployment | [Actions run 40777058834](https://github.com/rudilopez/classtempo/actions/runs/40777058834) succeeded on `56b5138129ccaeb60ea941a002e56741ce6a0266` after setting the variable. Live `#spotify` enables Continue at 100%. |
-| Automated checks | Typecheck, 541 tests and production build passed for the startup-diagnostics revision, including fixed-event/secret-exclusion, timeout cleanup and observer-failure cases. |
+| Automated checks | Typecheck, 545 tests and production build passed for the idle-pause/error-loop correction, including paused cues before first Play, non-reentrant SDK errors and late REST completion cancellation. |
 | Premium membership | The signed-in owner’s Spotify Account Overview confirms Premium Family. |
 | Development users | User Management lists 0/5 explicit test users. The owner’s authorized Web API reads work without an explicit listed entry; this does not establish access for any other user. |
 | Real account authorization | Verified: the owner manually approved ClassTempo’s OAuth consent, the callback succeeded, and the authorized UI shows Disconnect. No client secret was accessed. |
 | Catalog and private-library reads | Verified: Search returned the requested “Que Fue Lo Que Me Hiciste” by Dalvin La Melodia; Saved songs returned 20 real saved tracks. Metadata access is separate from protected audio playback. |
-| Protected player startup | Blocked: the SDK device did not emit ready within 20 seconds on the initial attempt or one same-page Retry. Startup is under investigation. |
-| Real protected playback | Pending and blocked by player startup; no complete subscribed-song playback or audible quality is established. |
+| Protected player startup | Verified in a fresh document after PR #40: `sdk_loaded` at 13 ms, `token_provided` at 232 ms, `connect_resolved` with `true` at 440 ms, and `ready` at 552 ms. Earlier initial/same-page Retry attempts timed out at 20 seconds; their cause remains unconfirmed. |
+| Paused song selection and cue | Verified: a real song opened paused and cue 1 could be set at zero. Pausing the empty SDK player before first Play emitted `playback_error`; the error handler’s additional pause calls produced repeated errors (the last 40 within 3 ms). The page was reloaded to stop the loop. Inactive-pause and error-callback reentrancy fixes are in progress. |
+| Real protected playback | Pending and unaccepted: the ClassTempo attempt remained at zero with Play shown; no successful subscribed-song playback or audible quality is established. |
+| First-party comparison | Spotify’s own web player played the same song with a 3:49 duration, progressed from 18 to 37 seconds and showed “This web browser” as its current device. It was paused and closed. This comparison does not establish ClassTempo playback or listening acceptance. |
 | Physical phones | Pending; iPhone/Android listening, interruptions and background behavior remain separate acceptance checks. |
 
 Do not mark pending rows complete from a successful app registration, deployment or consent screen alone.

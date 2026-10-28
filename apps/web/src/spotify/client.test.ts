@@ -117,6 +117,51 @@ describe('Spotify browsing and metadata boundary', () => {
 });
 
 describe('Spotify owned SDK lifecycle', () => {
+  it('keeps unused-device selection, paused cues and disposal free of native playback commands', async () => {
+    const player = await create();
+    const { createSpotifyTransport } = await import('./transport');
+    const transport = createSpotifyTransport(player);
+    transport.cancel(); await transport.seek(10, false); await player.pause();
+    native.emit('playback_error', { message: 'The device has no active media' });
+    expect(transport.preparedPosition).toBe(10);
+    expect(native.pause).not.toHaveBeenCalled(); expect(native.resume).not.toHaveBeenCalled();
+    expect(native.seek).not.toHaveBeenCalled(); expect(fetcher).not.toHaveBeenCalled();
+    expect(errors).not.toHaveBeenCalled();
+    transport.dispose();
+    expect(native.pause).not.toHaveBeenCalled(); expect(native.disconnect).toHaveBeenCalledOnce();
+  });
+  it('suppresses unexpected playing media before any own Play without a playback-error feedback loop', async () => {
+    const player = await create();
+    native.pause.mockImplementation(async () => { native.emit('playback_error', { message: 'Inactive media pause' }); });
+    native.emit('player_state_changed', state(OTHER, true));
+    expect(native.pause).toHaveBeenCalledOnce();
+    expect(player.snapshot().playing).toBe(false); expect(errors).not.toHaveBeenCalled();
+  });
+  it('reports an intended song failure once without issuing PAUSE from the error handler', async () => {
+    const player = await create(); await player.start(track, 0);
+    native.pause.mockImplementation(async () => { native.emit('playback_error', { message: 'Inactive media pause' }); });
+    native.emit('playback_error', { message: 'Actual requested-song failure' });
+    native.emit('playback_error', { message: 'Repeated idle failure' });
+    expect(errors).toHaveBeenCalledExactlyOnceWith('Spotify could not play this song. Choose another song or try again.');
+    expect(native.pause).not.toHaveBeenCalled(); expect(player.snapshot().playing).toBe(false);
+    // If the rejected intent later produces native audio, its state is still suppressed.
+    native.emit('player_state_changed', state(ID, true));
+    expect(native.pause).toHaveBeenCalledOnce(); expect(errors).toHaveBeenCalledOnce();
+    expect(player.snapshot().playing).toBe(false);
+  });
+  it('revokes a dispatched REST Play on playback error and compensates its late success once', async () => {
+    const request = deferred<Response>(); fetcher.mockReturnValueOnce(request.promise);
+    const player = await create(); const opening = player.start(track, 0);
+    await Promise.resolve(); await Promise.resolve();
+    expect(fetcher).toHaveBeenCalledOnce();
+    native.pause.mockImplementation(async () => { native.emit('playback_error', { message: 'Inactive media pause' }); });
+    native.emit('playback_error', { message: 'Requested-song failure before REST completion' });
+    expect(native.pause).not.toHaveBeenCalled(); expect(errors).toHaveBeenCalledOnce();
+    request.resolve(new Response(null, { status: 204 }));
+    await expect(opening).rejects.toThrow('Spotify playback action cancelled.');
+    expect(native.pause).toHaveBeenCalledOnce(); expect(errors).toHaveBeenCalledOnce();
+    expect(player.snapshot().playing).toBe(false);
+  });
   it('reports sanitized startup progress without storing tokens or device/account details', async () => {
     const events: SpotifyStartupEvent[] = []; const supplied = vi.fn();
     native.connect.mockImplementationOnce(async () => {
@@ -202,6 +247,7 @@ describe('Spotify owned SDK lifecycle', () => {
     const player = await create();
     await expect(player.start({ ...track, uri: 'spotify:track:evil' }, 0)).rejects.toThrow('valid Spotify');
     expect(fetcher).not.toHaveBeenCalled();
+    await player.start(track, 0);
     native.pause.mockImplementation(() => { throw new Error('Bearer private-secret'); });
     await expect(player.pause()).rejects.toThrow('Spotify playback could not finish');
   });
@@ -217,7 +263,8 @@ describe('Spotify owned SDK lifecycle', () => {
     const request = deferred<Response>(); fetcher.mockReturnValueOnce(request.promise);
     const player = await create(); const opening = player.start(track, 12);
     await Promise.resolve(); await Promise.resolve();
-    await player.pause(); request.resolve(new Response(null, { status: 204 }));
+    await player.pause(); expect(native.pause).toHaveBeenCalled();
+    request.resolve(new Response(null, { status: 204 }));
     await expect(opening).rejects.toThrow('cancelled');
     native.emit('player_state_changed', state(ID, true)); expect(player.snapshot().playing).toBe(false);
     expect(fetcher.mock.calls.every(([url]) => String(url).includes('device_id=owned-device'))).toBe(true);
