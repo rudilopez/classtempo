@@ -27,6 +27,8 @@ export interface MusicKitInstance {
   readonly currentPlaybackTime: number;
   readonly currentPlaybackDuration: number;
   readonly nowPlayingItem: unknown;
+  /** Requested stream bitrate in kbps, not a measurement of the delivered stream. */
+  readonly bitrate?: number;
   playbackRate: number;
   authorize(): Promise<string | void>;
   unauthorize(): Promise<void>;
@@ -43,7 +45,7 @@ export interface MusicKitInstance {
 }
 
 interface MusicKitSdk {
-  configure(options: { developerToken: string; app: { name: string; build: string } }): Promise<unknown>;
+  configure(options: { developerToken: string; app: { name: string; build: string }; bitrate: number }): Promise<unknown>;
   getInstance(): unknown;
 }
 
@@ -58,6 +60,10 @@ export interface MusicPlaybackSnapshot {
 }
 
 const SDK_URL = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
+// Public MusicKit.PlaybackBitrate.HIGH. Apply before any queue is created: bitrate changes
+// affect the next item, and Apple's automatic selection can otherwise retain STANDARD (64).
+// This improves the source-quality target; it does not select a pitch-correction algorithm.
+const STREAM_BITRATE_KBPS = 256;
 const TIMEOUT_MS = 20_000;
 const PAGE_SIZE = 25;
 let sdkLoading: Promise<MusicKitSdk> | null = null;
@@ -159,7 +165,7 @@ export function loadMusicKit(developerToken: string): Promise<MusicKitInstance> 
       const sdk = await loadSdk();
       configuring = true;
       let operation: Promise<unknown>;
-      try { operation = Promise.resolve(sdk.configure({ developerToken, app: { name: 'ClassTempo', build: '1' } })); }
+      try { operation = Promise.resolve(sdk.configure({ developerToken, app: { name: 'ClassTempo', build: '1' }, bitrate: STREAM_BITRATE_KBPS })); }
       catch (error) { configuring = false; throw error; }
       void operation.then(() => { configuring = false; }, () => { configuring = false; });
       const configured = await timed(operation,

@@ -5,6 +5,7 @@ import { Wordmark } from './components/PlayerChrome';
 import { isDancerPlaying, restartDancerKeepAlive } from './dancer/dancerAudio';
 import { DancerMode, type LocalPlayerRequest } from './dancer/DancerMode';
 import { watchAudioContext } from './platform/audioRecovery';
+import { registerLocalAudioContext } from './platform/localAudioDiagnostics';
 import './shell.css';
 
 /**
@@ -33,7 +34,10 @@ export function App({ active = true, request }: { active?: boolean; request?: Lo
     const pending = creating.current;
     pending.then(
       (e) => {
-        if (live) setEngine(e);
+        if (live) {
+          registerLocalAudioContext(e.ctx);
+          setEngine(e);
+        }
       },
       (e: unknown) => {
         if (!live) return;

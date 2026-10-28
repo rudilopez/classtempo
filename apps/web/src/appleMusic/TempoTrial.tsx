@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MusicKitInstance } from './client';
 import { AppleMusicPicker } from './AppleMusicPicker';
+import { localAudioContextDetails } from '../platform/localAudioDiagnostics';
+import {
+  APPLE_MEDIA_SELECTOR, createPlaybackDiagnosticsMonitor,
+  type PlaybackDiagnostics, type PlaybackDiagnosticsMonitor,
+} from './playbackDiagnostics';
 
 interface Props {
   instance: MusicKitInstance | null;
@@ -15,25 +20,51 @@ export function TempoTrial({ instance, trackId, requestedRate, playing, seeking 
   const [details, setDetails] = useState(false);
   const [timing, setTiming] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
+  const [diagnostics, setDiagnostics] = useState<PlaybackDiagnostics>({ media: [], events: [] });
+  const monitor = useRef<PlaybackDiagnosticsMonitor | null>(null);
+  const detailsOpen = useRef(details);
+  detailsOpen.current = details;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const result = useRef<{ sourceSeconds: number; wallSeconds: number; measuredRate: number } | null>(null);
+  useEffect(() => {
+    setDiagnostics({ media: [], events: [] });
+    setCopyStatus('');
+    if (!instance || !trackId) return;
+    // Apple's rendered element is diagnostic-only. Never substitute a local video
+    // or mutate the provider's element, even when it is replaced during playback.
+    const observer = createPlaybackDiagnosticsMonitor(() => Array.from(
+      document.querySelectorAll<HTMLMediaElement>(APPLE_MEDIA_SELECTOR),
+    ));
+    monitor.current = observer;
+    const sync = (): void => { observer.sync(); };
+    sync();
+    const mutations = new MutationObserver(sync);
+    mutations.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['id'] });
+    const refresh = setInterval(() => {
+      sync();
+      if (detailsOpen.current) setDiagnostics(observer.snapshot());
+    }, 500);
+    return () => {
+      clearInterval(refresh);
+      mutations.disconnect();
+      observer.dispose();
+      if (monitor.current === observer) monitor.current = null;
+    };
+  }, [instance, trackId]);
   useEffect(() => {
     if (timer.current !== null) clearTimeout(timer.current);
     timer.current = null; result.current = null; setTiming('');
     return () => { if (timer.current !== null) clearTimeout(timer.current); };
   }, [instance, trackId, requestedRate, playing, seeking]);
 
-  // Apple's rendered media element is diagnostic-only. Its absence is unknown;
-  // never substitute an unrelated local video element or patch SDK internals.
-  const media = () => Array.from(document.querySelectorAll<HTMLMediaElement>('audio#apple-music-player, video#apple-music-player')).map((element) => {
-    const legacy = element as HTMLMediaElement & { webkitPreservesPitch?: boolean };
-    return {
-      kind: element.tagName.toLowerCase(), paused: element.paused, muted: element.muted,
-      volume: element.volume, rate: element.playbackRate, readyState: element.readyState,
-      preservesPitch: typeof element.preservesPitch === 'boolean' ? element.preservesPitch
-        : typeof legacy.webkitPreservesPitch === 'boolean' ? legacy.webkitPreservesPitch : null,
-    };
-  });
+  const snapshot = (): PlaybackDiagnostics => {
+    monitor.current?.sync();
+    return monitor.current?.snapshot() ?? { media: [], events: [] };
+  };
+  const targetBitrate = typeof instance?.bitrate === 'number' && Number.isFinite(instance.bitrate) && instance.bitrate > 0 ? instance.bitrate : null;
+  const currentMedia = diagnostics.media.find((item) => !item.paused) ?? diagnostics.media[0];
+  const bufferedAhead = currentMedia?.bufferedAheadSeconds ?? null;
+  const localAudioContext = localAudioContextDetails();
   const checkTiming = (): void => {
     if (!instance || !playing || seeking || timer.current !== null) return;
     const sourceStart = instance.currentPlaybackTime;
@@ -56,9 +87,11 @@ export function TempoTrial({ instance, trackId, requestedRate, playing, seeking 
   };
   const copy = (): void => {
     const report = {
-      app: 'ClassTempo', test: 'web-tempo-v1', browser: navigator.userAgent,
+      app: 'ClassTempo', test: 'web-tempo-v2', browser: navigator.userAgent,
       requestedRate, reportedRate: instance?.playbackRate ?? null,
-      playing: instance?.isPlaying ?? false, media: media(), timing: result.current,
+      targetBitrateKbps: targetBitrate,
+      localAudioContext: localAudioContextDetails(),
+      playing: instance?.isPlaying ?? false, ...snapshot(), timing: result.current,
     };
     try {
       void navigator.clipboard.writeText(JSON.stringify(report, null, 2)).then(() => setCopyStatus('Details copied.'), () => setCopyStatus('Could not copy details in this browser.'));
@@ -66,11 +99,15 @@ export function TempoTrial({ instance, trackId, requestedRate, playing, seeking 
   };
 
   return <>
-    <button type="button" className="apple-tempo-info" title="View Apple Music playback settings" onClick={() => setDetails(true)}>Playback info</button>
+    <button type="button" className="apple-tempo-info" title="View Apple Music playback settings" onClick={() => { setDiagnostics(snapshot()); setDetails(true); }}>Playback info</button>
     {details && <AppleMusicPicker title="Playback info" onClose={() => setDetails(false)}>
       <p>View your browser's playback settings or copy details to help troubleshoot an issue.</p>
       <p>Requested: <strong>{Math.round(requestedRate * 100)}%</strong> · Apple reports: <strong>{Math.round((instance?.playbackRate ?? 1) * 100)}%</strong></p>
-      <p>Pitch preservation: <strong>{media().some((item) => item.preservesPitch === false) ? 'Off on a media element' : media().some((item) => item.preservesPitch === true) ? 'Browser enabled' : 'Not reported yet'}</strong>. This setting alone does not prove sound quality.</p>
+      <p>Pitch preservation: <strong>{diagnostics.media.some((item) => item.preservesPitch === false) ? 'Off on a media element' : diagnostics.media.some((item) => item.preservesPitch === true) ? 'Browser enabled' : 'Not reported yet'}</strong>. This setting alone does not prove sound quality.</p>
+      <p>Buffered ahead: <strong>{bufferedAhead === null ? 'Not reported yet' : `${Math.floor(bufferedAhead)} s of song audio`}</strong>. Updates while this panel is open.</p>
+      <p>Stream quality target: <strong>{targetBitrate === null ? 'Not reported' : `${targetBitrate} kbps`}</strong>. Apple chooses the actual stream quality.</p>
+      <p>Local audio engine: <strong>{localAudioContext.created ? localAudioContext.state : 'Not started'}</strong>.</p>
+      <p>To check whether buffering helps, pause and watch the buffer. After it grows, replay the same passage at 75%. The browser may stop buffering before the whole song is loaded.</p>
       <button type="button" disabled={!playing || seeking || timer.current !== null} onClick={checkTiming}>Check timing for 12 seconds</button>
       {timing && <p role="status">{timing}</p>}
       <button type="button" onClick={copy}>Copy playback details</button>
