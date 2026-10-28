@@ -33,8 +33,8 @@ Apple Music initializes and selects songs paused at original speed. The regular 
 for 50–150% in whole-percent steps, ±1% nudges and the 50/75/90/100/110% presets. No query parameter is needed.
 Play reaches the SDK synchronously within the user gesture and preserves the requested rate, including after
 its asynchronous completion; seeking also preserves rate and playback state. Selecting 100% changes speed
-without pausing, starting or losing a prepared cue offset. The Tempo test info button opens read-only
-pitch/rate/timing diagnostics. This visible test interface does not establish clean changed-speed audio.
+without pausing, starting or losing a prepared cue offset. The Playback info button opens read-only
+pitch/rate/timing diagnostics; those readings do not establish audible quality.
 Back 10s, Talk, Play/Pause, Restart and seeking remain available in the familiar layout.
 No provider samples enter the local engine, stems, IndexedDB media store, class plans or backup format.
 Streaming cues use `classtempo.apple-music.cues.<type>.<encoded provider ID>`; filename/duration local cue keys
@@ -51,9 +51,9 @@ Apple account activation, MusicKit identifier/key creation and repository-secret
 2026-10-28. The earlier connection screen verified production Chrome subscriber authorization, read-only
 catalog/library access, paused selection, Play/Pause, seeking and return-to-local teardown. The owner confirmed
 clear audio at 100%, with playback observed beyond the
-preview range. The owner's listening test found warbling at slower speed and pitch changes at faster speed;
-non-original-speed streaming failed acceptance. Uninterrupted full-track completion and physical-iPhone tests
-remain outstanding. See
+preview range. An earlier listening test found warbling at slower speed and pitch changes at faster speed.
+After the slider and presets returned, the owner confirmed on 2026-10-28 that all tempos sounded great on Mac.
+Physical iPhone/iPad/Android listening and uninterrupted full-track completion remain outstanding. See
 [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 ## Application and playback
@@ -298,8 +298,9 @@ SharedArrayBuffer requirement. The dev server has COOP/COEP headers; Pages does 
 headers, and future cross-origin-isolated work must account for that difference.
 
 MusicKit loads only after opening the optional Apple Music source. It uses the shared player presentation,
-starting at original speed with visible tempo-test controls. Bounded Chrome authorization/playback evidence is recorded above, with uninterrupted full-track
-completion and physical-iPhone acceptance still outstanding.
+starting at original speed with visible tempo controls. Bounded Chrome authorization/playback evidence and
+the owner's Mac listening acceptance are recorded above. Physical iPhone/iPad/Android listening and
+uninterrupted full-track completion remain outstanding.
 Spotify is not integrated. See [Apple Music feasibility](APPLE_MUSIC_FEASIBILITY.md) for the remaining tests.
 The hidden historical Demucs page retains its research-only model; the
 production stems feature uses a separate licensed Spleeter model. Neither runtime nor model downloads occur during

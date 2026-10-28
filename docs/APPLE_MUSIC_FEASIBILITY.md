@@ -1,15 +1,16 @@
 # Apple Music feasibility — ClassTempo
 
-Status, 2026-10-28: **original-speed Chrome playback verified; changed-speed listening failed; physical-iPhone acceptance outstanding**.
+Status, 2026-10-28: **Mac tempo listening accepted; physical iPhone/iPad/Android listening and uninterrupted full-track completion outstanding**.
 The signed-in Developer website confirmed active membership. The MusicKit-only Media ID
 `media.io.github.rudilopez.classtempo` and an associated Media Services key were created. All three signing
 credentials are stored as GitHub Actions repository secrets. The configured Pages deployment succeeded;
 Apple's catalog API accepted the developer token. Production Chrome subscriber authorization, read-only
 catalog/library browsing, paused selection, Play/Pause, seeking and return-to-local teardown were verified. The owner confirmed clear
 audio at 100%, with playback observed beyond the preview range. Slower playback warbled and faster playback
-changed pitch. The ordinary player now exposes the requested slider and presets with a **Tempo test** label;
-that interface change is not a changed-speed audio-quality pass. Songs still open paused at 100%. Uninterrupted full-track completion and
-physical-iPhone acceptance remain unverified. Detailed evidence is recorded below.
+changed pitch in the earlier experiment. After the slider and presets returned, the owner confirmed on
+2026-10-28 that all tempos sounded great on Mac. **Playback info** retains read-only diagnostics. Songs still
+open paused at 100%. Physical iPhone/iPad/Android listening and uninterrupted full-track completion remain
+unverified. Detailed evidence is recorded below.
 The owner then approved bringing normal-speed streaming into the familiar ClassTempo player first, with clean
 tempo investigation next. Imported files keep their existing engine and full local teaching features.
 
@@ -48,7 +49,7 @@ created for the stream. Disconnect clears visible account lists; stale requests 
 Play/Pause, Restart and seeking use MusicKit directly. Initialization and song selection reset to 100%.
 The ordinary player shows the shared 50–150% slider, ±1% nudges and 50/75/90/100/110% presets. Play and seeks
 preserve the requested rate; choosing 100% preserves playing/paused state and prepared cue position.
-The Tempo test info button opens diagnostics and clearly retains the unresolved audio-quality status.
+The Playback info button opens read-only rate, pitch and timing diagnostics.
 These visible controls supersede the earlier hidden-link experiment. The implementation uses supported SDK
 controls, without patching a private player or extracting protected streaming samples. Phrase repetition,
 native speaker routing and integration into local class sets are not implemented. Streaming cue bookmarks must
@@ -67,7 +68,7 @@ copied into UI diagnostics. A cancelled/stuck account attempt can be abandoned b
 ## Bounded iPhone spike
 
 Use the shared player with the Apple Music source and explicit authorization after verifying the configured
-deployment. Tempo controls remain labelled as a listening test; unimplemented streaming practice controls stay absent.
+deployment. Tempo controls are visible in the ordinary player; unimplemented streaming practice controls stay absent.
 
 1. Sign in, search the catalog and read the user's library/playlist without changing it.
 2. Play a full subscribed track from a tap over the instructor's actual Bluetooth/AirPlay speaker connection. Record iOS version, browser versus installed PWA, SDK version, account/subscription status, and connection.
@@ -84,7 +85,7 @@ deployment. Tempo controls remain labelled as a listening test; unimplemented st
 
 Keep physical-iPhone acceptance separate from desktop and mock checks. Streaming tempo and phrase repetition
 require supported implementation and timing plus listening tests before claiming reliable behavior or sound quality.
-The failed Chrome listening test does not establish the result on other phone browsers. The owner explicitly
+The owner's Mac listening acceptance does not establish the result on phone or tablet browsers. The owner explicitly
 requires ClassTempo to remain web-based across phones; a native prototype or rewrite is not the intended
 roadmap. Evaluate the supported browser path with physical-device listening while preserving local-file
 teaching sessions and original-speed streaming as the safe default.
@@ -126,15 +127,16 @@ Bounded production Chrome playback check of the earlier connection screen on 202
 
 - **Changed-speed listening failed.** The owner reported: “Audio warbles on slower and pitch changes when
   faster.” Timing response does not override that result. The original-speed setting was restored and playback
-  left paused; original-speed enforcement replaces the experimental controls in the app.
+  left paused; that release enforced original speed. The later Mac acceptance below supersedes this failure
+  for the owner's latest tested Mac experience.
 - While the subscribed track was playing at 100%, choosing **Local player** stopped streaming and opened the
   empty, paused local player. The new page had no media elements. Reopening Apple Music through Library
   restored the authorized interface without another sign-in, with an empty, paused queue. These are Chrome
   teardown and authorization-restoration checks, not a physical-iPhone result.
 
 Uninterrupted full-track completion, phone speaker/lock-screen behavior and the remaining device checks still
-need verification. This Chrome result is not physical-iPhone acceptance, and streaming tempo quality has failed
-the current listening gate.
+need verification. These early Chrome results are historical evidence, not physical-iPhone acceptance.
+The later Mac listening pass below does not establish phone or tablet quality.
 Streaming phrase repetition and integration into local classes are not implemented. Local class tools remain
 independent.
 
@@ -182,7 +184,9 @@ Earlier web-only tempo investigation, 2026-10-28: an explicit `?tempo-test=1#app
 existing player with bounded rate presets and read-only pitch/rate/timing diagnostics, while normal entry stayed
 at 100%. The owner reported that this made the slider and presets disappear from the expected interface.
 The current revision removes that URL gate: the shared slider and presets are visible in the ordinary player,
-with Back 10s and Talk retained and diagnostics under Tempo test. Changed-speed quality remains unaccepted;
-this is not a claim that warbling or pitch changes are fixed. See
+with Back 10s and Talk retained and diagnostics under Playback info. The owner then confirmed, “The slider
+and presets are back and all tempos sound great,” and identified the tested device as Mac. This is listening
+acceptance on that Mac; exact tested rates, browser version and output route were not specified. Physical
+iPhone/iPad/Android listening and uninterrupted full-track completion remain unverified. See
 [APPLE_MUSIC_TEMPO_TRIAL.md](APPLE_MUSIC_TEMPO_TRIAL.md) for primary sources, the iPhone Safari/Home Screen
 and Android Chrome checks, and the transport behavior that must remain intact. No native app is planned.

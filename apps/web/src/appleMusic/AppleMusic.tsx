@@ -386,14 +386,14 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
             <CuePads cues={cues} launchLabel="Go to cue" editing={editing} disabled={blocked} onPress={pressCue} onClear={(index) => changeCues(cues.map((cue, slot) => slot === index ? null : cue))} onRename={(index) => setRename({ index, name: cues[index]?.name || '' })} />
             <p className="apple-music-cue-help">Cues keep playing or stay paused.</p>
           </div>
-          <div className="apple-music-capabilities">{!pickerOpen && (error || notice || seeking) ? <div className="apple-music-feedback">{feedback}{seeking && !error && <p role="status">Moving to position…</p>}</div> : <p>Apple Music tempo quality is being tested. Practice and Stems use <button type="button" onClick={openFile} disabled={busy}>local files</button>.</p>}</div>
+          <div className="apple-music-capabilities">{!pickerOpen && (error || notice || seeking) ? <div className="apple-music-feedback">{feedback}{seeking && !error && <p role="status">Moving to position…</p>}</div> : <p>Practice and Stems use <button type="button" onClick={openFile} disabled={busy}>local files</button>.</p>}</div>
         </section>
       </main>
     </div>
     {pickerOpen && <AppleMusicPicker title="Library" onClose={() => setPickerOpen(false)} busy={busy}>
       <div className="apple-music-sources" role="group" aria-label="Music source"><button type="button" onClick={onOpenLocalLibrary} disabled={busy}>Files &amp; classes</button><button type="button" aria-pressed="true">♫ Apple Music</button></div>
       <div className="apple-music-account"><span>{playback.isAuthorized ? 'Connected to Apple Music' : 'Apple Music'}</span>{playback.isAuthorized && <button type="button" onClick={disconnect} disabled={busy || seeking}>Disconnect</button>}</div>
-      <p className="apple-music-limits">Stream with your Apple Music subscription. Internet required. Tempo quality is being tested. Practice, Stems and classes use local files.</p>
+      <p className="apple-music-limits">Stream with your Apple Music subscription. Internet required. Practice, Stems and classes use local files.</p>
       {feedback}
       {setup === 'loading' && <div><p role="status">Opening Apple Music…</p><button type="button" onClick={() => window.location.reload()}>Reload connection</button></div>}
       {(accessExpired || seekRecovery) && <button type="button" onClick={() => window.location.reload()}>Reload connection</button>}
@@ -424,6 +424,6 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       </section>}
     </AppleMusicPicker>}
     {rename && <AppleMusicPicker title="Rename cue" onClose={() => setRename(null)}><form className="apple-music-rename" onSubmit={(event) => { event.preventDefault(); const name = rename.name.trim().slice(0, 40); if (!name) return; changeCues(cues.map((cue, index) => index === rename.index && cue ? { ...cue, name } : cue)); setRename(null); }}><label>Cue name<input value={rename.name} maxLength={40} onChange={(event) => setRename({ ...rename, name: event.target.value })} /></label><button type="submit" disabled={!rename.name.trim()}>Save name</button></form></AppleMusicPicker>}
-    {stageOpen && hasSong && shownTrack && <StageView video={null} aspect={null} title={shownTrack.name} playing={playback.isPlaying} position={position} duration={duration} cues={cues} section={`Apple Music · tempo test`} tempo={tempoPercent} onTempoChange={changeTempo} onTogglePlay={togglePlay} onRestart={() => seek(0)} onLaunch={(index) => { const cue = cues[index]; if (cue) seek(cue.time); }} onClose={closeStage} onSeek={seek} cueActionLabel="Go to" disabled={blocked} playDisabled={playDisabled} />}
+    {stageOpen && hasSong && shownTrack && <StageView video={null} aspect={null} title={shownTrack.name} playing={playback.isPlaying} position={position} duration={duration} cues={cues} section="Apple Music" tempo={tempoPercent} onTempoChange={changeTempo} onTogglePlay={togglePlay} onRestart={() => seek(0)} onLaunch={(index) => { const cue = cues[index]; if (cue) seek(cue.time); }} onClose={closeStage} onSeek={seek} cueActionLabel="Go to" disabled={blocked} playDisabled={playDisabled} />}
   </>;
 }

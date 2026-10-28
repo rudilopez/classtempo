@@ -1,7 +1,7 @@
 # Apple Music setup for ClassTempo
 
 This configures the Apple Music source in the familiar ClassTempo player. Songs open paused at 100%, with
-the slider and presets visible for tempo listening tests; clean changed-speed audio is not confirmed.
+the slider and presets visible. The owner confirmed clear changed-speed playback on Mac on 2026-10-28.
 Setup alone does **not** establish playback quality, stems, offline
 access or iPhone acceptance. Local songs, videos and classes retain their existing storage and playback engine.
 Follow [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md) for the device test after setup.
@@ -14,9 +14,9 @@ succeeded. Read-only catalog/library browsing, paused song selection, Play/Pause
 when returning to the local player were verified. The owner confirmed clear audio at 100%, with playback
 observed beyond the preview range. Slower playback
 warbled and faster playback changed pitch, so the first speed experiments were removed. The owner later
-requested visible slider/preset controls in the ordinary player; their Tempo test label retains that unresolved
-quality boundary. Uninterrupted full-track
-completion and physical-iPhone acceptance remain unverified.
+requested visible slider/preset controls in the ordinary player. After their restoration, the owner confirmed
+all tempos sounded great on Mac. Playback info retains read-only diagnostics. Physical iPhone/iPad/Android
+listening and uninterrupted full-track completion remain unverified.
 See the dated evidence in [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 ## 1. Create the Apple identifier and key
