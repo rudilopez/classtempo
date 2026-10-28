@@ -1,9 +1,11 @@
 # Spotify setup and verification
 
-Status, October 28, 2026: original-speed connector and upfront limits/options flow implemented for configuration.
-No real Spotify developer application, credentials, account authorization, or physical-device listening acceptance
-is established by the implementation. YouTube is deferred. The owner approved this limited source; this is not
-Spotify approval of ClassTempo’s use case.
+Status, October 28, 2026: the ClassTempo Spotify application is registered in Development mode, its exact
+production redirect and SDK/API selections are verified, and its public client ID is configured in GitHub
+Actions. The configured deployment succeeded and the live Spotify choices enable Continue at 100%. Spotify’s
+ClassTempo consent screen is open, awaiting the owner’s account grant; real account/playback acceptance still
+requires verification. YouTube is deferred. App registration and the owner’s acceptance of
+Spotify’s registration agreement do not establish Spotify approval of ClassTempo’s use case.
 
 ## Product limits
 
@@ -13,6 +15,32 @@ Music (with a playlist-transfer explanation), Open a file, Files & classes, or C
 Unconfigured builds keep Continue disabled with an explicit setup message. The notice does not override provider
 terms. Spotify’s standard developer policy excludes business-targeted uses including dance studios; confirm an
 eligible use/agreement before enabling this integration for that purpose.
+
+Development access can read playlist contents only where the signed-in user owns or collaborates on the
+playlist. Followed Spotify/editorial playlists may be unavailable. The player explains this restriction on a
+denied playlist request and offers another playlist, Search or Saved songs.
+
+## Configuration and evidence checklist
+
+The following records the verified setup separately from the remaining acceptance checks.
+
+| Item | Status and evidence |
+| --- | --- |
+| Developer application | Registered as ClassTempo; Basic Information shows Development mode. |
+| Intended-use description | Truthfully discloses the local-file, Apple Music and teaching app, with Spotify restricted to private, original-speed personal testing. Registration is not provider use-case approval. |
+| Production redirect | Verified exactly as `https://rudilopez.github.io/classtempo/`. |
+| Products | Web API and Web Playback SDK selected and verified. |
+| Registration agreement | Accepted by the owner; the agent did not accept on the owner’s behalf. |
+| Public client ID | Stored as GitHub Actions repository variable `SPOTIFY_CLIENT_ID`; a client secret was neither viewed nor used. |
+| Deployment | [Actions run 40777058834](https://github.com/rudilopez/classtempo/actions/runs/40777058834) succeeded on `56b5138129ccaeb60ea941a002e56741ce6a0266` after setting the variable. Live `#spotify` enables Continue at 100%. |
+| Automated checks | Typecheck, 534 tests and production build passed for [PR #38](https://github.com/rudilopez/classtempo/pull/38). |
+| Premium membership | The signed-in owner’s Spotify Account Overview confirms Premium Family. |
+| Development users | User Management lists 0/5 explicit test users. Owner API access has not yet been verified; do not infer eligibility from Developer sign-in or Premium alone. |
+| Real account authorization | Pending. Connect opened Spotify’s official consent screen naming ClassTempo and the signed-in owner; the account grant awaits the owner’s Agree action. |
+| Real protected playback | Pending; catalog metadata and mock SDK checks do not establish complete subscribed-song playback. |
+| Physical phones | Pending; iPhone/Android listening, interruptions and background behavior remain separate acceptance checks. |
+
+Do not mark pending rows complete from a successful app registration, deployment or consent screen alone.
 
 ## Account/app configuration
 
@@ -43,8 +71,9 @@ privacy page explains the distinction. No imported file or Apple data is cleared
 
 ## Before claiming playback works
 
-Implementation verification, October 28, 2026: typecheck, all 532 tests and production build passed. A mocked
-SDK/API browser run verified paused song selection, first Play at a prepared cue, playing/paused cue behavior,
+Implementation verification, October 28, 2026: typecheck, all 534 tests and production build passed for PR #38,
+including the playlist-specific 403 explanation and cancellation regression tests. An earlier mocked SDK/API
+browser run verified paused song selection, first Play at a prepared cue, playing/paused cue behavior,
 pending-start cancellation, disconnect and source exit. Loaded-artwork main layouts passed at twelve sizes;
 Stage and the upfront choices passed at seven phone/tablet/desktop sizes. The unconfigured release screen
 keeps all choices visible at 360×640 and disables Continue. These checks use no real Spotify credentials or
