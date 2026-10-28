@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MusicTrack, SpotifyPlayer, SpotifySnapshot } from './client';
+import type { MusicTrack, SpotifyPlayer, SpotifySnapshot, SpotifyStartupEvent } from './client';
 
 const token = vi.hoisted(() => vi.fn(async (_signal?: AbortSignal) => 'private-access-token'));
 vi.mock('./auth', () => ({ getSpotifyAccessToken: token }));
@@ -35,10 +35,13 @@ let active: SpotifyPlayer | undefined;
 let errors: ReturnType<typeof vi.fn<(message: string) => void>>;
 let snapshots: SpotifySnapshot[];
 let fetcher: ReturnType<typeof vi.fn<typeof fetch>>;
+let requestSdkToken: (callback: (value: string) => void) => void;
 beforeEach(() => {
   vi.resetModules(); token.mockReset().mockResolvedValue('private-access-token');
   native = new NativePlayer(); errors = vi.fn(); snapshots = []; active = undefined;
-  vi.stubGlobal('Spotify', { Player: vi.fn(function () { return native; }) });
+  vi.stubGlobal('Spotify', { Player: vi.fn(function (options: { getOAuthToken: typeof requestSdkToken }) {
+    requestSdkToken = options.getOAuthToken; return native;
+  }) });
   fetcher = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 })); vi.stubGlobal('fetch', fetcher);
 });
 afterEach(() => { active?.dispose(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -114,6 +117,72 @@ describe('Spotify browsing and metadata boundary', () => {
 });
 
 describe('Spotify owned SDK lifecycle', () => {
+  it('reports sanitized startup progress without storing tokens or device/account details', async () => {
+    const events: SpotifyStartupEvent[] = []; const supplied = vi.fn();
+    native.connect.mockImplementationOnce(async () => {
+      requestSdkToken(supplied); await Promise.resolve();
+      native.emit('ready', { device_id: 'private-device-id', message: 'Bearer private-provider-message' });
+      return true;
+    });
+    const { createSpotifyPlayer } = await import('./client');
+    active = await createSpotifyPlayer((value) => snapshots.push(value), errors, (value) => events.push(value));
+    await Promise.resolve();
+    expect(supplied).toHaveBeenCalledWith('private-access-token');
+    expect(events.map((value) => value.event)).toEqual([
+      'sdk_load_started', 'sdk_loaded', 'player_created', 'connect_called', 'token_requested', 'token_provided', 'ready', 'connect_resolved',
+    ]);
+    expect(events.find((value) => value.event === 'connect_resolved')).toMatchObject({ success: true });
+    expect(events.every((value) => Number.isFinite(value.elapsedMs) && value.elapsedMs >= 0 && Number.isInteger(value.elapsedMs))).toBe(true);
+    expect(events.every((value) => Object.keys(value).every((key) => ['event', 'elapsedMs', 'success'].includes(key)))).toBe(true);
+    native.emit('authentication_error', { message: 'Bearer private-provider-message', token: 'private-access-token', user: 'private-account' });
+    expect(events.at(-1)?.event).toBe('authentication_error');
+    active.dispose(); expect(events.at(-1)?.event).toBe('disposed');
+    expect(JSON.stringify(events)).not.toMatch(/private-|Bearer/);
+  });
+  it('keeps observer exceptions from disrupting startup or cleanup', async () => {
+    const { createSpotifyPlayer } = await import('./client');
+    active = await createSpotifyPlayer(vi.fn(), errors, () => { throw new Error('Observer failed'); });
+    expect(active.snapshot().ready).toBe(true);
+    active.dispose();
+    expect(native.disconnect).toHaveBeenCalledOnce();
+    expect([...native.listeners.values()].every((set) => set.size === 0)).toBe(true);
+  });
+  it('reports a startup timeout and cleans up even when the diagnostic observer throws', async () => {
+    vi.useFakeTimers(); native.connect.mockResolvedValue(true);
+    const events: SpotifyStartupEvent[] = [];
+    const { createSpotifyPlayer } = await import('./client');
+    const waiting = createSpotifyPlayer(vi.fn(), errors, (value) => { events.push(value); throw new Error('Observer failed'); });
+    const rejected = expect(waiting).rejects.toThrow('could not prepare');
+    await vi.advanceTimersByTimeAsync(20001); await rejected;
+    expect(events.map((value) => value.event)).toContain('startup_timeout');
+    expect(events.at(-1)?.event).toBe('disposed');
+    expect(native.disconnect).toHaveBeenCalledOnce();
+    expect([...native.listeners.values()].every((set) => set.size === 0)).toBe(true);
+  });
+  it.each(['false', 'rejected', 'threw'] as const)('distinguishes a %s connect outcome while scrubbing SDK exception contents', async (outcome) => {
+    const events: SpotifyStartupEvent[] = [];
+    if (outcome === 'false') native.connect.mockResolvedValue(false);
+    else if (outcome === 'rejected') native.connect.mockRejectedValue(new Error('Bearer private-sdk-secret'));
+    else native.connect.mockImplementation(() => { throw new Error('Bearer private-sdk-secret'); });
+    const { createSpotifyPlayer } = await import('./client');
+    await expect(createSpotifyPlayer(vi.fn(), errors, (value) => events.push(value))).rejects.toThrow('Spotify could not connect. Try again.');
+    expect(events.map((value) => value.event)).toContain(outcome === 'false' ? 'connect_resolved' : outcome === 'rejected' ? 'connect_rejected' : 'connect_threw');
+    if (outcome === 'false') expect(events.find((value) => value.event === 'connect_resolved')?.success).toBe(false);
+    expect(events.at(-1)?.event).toBe('disposed');
+    expect(native.disconnect).toHaveBeenCalledOnce();
+    expect(JSON.stringify(events)).not.toMatch(/private-|Bearer/);
+  });
+  it('reports a failed token callback without exposing its exception', async () => {
+    const events: SpotifyStartupEvent[] = [];
+    const { createSpotifyPlayer } = await import('./client');
+    active = await createSpotifyPlayer(vi.fn(), errors, (value) => events.push(value));
+    token.mockRejectedValueOnce(new Error('Bearer private-token-error'));
+    const supplied = vi.fn(); requestSdkToken(supplied); await Promise.resolve(); await Promise.resolve();
+    expect(supplied).not.toHaveBeenCalled();
+    expect(events.slice(-2).map((value) => value.event)).toEqual(['token_requested', 'token_failed']);
+    expect(errors).toHaveBeenLastCalledWith('Reconnect to Spotify to continue playback.');
+    expect(JSON.stringify(events)).not.toMatch(/private-|Bearer/);
+  });
   it('connects ready without transferring or playing and activates synchronously', async () => {
     const player = await create();
     expect(player.snapshot().ready).toBe(true); expect(fetcher).not.toHaveBeenCalled();
