@@ -13,7 +13,7 @@ import { getSpotifyConfig } from './config';
 import { beginSpotifyAuth, completeSpotifyAuth, disconnectSpotify, hasSpotifyCallback, hasSpotifySession } from './auth';
 import {
   createSpotifyPlayer, playlists as getPlaylists, playlistTracks, savedTracks, searchTracks,
-  type MusicTrack, type MusicPlaylist, type SpotifyPlayer, type SpotifySnapshot,
+  type MusicTrack, type MusicPlaylist, type SpotifyPlayer, type SpotifySnapshot, type SpotifyStartupEvent,
 } from './client';
 import { createSpotifyTransport } from './transport';
 import { clearSpotifyCues, loadSpotifyCues, saveSpotifyCues } from './cues';
@@ -52,7 +52,9 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
   const [authBusy, setAuthBusy] = useState(false);
   const [player, setPlayer] = useState<SpotifyPlayer | null>(null);
   const [setup, setSetup] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
+  const [setupError, setSetupError] = useState('');
   const [retry, setRetry] = useState(0);
+  const [startupEvents, setStartupEvents] = useState<SpotifyStartupEvent[]>([]);
   const [playback, setPlayback] = useState<SpotifySnapshot>(EMPTY);
   const [selected, setSelected] = useState<MusicTrack | null>(null);
   const [error, setError] = useState('');
@@ -123,16 +125,17 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
     if (!accepted || !authorized || !config) return;
     let cancelled = false;
     let current: SpotifyPlayer | null = null;
-    setSetup('loading'); setError('');
+    setSetup('loading'); setSetupError(''); setError(''); setStartupEvents([]);
     void createSpotifyPlayer(
       (next) => { if (!cancelled) setPlayback(next); },
       (message) => { if (!cancelled) { setError(message); setStageOpen(false); } },
+      (event) => { if (!cancelled) setStartupEvents((events) => [...events.slice(-39), event]); },
     ).then((next) => {
       if (cancelled) { next.dispose(); return; }
       current = next;
       setPlayer(next); setPlayback(next.snapshot()); setSetup('ready');
     }).catch((caught: unknown) => {
-      if (!cancelled) { setSetup('failed'); setError(errorMessage(caught, 'Spotify could not start. Try connecting again.')); }
+      if (!cancelled) { setSetup('failed'); setSetupError(errorMessage(caught, 'Spotify could not start. Try connecting again.')); }
     });
     return () => { cancelled = true; current?.dispose(); };
   }, [accepted, authorized, config, retry]);
@@ -165,7 +168,7 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
   const disconnect = (): void => {
     operation.current++; browseRequest.current?.abort(); transport?.dispose();
     disconnectSpotify(); clearSpotifyCues();
-    setPlayer(null); setPlayback(EMPTY); setAuthorized(false); setSetup('idle');
+    setPlayer(null); setPlayback(EMPTY); setAuthorized(false); setSetup('idle'); setSetupError(''); setStartupEvents([]);
     setSelected(null); setTracks([]); setPlaylists([]); setPlaylist(null); setSearched(false);
     setCues(emptyCues()); setUndoCues([]); setEditing(false); setRename(null); setTalking(false);
     setStageOpen(false); setPickerOpen(true); setBusy(false); setLoading(false); setError('');
@@ -281,7 +284,7 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
     return () => window.removeEventListener('keydown', keydown);
   }, []);
 
-  const feedback = <>{error && <p className="apple-music-error" role="alert">{error}</p>}{notice && <p className="apple-music-notice" role="status">{notice}</p>}</>;
+  const feedback = <>{(error || setupError) && <p className="apple-music-error" role="alert">{error || setupError}</p>}{notice && <p className="apple-music-notice" role="status">{notice}</p>}</>;
   const limitations = <>
     <div className="spotify-speed-intro"><strong>100%</strong><span>Original speed only</span></div>
     <p>Spotify songs play at their recorded tempo. Speed changes, Practice, Stems, class plans and offline playback are unavailable.</p>
@@ -342,7 +345,7 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
           <CuePads cues={cues} editing={editing} disabled={blocked} onPress={pressCue} onClear={(index) => changeCues(cues.map((cue, slot) => slot === index ? null : cue))} onRename={(index) => setRename({ index, name: cues[index]?.name ?? '' })} />
           <p className="apple-music-cue-help">Cues keep playing or stay paused.</p>
         </div>
-        <div className="apple-music-capabilities">{!pickerOpen && (error || notice) ? <div className="apple-music-feedback">{feedback}</div> : <p>Spotify · Personal listening at original speed.</p>}</div>
+        <div className="apple-music-capabilities">{!pickerOpen && (error || setupError || notice) ? <div className="apple-music-feedback">{feedback}</div> : <p>Spotify · Personal listening at original speed.</p>}</div>
       </section></main>
     </div>
     {pickerOpen && <AppleMusicPicker title="Library" onClose={() => setPickerOpen(false)}>
@@ -353,6 +356,7 @@ export default function Spotify({ onOpenFile, onOpenLocalLibrary, onOpenAppleMus
       {!authorized && <section className="apple-music-connect"><h3>Connect your Spotify account</h3><p>Sign in on Spotify’s secure page. Songs open paused, ready for you to press Play.</p><p className="apple-music-limits">Development access is limited to approved test accounts. <a href={PRIVACY_PAGE} target="_blank" rel="noopener noreferrer">Spotify connection privacy ↗</a></p><button type="button" className="apple-music-primary" disabled={authBusy || !config} onClick={connect}>{authBusy ? 'Opening Spotify…' : 'Connect Spotify'}</button></section>}
       {authorized && setup === 'loading' && <p role="status">Starting the Spotify player…</p>}
       {authorized && (setup === 'failed' || (setup === 'ready' && !playback.ready)) && <button type="button" onClick={() => { setPlayer(null); setRetry((value) => value + 1); }}>Retry Spotify player</button>}
+      {authorized && <details className="spotify-connection-details"><summary>Connection details</summary><pre aria-label="Spotify connection details">{JSON.stringify({ app: 'ClassTempo', connection: startupEvents }, null, 2)}</pre></details>}
       {authorized && <section className="apple-music-browser" aria-label="Find Spotify songs">
         <div className="apple-music-tabs" role="group" aria-label="Spotify collection">
           <button type="button" aria-pressed={view === 'search'} onClick={() => { browseRequest.current?.abort(); setView('search'); setPlaylist(null); setTracks([]); setPlaylists([]); setSearched(false); setLoading(false); }}>Search</button>

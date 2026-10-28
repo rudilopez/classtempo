@@ -18,6 +18,16 @@ export interface SpotifySnapshot {
   duration: number;
   trackId: string | null;
 }
+/** Fixed lifecycle labels only: never include tokens, provider messages or account/device data. */
+export interface SpotifyStartupEvent {
+  event: 'sdk_load_started' | 'sdk_loaded' | 'sdk_load_failed' | 'player_created' | 'constructor_failed'
+    | 'connect_called' | 'connect_resolved' | 'connect_rejected' | 'connect_threw'
+    | 'token_requested' | 'token_provided' | 'token_failed' | 'ready' | 'not_ready'
+    | 'initialization_error' | 'authentication_error' | 'account_error' | 'playback_error' | 'autoplay_failed'
+    | 'startup_timeout' | 'disposed';
+  elapsedMs: number;
+  success?: boolean;
+}
 export interface SpotifyPlayer {
   /** Call inside the Play gesture, before awaiting any network work. */
   activate(): void;
@@ -213,8 +223,22 @@ function bounded<T>(operation: Promise<T>): Promise<T> {
 }
 
 /** No transfer or playback happens here. Each instance owns only its SDK device. */
-export async function createSpotifyPlayer(onSnapshot: (value: SpotifySnapshot) => void, onError: (message: string) => void): Promise<SpotifyPlayer> {
-  const sdk = await loadSdk();
+export async function createSpotifyPlayer(
+  onSnapshot: (value: SpotifySnapshot) => void,
+  onError: (message: string) => void,
+  onStartup?: (event: SpotifyStartupEvent) => void,
+): Promise<SpotifyPlayer> {
+  const started = performance.now();
+  const report = (event: SpotifyStartupEvent['event'], success?: boolean): void => {
+    try {
+      onStartup?.({ event, elapsedMs: Math.max(0, Math.round(performance.now() - started)),
+        ...(success === undefined ? {} : { success }) });
+    } catch { /* A diagnostic observer cannot interrupt playback or cleanup. */ }
+  };
+  report('sdk_load_started');
+  let sdk: SpotifySdk;
+  try { sdk = await loadSdk(); report('sdk_loaded'); }
+  catch (error) { report('sdk_load_failed'); throw error; }
   let disposed = false;
   let ready = false;
   let deviceId: string | null = null;
@@ -234,12 +258,16 @@ export async function createSpotifyPlayer(onSnapshot: (value: SpotifySnapshot) =
   try {
     native = new sdk.Player({ name: 'ClassTempo', enableMediaSession: true,
       getOAuthToken(callback) {
-        void getSpotifyAccessToken(lifetime.signal).then((token) => { if (!disposed) callback(token); }, () => {
-          if (!disposed) { wantsPlaying = false; quietPause(); onError('Reconnect to Spotify to continue playback.'); }
+        if (!disposed) report('token_requested');
+        void getSpotifyAccessToken(lifetime.signal).then((token) => {
+          if (!disposed) { report('token_provided'); callback(token); }
+        }, () => {
+          if (!disposed) { report('token_failed'); wantsPlaying = false; quietPause(); onError('Reconnect to Spotify to continue playback.'); }
         });
       },
     });
-  } catch { throw new Error('This browser could not start protected Spotify playback.'); }
+    report('player_created');
+  } catch { report('constructor_failed'); throw new Error('This browser could not start protected Spotify playback.'); }
   const add = (name: string, listener: Listener) => { native.addListener(name, listener); listeners.push([name, listener]); };
   const acceptState = (value: unknown) => {
     if (disposed) return;
@@ -274,6 +302,7 @@ export async function createSpotifyPlayer(onSnapshot: (value: SpotifySnapshot) =
   const dispose = () => {
     if (disposed) return;
     wantsPlaying = false; revision++; quietPause(); disposed = true; ready = false; lifetime.abort();
+    report('disposed');
     if (pollTimer) clearInterval(pollTimer);
     for (const [name, listener] of listeners) { try { native.removeListener(name, listener); } catch { /* Continue teardown. */ } }
     try { native.disconnect(); } catch { /* Cleanup cannot throw. */ }
@@ -292,24 +321,30 @@ export async function createSpotifyPlayer(onSnapshot: (value: SpotifySnapshot) =
       if (!settled) { settled = true; clearTimeout(timer); dispose(); reject(new Error(message)); }
       else { ready = false; current.playing = false; emit(); onError(message); }
     };
-    const timer = setTimeout(() => fail('Spotify could not prepare this browser. Reconnect and try again.'), TIMEOUT);
+    const timer = setTimeout(() => { report('startup_timeout'); fail('Spotify could not prepare this browser. Reconnect and try again.'); }, TIMEOUT);
     add('ready', (value) => {
       if (disposed) return;
+      report('ready');
       const id = text(record(value)?.device_id, 256);
       if (!id || !/^[A-Za-z0-9_-]+$/.test(id)) { fail('Spotify returned an unavailable browser device.'); return; }
       deviceId = id; ready = true; current.ready = true; emit();
       if (!settled) { settled = true; clearTimeout(timer); resolve(); pollTimer = setInterval(poll, 1000); }
       poll();
     });
-    add('not_ready', () => { if (!disposed) { ready = false; wantsPlaying = false; revision++; current.playing = false; emit(); onError('Spotify disconnected. Reconnect to continue.'); } });
+    add('not_ready', () => { if (!disposed) { report('not_ready'); ready = false; wantsPlaying = false; revision++; current.playing = false; emit(); onError('Spotify disconnected. Reconnect to continue.'); } });
     add('player_state_changed', acceptState);
-    add('autoplay_failed', () => { wantsPlaying = false; quietPause(); if (!disposed) onError('Tap Play again to allow Spotify audio in this browser.'); });
-    add('initialization_error', () => fail('This browser could not start protected Spotify playback.'));
-    add('authentication_error', () => fail('Reconnect to Spotify to continue playback.'));
-    add('account_error', () => fail('Spotify playback requires an eligible Premium account.'));
-    add('playback_error', () => { wantsPlaying = false; quietPause(); if (!disposed) onError('Spotify could not play this song. Choose another song or try again.'); });
-    try { void native.connect().then((connected) => { if (!connected) fail('Spotify could not connect. Try again.'); }, () => fail('Spotify could not connect. Try again.')); }
-    catch { fail('Spotify could not connect. Try again.'); }
+    add('autoplay_failed', () => { wantsPlaying = false; quietPause(); if (!disposed) { report('autoplay_failed'); onError('Tap Play again to allow Spotify audio in this browser.'); } });
+    add('initialization_error', () => { report('initialization_error'); fail('This browser could not start protected Spotify playback.'); });
+    add('authentication_error', () => { report('authentication_error'); fail('Reconnect to Spotify to continue playback.'); });
+    add('account_error', () => { report('account_error'); fail('Spotify playback requires an eligible Premium account.'); });
+    add('playback_error', () => { wantsPlaying = false; quietPause(); if (!disposed) { report('playback_error'); onError('Spotify could not play this song. Choose another song or try again.'); } });
+    try {
+      report('connect_called');
+      void native.connect().then((connected) => {
+        report('connect_resolved', connected === true);
+        if (!connected) fail('Spotify could not connect. Try again.');
+      }, () => { report('connect_rejected'); fail('Spotify could not connect. Try again.'); });
+    } catch { report('connect_threw'); fail('Spotify could not connect. Try again.'); }
   });
   return {
     activate() {
