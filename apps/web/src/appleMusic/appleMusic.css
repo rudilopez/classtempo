@@ -11,7 +11,8 @@
 .apple-music-app .apple-music-dancer .dancer-media-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) 44px; gap: 4px; min-height: min-content; }
 .apple-music-app .dancer-track-info { align-self: start; }
 .apple-music-app .apple-music-artist { color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.apple-music-artwork { display: flex; align-items: center; justify-content: center; gap: 12px; flex: 1 1 0; min-height: 0; overflow: hidden; }
+/* Artwork uses spare space; its bitmap size must not push the controls off-screen. */
+.apple-music-artwork { display: flex; align-items: center; justify-content: center; gap: 12px; flex: 1 1 0; min-height: 0; contain: size; overflow: hidden; }
 .apple-music-artwork > img { height: 100%; width: auto; max-height: 260px; max-width: 100%; object-fit: contain; border-radius: 9px; }
 .apple-music-artwork > span { color: var(--a); font-size: 40px; }
 .apple-music-artwork > button { font-size: 13px; min-height: 44px; }
