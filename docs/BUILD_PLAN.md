@@ -87,13 +87,18 @@ The owner confirmed the supplied 1080p derivative plays on the iPhone on 2026-10
 The intended users primarily obtain music from Apple Music or Spotify. The current file player therefore does
 not yet satisfy that source workflow. Apple Music remains a separate feasibility test. As of 2026-10-28,
 Apple Developer membership is active, the MusicKit media identifier/key are created, and the signing credentials
-are stored in GitHub Actions repository secrets. The configured production Library connection test and catalog
-API access are verified; subscriber authorization and playback are not. Follow
+are stored in GitHub Actions repository secrets. Production Chrome subscriber authorization, catalog/library
+browsing, paused song selection, Play/Pause, seeking and stopping streaming when returning to the local player
+are verified. The owner confirmed clear audio at 100%,
+and playback was observed beyond the preview range. Slower streaming playback warbled and faster playback
+changed pitch in the listening test. The connection screen now supports original-speed playback only; tempo
+changes use local audio files. Uninterrupted full-track completion remains unverified. Follow
 [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
-Complete subscriber authorization, then prove playback, pitch-preserving speed, seeking,
-sections, lock-screen behavior and phone output on the actual target platform. Decide from that evidence whether
-the PWA is sufficient or a native implementation is needed. Do not equate MusicKit playback support with access
+Next, verify uninterrupted original-speed playback, seeking, lock-screen behavior and phone output on the
+actual target platform. Any renewed streaming tempo or phrase-control work needs a separate supported
+implementation and listening tests before exposing controls again. Evaluate a native implementation if the
+web player cannot meet those requirements. Do not equate MusicKit playback support with access
 to raw audio or parity with local-file processing. Spotify is not a promised integration. Platform terms and
 permitted classroom music use are independent of whether a technical integration plays a song.
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAppleMusicConfig } from './config';
 import {
-  libraryPlaylists, librarySongs, loadMusicKit, loadSelected, playlistSongs, searchSongs, snapshot,
+  libraryPlaylists, librarySongs, loadMusicKit, loadSelected, playAtOriginalSpeed, playlistSongs, searchSongs, snapshot,
   type MusicKitInstance, type MusicPlaylist, type MusicTrack,
 } from './client';
 import './appleMusic.css';
@@ -32,14 +32,12 @@ export default function AppleMusic(): React.ReactElement {
   const [searched, setSearched] = useState(false);
   const [playback, setPlayback] = useState<Playback>(EMPTY);
   const [selected, setSelected] = useState<MusicTrack | null>(null);
-  const [measurement, setMeasurement] = useState('');
   const alive = useRef(false);
   const requests = useRef(0);
   const transport = useRef(0);
   const accountOperation = useRef(0);
   const accountPending = useRef(false);
   const expiresAt = useRef(0);
-  const measure = useRef<{ wall: number; source: number; rate: number } | null>(null);
 
   useEffect(() => {
     alive.current = true;
@@ -54,7 +52,7 @@ export default function AppleMusic(): React.ReactElement {
       if (disposed) return;
       current = music;
       // Reopening this screen never resumes playback by itself.
-      try { await music.pause(); } catch { throw new Error('Apple Music could not initialize playback. Reload the connection to try again.'); }
+      try { await music.pause(); music.playbackRate = 1; } catch { throw new Error('Apple Music could not initialize playback. Reload the connection to try again.'); }
       if (disposed) return;
       setInstance(music); setPlayback(snapshot(music)); setSetup('ready');
     }).catch((caught: unknown) => {
@@ -64,7 +62,6 @@ export default function AppleMusic(): React.ReactElement {
     });
     return () => {
       disposed = true; alive.current = false; abort.abort(); requests.current++; transport.current++; accountOperation.current++;
-      measure.current = null;
       if (current) quietPause(current, true);
     };
   }, [retry]);
@@ -74,7 +71,7 @@ export default function AppleMusic(): React.ReactElement {
     let wasAuthorized = instance.isAuthorized;
     let expired = false;
     const clearAccount = () => {
-      requests.current++; transport.current++; measure.current = null;
+      requests.current++; transport.current++;
       setTracks([]); setPlaylists([]); setPlaylist(null); setSelected(null); setSearched(false);
       if (!accountPending.current) setBusy(false);
       setLoading(false);
@@ -84,27 +81,17 @@ export default function AppleMusic(): React.ReactElement {
       if (wasAuthorized && !next.isAuthorized) clearAccount();
       wasAuthorized = next.isAuthorized;
       setPlayback(next);
-      const sample = measure.current;
-      if (sample && (!next.isPlaying || Math.abs(next.rate - sample.rate) > 0.001)) {
-        measure.current = null; setMeasurement('Measurement cancelled. Keep the song playing at one speed.');
-      } else if (sample && performance.now() - sample.wall >= 10_000) {
-        const wallSeconds = (performance.now() - sample.wall) / 1000;
-        const sourceSeconds = next.currentTime - sample.source;
-        measure.current = null;
-        setMeasurement(`${sourceSeconds.toFixed(1)} seconds of song in ${wallSeconds.toFixed(1)} seconds. Listen to check pitch and clarity; timing alone does not establish sound quality.`);
-      }
       if (!expired && expiresAt.current <= Date.now() / 1000 + 60) {
         expired = true;
         setAccessExpired(true);
         requests.current++; transport.current++; accountOperation.current++;
         accountPending.current = false; setBusy(false); setLoading(false);
-        measure.current = null;
         quietPause(instance);
         setError('Apple Music access needs to be renewed. Return to local files, or reopen this screen after the app is updated.');
       }
     };
     const failure = () => {
-      measure.current = null; transport.current++;
+      transport.current++;
       quietPause(instance);
       if (!accountPending.current) setBusy(false);
       setError('Apple Music could not play this song. Check your connection and subscription, then choose the song again.');
@@ -141,7 +128,7 @@ export default function AppleMusic(): React.ReactElement {
     if (!instance || accountPending.current) return;
     const id = ++accountOperation.current;
     accountPending.current = true;
-    requests.current++; transport.current++; measure.current = null;
+    requests.current++; transport.current++;
     setBusy(true); setLoading(false); setError('');
     quietPause(instance, true);
     let signingOut: Promise<void>;
@@ -178,7 +165,7 @@ export default function AppleMusic(): React.ReactElement {
   const choose = async (track: MusicTrack): Promise<void> => {
     if (!instance || busy || accessExpired || accountPending.current) return;
     const id = ++transport.current;
-    setBusy(true); setError(''); setNotice(''); measure.current = null; setMeasurement('');
+    setBusy(true); setError(''); setNotice('');
     try {
       await loadSelected(instance, track);
       if (id !== transport.current || !alive.current) { quietPause(instance); return; }
@@ -191,7 +178,7 @@ export default function AppleMusic(): React.ReactElement {
 
   const action = (operation: () => void | Promise<unknown>): void => {
     if (!instance || !playback.isAuthorized || accessExpired || accountPending.current) return;
-    measure.current = null; setMeasurement(''); setError(''); setNotice('');
+    setError(''); setNotice('');
     const id = ++transport.current;
     try {
       // Play/seek is invoked before any await, preserving the original gesture.
@@ -246,8 +233,12 @@ export default function AppleMusic(): React.ReactElement {
         <section className="apple-music-player" aria-label="Apple Music player">
           <p className="apple-music-eyebrow">{busy ? 'PLEASE WAIT' : 'NOW PLAYING'}</p><h2>{shownTrack?.name ?? 'Choose a song above'}</h2>{shownTrack && <p>{shownTrack.artist}</p>}
           <div className="apple-music-timeline"><span>{time(position)}</span><input type="range" min="0" max={Math.max(1, duration)} step="1" value={position} aria-label="Song position" disabled={!hasSong || busy || !duration} onChange={(event) => { const next = Number(event.target.value); action(() => instance!.seekToTime(next)); }} /><span>{time(duration)}</span></div>
-          <div className="apple-music-transport"><button type="button" disabled={!hasSong || busy} onClick={() => action(() => instance!.seekToTime(0))}>Restart</button><button className="apple-music-primary" type="button" disabled={!hasSong || busy} onClick={() => action(() => playback.isPlaying ? instance!.pause() : instance!.play())}>{playback.isPlaying ? 'Pause' : 'Play'}</button></div>
-          <details className="apple-music-tests"><summary>Test speed and seeking</summary><div><p>These controls need an iPhone listening check before they join the class player. Use a familiar song and listen for pitch changes or warbling.</p><div className="apple-music-test-buttons">{[0.75, 1, 1.1].map((rate) => <button type="button" key={rate} disabled={!hasSong || busy} aria-pressed={Math.abs(playback.rate - rate) < 0.001} onClick={() => action(() => { instance!.playbackRate = rate; })}>{Math.round(rate * 100)}%</button>)}</div><button type="button" disabled={!hasSong || busy} onClick={() => action(() => instance!.seekToTime(Math.max(0, playback.currentTime - 10)))}>Back 10 seconds</button><button type="button" disabled={!playback.isPlaying || busy} onClick={() => { measure.current = { wall: performance.now(), source: playback.currentTime, rate: playback.rate }; setMeasurement('Measuring 10 seconds of uninterrupted playback…'); }}>Measure playback speed</button>{measurement && <p role="status">{measurement}</p>}<p className="apple-music-list-note">Also check a full song, your class speaker, lock-screen controls, and pause/resume after an interruption. A preview or a timer reading is not a full playback pass.</p></div></details>
+          <div className="apple-music-transport">
+            <button type="button" disabled={!hasSong || busy} onClick={() => action(() => instance!.seekToTime(0))}>Restart</button>
+            <button type="button" disabled={!hasSong || busy} aria-label="Back 10 seconds" onClick={() => action(() => instance!.seekToTime(Math.max(0, playback.currentTime - 10)))}>Back 10s</button>
+            <button className="apple-music-primary" type="button" disabled={!hasSong || busy} onClick={() => action(() => playback.isPlaying ? instance!.pause() : playAtOriginalSpeed(instance!))}>{playback.isPlaying ? 'Pause' : 'Play'}</button>
+          </div>
+          <p className="apple-music-speed"><strong>Original speed.</strong> For pitch-preserving tempo control, <a href={import.meta.env.BASE_URL}>open a local audio file</a>.</p>
         </section>
       </>}
       <p className="apple-music-footer">Your local player, saved media, cues, practices and classes stay separate. <a href={import.meta.env.BASE_URL}>Return to local files</a>.</p>

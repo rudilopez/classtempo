@@ -17,11 +17,18 @@ token; stale/expired setup is reported, never silently treated as available. Mus
 protected media playback. The test's read-only lists are first-page/25-item views. Songs queue paused and start
 only from a tap; SDK events/progress drive the display. Generation guards discard stale account/list results,
 and SDK configure/queue operations cannot overlap retries while their underlying promises remain pending.
+Apple Music playback is fixed at original speed. Initialization, song selection and Play reset the SDK rate
+to 1; Play still reaches the SDK synchronously within the user gesture. The failed streaming speed experiments
+and their timing panel are removed. Play/Pause, Restart, seeking and Back 10 seconds remain available.
 No provider samples enter the local engine, stems, IndexedDB media store, class plans or backup format.
 
 Apple account activation, MusicKit identifier/key creation and repository-secret setup were completed on
-2026-10-28. The configured production Library connection test and catalog API access are verified; subscriber
-authorization, full-track playback and physical-iPhone tests remain outstanding. See
+2026-10-28. Production Chrome subscriber authorization, read-only catalog/library access, paused song selection,
+Play/Pause, seeking and return-to-local teardown are verified. Navigating to the local player during streaming
+opened an empty, paused local player with no media elements remaining. The owner confirmed clear audio at 100%, with playback observed beyond the
+preview range. The owner's listening test found warbling at slower speed and pitch changes at faster speed;
+non-original-speed streaming failed acceptance. Uninterrupted full-track completion and physical-iPhone tests
+remain outstanding. See
 [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) and [APPLE_MUSIC_FEASIBILITY.md](APPLE_MUSIC_FEASIBILITY.md).
 
 ## Application and playback
@@ -264,7 +271,8 @@ class syntax; transpiled helper references can make worklet startup fail. Produc
 SharedArrayBuffer requirement. The dev server has COOP/COEP headers; Pages does not provide equivalent custom
 headers, and future cross-origin-isolated work must account for that difference.
 
-MusicKit loads only in its opt-in connection test; subscriber authorization and playback remain unverified.
+MusicKit loads only in its opt-in original-speed connection test; bounded Chrome authorization/playback evidence is recorded
+above, with full-track completion and physical-iPhone acceptance still outstanding.
 Spotify is not integrated. See [Apple Music feasibility](APPLE_MUSIC_FEASIBILITY.md) for the remaining tests.
 The hidden historical Demucs page retains its research-only model; the
 production stems feature uses a separate licensed Spleeter model. Neither runtime nor model downloads occur during
