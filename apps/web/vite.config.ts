@@ -17,6 +17,9 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'require-corp',
     },
   },
+  // Pages has no isolation headers. Vite otherwise inherits dev's require-corp policy here,
+  // which blocks the official cross-origin YouTube frame in a production preview.
+  preview: { headers: {} },
   worker: { format: 'es', plugins: () => [cappedOrtWasm()] },
   // Signalsmith Stretch (Dancer mode) builds its AudioWorklet module by stringifying its own source into a
   // Blob, so the package must reach the browser untranspiled: the dev-server optimizer would lower its class
@@ -57,7 +60,7 @@ function mixdeckServiceWorker(): Plugin {
       const precache = [...files.keys()].filter((path) =>
         !path.split('/').some((part) => part.startsWith('.')) &&
         !path.startsWith('guide/images/') && path !== 'apple-music-config.json' &&
-        !/(?:AppleMusic|Spotify|StemsBenchmark|stems\.worker|separate(?:-wasm)?\.worker|ort-wasm|stems-runtime)/i.test(path),
+        !/(?:AppleMusic|Spotify|YouTube|StemsBenchmark|stems\.worker|separate(?:-wasm)?\.worker|ort-wasm|stems-runtime)/i.test(path),
       ).sort();
       // A screenshot-only edit still needs a new cache; otherwise its lazily cached old copy would persist.
       const versionFiles = [...precache, ...[...files.keys()].filter((path) => path.startsWith('guide/images/'))].sort();

@@ -169,7 +169,22 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Spotify has no tempo changes, Practice, Stems, class plans or offline support; mark unavailable controls clearly.
   Disconnect removes Spotify tokens/lists/cues only. Keep its artwork original: no crop, blur, gradients/text/controls
   over it; display official Spotify attribution and links in player, results and Stage. No provider samples enter
-  the local engine. YouTube is deferred. See docs/SPOTIFY_SETUP.md, docs/APPLE_MUSIC_SETUP.md and docs/APPLE_MUSIC_FEASIBILITY.md.
+  the local engine. See docs/SPOTIFY_SETUP.md, docs/APPLE_MUSIC_SETUP.md and docs/APPLE_MUSIC_FEASIBILITY.md.
+- YouTube uses only the official IFrame Player API for one linked video at a time. Library → YouTube opens a
+  link form; load YouTube's script/player only after explicit Open video with a validated YouTube URL. No API key,
+  catalog search, downloads, audio extraction, local-engine routing or hidden/background playback is implied.
+  Open with cueVideoById paused, including shared start times. Cues are separate per video ID and preserve
+  playing/paused intent before first Play as well as later; seekTo from a cued state can start playback.
+  Speed choices come from getAvailablePlaybackRates, and displayed speed follows the observed rate/events,
+  not the requested value. Cueing/loading can reset speed; never promise arbitrary ±1% or clean pitch on every device.
+  Keep YouTube's native controls, branding and ads unobscured. The iframe viewport is at least 200×200; never
+  crop, mirror, cover or move/reparent it for Stage. Stage resizes the same player with controls/trays below it.
+  Preserve HTTP Referer using strict-origin-when-cross-origin and the page origin; handle error 153 honestly.
+  Pause for covering dialogs, document hiding and source exit. Inactive source teardown cancels pending player
+  creation and disposes the owned native player; retain selected link/cues in the UI, but reopen paused on return.
+  Do not let late ready/state callbacks restart old video. Leave Practice, class plans, Stems and offline support
+  unavailable for this source, with local-file alternatives. Preserve the private Spotify discovery gate in every
+  source picker. See docs/YOUTUBE_SETUP.md; automated/desktop checks do not establish physical-phone acceptance.
 - Stems uses opt-in local Spleeter separation for audio files only, with a 4:30/100 MB preparation limit.
   Ordinary song/video playback has no duration cap. The owner confirmed preparation of the supplied song and
   clear All-at-100% playback on the physical iPhone on 2026-10-23; Beta has been removed for this release.

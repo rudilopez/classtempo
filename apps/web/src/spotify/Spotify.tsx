@@ -412,7 +412,7 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
       </section></main>
     </div>
     {pickerOpen && <AppleMusicPicker title="Library" onClose={() => setPickerOpen(false)}>
-      <div className="apple-music-sources spotify-sources" role="group" aria-label="Music source"><button type="button" onClick={() => leave(onOpenLocalLibrary)}>Files &amp; classes</button><button type="button" onClick={() => leave(onOpenAppleMusic)}>Apple Music</button><button type="button" aria-pressed="true">Spotify</button></div>
+      <div className="apple-music-sources spotify-sources" role="group" aria-label="Music source"><button type="button" onClick={() => leave(onOpenLocalLibrary)}>Files &amp; classes</button><button type="button" onClick={() => leave(onOpenAppleMusic)}>Apple Music</button><button type="button" onClick={() => leave(() => { window.location.hash = 'youtube'; })}>YouTube</button><button type="button" aria-pressed="true">Spotify</button></div>
       <div className="apple-music-account"><SpotifyLink />{authorized && <button type="button" onClick={disconnect}>Disconnect</button>}</div>
       <p className="apple-music-limits">Original speed · Personal listening only · Premium required</p>
       {feedback}

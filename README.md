@@ -117,7 +117,7 @@ Spotify opens with its limitations first and offers Apple Music or an imported f
 Spotify requires Premium, internet and access to
 ClassTempo’s Spotify developer application. It does not support tempo changes, Practice, Stems, class plans
 or offline playback in ClassTempo. Its standard terms restrict personal/noncommercial use; the notice does
-not supply permission for classroom use. YouTube is deferred.
+not supply permission for classroom use.
 When configured, choose **Continue at 100%**, connect on Spotify’s page, then search or browse saved songs and
 playlists. Songs open paused; Play starts only this browser’s Spotify device. Cues preserve playing/paused
 state. Disconnect clears the tab’s Spotify tokens, temporary lists and browser’s saved Spotify cues.
@@ -128,6 +128,20 @@ Visibility normally survives reloads on that browser; private browsing or cleare
 opening the invitation again. No invitations are sent automatically.
 Without a configured public client ID, the source still shows its limits and alternatives, with connection
 clearly unavailable. See [Spotify setup](docs/SPOTIFY_SETUP.md) and [connection privacy](apps/web/public/spotify-privacy.html).
+
+**YouTube opens a video from its link.** Choose **Library → YouTube**, paste a YouTube watch, share, Shorts or
+live-video link, then choose **Open video**. The video opens paused in YouTube's embedded player. Press Play
+when ready; YouTube's own controls, branding and any ads remain available. This source needs internet, but
+does not require a ClassTempo YouTube API key or a Spotify-style tester invitation.
+Use the speeds YouTube offers for that video; the displayed tempo follows the rate the player actually reports.
+Saved cues work like other ClassTempo bookmarks: set an empty cue, or jump to a saved cue while keeping the
+playing or paused state. They are saved separately by YouTube video ID on this browser.
+**Stage** enlarges the same embedded player, with ClassTempo's controls and compact cues below the picture.
+Leaving YouTube, opening a covering dialog or hiding the app pauses playback. Returning to this source keeps
+the selected link, ready to open again paused. Practice, classes, Stems and offline playback use imported files;
+YouTube videos are never downloaded or converted into local media. Some videos cannot be embedded because of
+their owner's settings or other YouTube restrictions; use **Open on YouTube** when offered.
+See [YouTube setup and limits](docs/YOUTUBE_SETUP.md) for supported links and verification status.
 
 The earlier connection screen's production Chrome authorization, catalog/library browsing, paused selection,
 Play/Pause, seeking and teardown were verified on 2026-10-28. The owner confirmed clear audio at 100%, with
