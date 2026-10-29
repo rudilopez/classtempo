@@ -8,9 +8,10 @@ it portable to other static hosts. No account, media upload or application serve
 
 The owner approved a familiar ClassTempo player for Apple Music at normal speed first, with clean streaming
 tempo research next. The `#apple-music` source keeps provider playback separate internally while sharing player
-branding, Now Playing, transport and Stage presentation. Search, library songs and playlists live in a picker
-that closes after a paused song selection. Switching sources must silence the old source and cancel its pending
-work; matching the visual controls does not make streaming a local File.
+branding, Now Playing, transport and Stage presentation. Search, library songs and read-only playlists render
+inside the shared Library body. Browsing destinations is independent of the active playback source; selecting a
+song activates its source and closes Library after paused selection. Source activation must silence the old source
+and cancel its pending work; matching the visual controls does not make streaming a local File.
 
 Apple Music artwork fills the existing Now Playing card behind a readability gradient without enlarging the
 phone layout. `StageView` accepts optional `artworkUrl`/`artist` props: the cover uses `object-fit: contain`
@@ -18,11 +19,13 @@ over a blurred same-art backdrop, with a compact dock, seek line and cue/tool tr
 Artwork styling is scoped separately; local audio/video layouts, provider transport and audio engines remain
 unchanged.
 
-`main.tsx` changes between local and Apple Music sources without reloading the document. Once opened, the local
-`App` remains mounted but hidden and inactive during streaming, preserving its loaded file while cancelling
-practice/class transitions, closing its dialogs and releasing Keep awake. Apple Music unmounts and stops its
-SDK transport when leaving. A selected File can be handed directly to the local player in memory; the local
-deck loads it once ready, without another file-picker step. Playback info also offers an explicit clean
+`main.tsx` owns the active playback source separately from the Library destination/open state. Once visited,
+source controllers remain mounted; `active` suspends their playback intent, dialogs, shortcuts and wake lock when
+another selected item takes ownership. The local `App` remains hidden and inactive during streaming, preserving
+its loaded file while cancelling practice/class transitions. Browsing Apple Music or local metadata does not
+activate either player or initialize the local audio engine. Source changes do not reload the document. A selected
+File is handed directly to the local player in memory, without another file-picker step. Library awaits actual
+file opening or class preflight before closing; errors remain visible instead of claiming a successful selection. Playback info also offers an explicit clean
 Apple Music restart when the local engine exists. It stores validated song metadata only in a five-minute,
 one-shot sessionStorage handoff, replaces the route and reloads the document. The fresh Apple-only setup
 consumes the handoff after its disposal guard, queues the same song paused at 100% and restores saved cues.
@@ -164,18 +167,34 @@ artwork shows saved-cue pads.
 
 ## Library, class sets and backups
 
-Every player opens the same **Library** hub. **Your collection** separates **Saved files** from **Class plans**;
-**Play from** lists the available streaming providers. Each destination describes its purpose before it is opened.
-The hub offers a direct **Open a file** action. Provider browsing stays inside its existing focus-contained picker,
-with a clear Back to Library action; opening the hub alone does not change the active audio source. YouTube
-continues to pause and hide its iframe for covering dialogs. A local-library request can select home, saved files
-or class plans directly without an extra navigation roundtrip.
+Every player opens one root-owned **LibraryModal**. Its fixed header always says Library; Guide opens a new tab,
+and Close returns to the current player. Two navigation groups stay visible at every destination: **On this device**
+contains **Saved files** and **Class plans**; **Streaming** contains configured Apple Music, YouTube and invited-only
+Spotify. Exactly one destination has `aria-current="page"`. The fixed footer shows the loaded item, source,
+playing/paused state and **Back to player**. Only `.library-scroll` scrolls; navigating does not replace the header,
+menu or footer. The selected destination is remembered with a guarded storage fallback; first use starts at files.
 
-**Saved files** is a single recent-first list of songs and videos with explicit type badges. **Class plans** starts
-with a named-card overview; selecting a card opens its ordered exercises with Teach class and Edit class actions.
-Edits are local drafts until Save class. Search appears only when files exist, filters saved filenames without
-case/accent sensitivity, and reports counts or a clear empty result. It is not a music-service search. Backup
-utilities remain collapsed.
+`library/session.ts` keeps the browsing destination independent from the active playback source. Opening Library,
+changing its tabs or closing it cannot select a song, change the active source or initialize the local engine.
+Apple Music and Spotify continue playing during browsing. YouTube pauses and hides its iframe for this covering
+dialog and does not resume automatically. Only explicit item selection activates another source, after the old
+source suspends pending playback work. New songs/videos open paused. A direct provider/invitation route opens
+that browser; it does not grant account access or start media.
+
+Provider controllers receive a `ProviderLibraryBridge` and portal only their browser content into a persistent
+host within the shared scroll body. They keep their own query, list and navigation state while inactive. The host
+stays in the same parent when switching tabs and is hidden for local destinations. The modal retains the selected
+class, draft, creation name and saved-file query across destination switches and close/reopen; metadata refresh
+on open does not clear edits. Unsaved drafts never disable the destination menu. Save class and Cancel edits
+remain the explicit commit/discard actions.
+
+**Saved files** is a single recent-first list of songs and videos with type badges. **Class plans** begins with a
+named-card overview; selecting a card opens ordered exercises with Teach class and Edit class actions. Class plans
+are editable teaching playlists built only from saved files and practices. Apple Music and Spotify playlists are
+read-only in ClassTempo; create/edit them in their provider apps. YouTube accepts one linked video and no playlist.
+A capability note explains this distinction in each destination. Search in Saved files appears only when files
+exist, filters filenames without case/accent sensitivity, and reports counts or a clear empty result. It does not
+search music services. Backup/storage and generic Tester access utilities live in Saved files and stay collapsed.
 
 Open in the player directly selects one file. Add files in the library saves the whole selection, then opens the
 first selected item paused and closes the dialog. `importFlow.ts` separates save and open outcomes: a null library
@@ -222,8 +241,9 @@ Deleting a saved copy removes the Blob and leaves unavailable metadata/class ref
 file, cues and practice settings are retained. Deleting a class does not delete its media.
 
 The library dialog is portalled, contains keyboard focus, marks background siblings inert and restores their
-prior states on close. Phone content scrolls within the dialog; the underlying player does not grow. Dialog keys
-must not trigger global player shortcuts.
+prior states on close. Hidden destination content cannot receive focus. Phone content scrolls within the body;
+the header, navigation and loaded-item footer remain reachable and the underlying player does not grow. Dialog
+keys must not trigger global player shortcuts.
 
 Versioned JSON backups contain library descriptors, class sets, cue records and practice settings. They exclude
 media Blobs. Restore validates size/schema/references and normalizes exercise snapshots; restored descriptors
@@ -348,7 +368,7 @@ file reloads and a separately recorded physical-device result. Passing typecheck
 Spotify discovery is opt-in per browser. The exact unlisted `#spotify-invite` route writes a nonsecret,
 versioned tester-visibility flag, preferring localStorage with sessionStorage/document-memory fallbacks, and
 replaces the invite hash with `#spotify`. Ordinary local/Apple Music libraries hide the Spotify source; the
-public guide does not advertise it. **Library → Tester access** also accepts the nonsecret **FAMILIA** code
+public guide does not advertise it. **Library → Saved files → Tester access** also accepts the nonsecret **FAMILIA** code
 (case-insensitive, surrounding whitespace ignored) and enters the same explicit invite route. This lets an
 installed PWA reveal its own tester interface when Safari uses separate storage. The generic access form does
 not advertise Spotify before a valid code. A bare `#spotify`, an old provider session or an OAuth callback never

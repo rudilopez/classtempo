@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Wordmark } from './components/PlayerChrome';
 import { isDancerPlaying, restartDancerKeepAlive } from './dancer/dancerAudio';
 import { DancerMode, type LocalPlayerRequest } from './dancer/DancerMode';
+import type { LibraryDestination, LibraryPlayerSummary, LocalLibraryContext } from './library/navigation';
 import { watchAudioContext } from './platform/audioRecovery';
 import { registerLocalAudioContext } from './platform/localAudioDiagnostics';
 import './shell.css';
@@ -18,7 +19,16 @@ function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-export function App({ active = true, request }: { active?: boolean; request?: LocalPlayerRequest }) {
+interface AppProps {
+  active?: boolean;
+  request?: LocalPlayerRequest;
+  libraryOpen: boolean;
+  onOpenLibrary: (context: LocalLibraryContext, destination?: LibraryDestination) => void;
+  onSummary: (summary: LibraryPlayerSummary) => void;
+  onLibraryContext: (context: LocalLibraryContext) => void;
+}
+
+export function App({ active = true, request, libraryOpen, onOpenLibrary, onLibraryContext, onSummary }: AppProps) {
   const [engine, setEngine] = useState<Engine | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -26,6 +36,12 @@ export function App({ active = true, request }: { active?: boolean; request?: Lo
   const [dancerActions, setDancerActions] = useState<HTMLDivElement | null>(null);
   // one engine for the life of the page: a ref survives StrictMode's double effect run and Fast Refresh
   const creating = useRef<Promise<Engine> | null>(null);
+  const failedRequest = useRef<number | null>(null);
+  useEffect(() => {
+    if (!error || !request || failedRequest.current === request.id) return;
+    failedRequest.current = request.id;
+    request.onComplete?.(new Error(`Audio could not start: ${error}. Return to the player to retry.`));
+  }, [error, request]);
 
   // The engine is created on launch, no tap needed: its context starts 'suspended' and the first tap starts it.
   useEffect(() => {
@@ -125,7 +141,8 @@ export function App({ active = true, request }: { active?: boolean; request?: Lo
         <div className="header-actions" ref={setDancerActions} />
       </header>
       <main className="dancer-main">
-        <DancerMode engine={engine} active={active} request={request} actionsContainer={dancerActions} />
+        <DancerMode engine={engine} active={active} request={request} actionsContainer={dancerActions}
+          libraryOpen={libraryOpen} onOpenLibrary={onOpenLibrary} onLibraryContext={onLibraryContext} onSummary={onSummary} />
       </main>
       {active && needsGesture && <ResumeAudioButton onResume={resumeAudio} />}
     </div>

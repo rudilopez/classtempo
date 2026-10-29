@@ -47,12 +47,19 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
 - One player only: Open accepts audio/video and detects the actual file type. Library Add saves the selection
   and opens its first file paused. Picker cancellation preserves the track. Class Auto-next is off by default;
   Next & play is an explicit advance/start action, and Again restarts the current exercise.
-- Library opens to a shared hub in every source: Your collection has Saved files (songs/videos on this device)
-  and Class plans (ordered teaching plans); Play from has the available streaming sources. Provider browsing has
-  a clear Back to Library action. Opening Library alone must not switch or stop Apple Music/Spotify playback;
-  YouTube still pauses/hides its iframe for covering dialogs. Search lives inside Saved files and filters filenames,
-  never music services. Add files saves and opens the first selection paused. Failed saves may still open directly,
-  with explicit unsaved feedback; Save current must preserve playback and practice settings.
+- Library is one persistent dialog shared by every player. Its two navigation groups remain visible at every
+  destination: On this device contains Saved files and Class plans; Streaming contains configured Apple Music,
+  YouTube and invited-only Spotify. Keep one current destination, the same Library/Close header, and a fixed footer
+  showing the loaded item, source, playing/paused state and Back to player. Only the body scrolls. Browsing tabs
+  must not replace the loaded item, switch the playback source, stop Apple Music/Spotify or initialize the local
+  audio engine. YouTube still pauses/hides its iframe for the covering dialog. Activate a new source only when an
+  item is selected; close the Library after that item opens paused. Preserve source queries/list positions, the
+  selected class, unsaved class drafts/name and filename search when browsing or closing/reopening the dialog.
+  Save class and Cancel edits remain explicit; unsaved edits do not block destination navigation. Class plans
+  are editable teaching playlists made from saved local files/practices only. Provider playlists are read-only
+  here and created in the provider's app; YouTube accepts one video, not a playlist. Search inside Saved files
+  filters filenames, never music services. Add files saves the selection and opens its first file paused. Failed
+  saves may still open directly with explicit unsaved feedback; Save current preserves playback/practice settings.
 - Production uses `Engine.create({ dj: false })`. Do not initialize hidden DJ decks/processors as a side effect.
 - Cross-platform: feature-detect APIs and degrade honestly. Use generic wording such as lock-screen/headphone
   controls. Never claim physical iPhone playback, timer or lock-screen acceptance from desktop WebKit alone.
@@ -147,7 +154,7 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   with the persistent Local audio only label. Stems remains available for supported imported audio files;
   do not imply that subscription streams support separation or change local-player controls.
   Spotify is hidden from ordinary local/Apple Music libraries and the public guide. Only the unlisted
-  `#spotify-invite` link or Library → Tester access with the nonsecret FAMILIA code reveals it in that browser
+  `#spotify-invite` link or Library → Saved files → Tester access with the nonsecret FAMILIA code reveals it in that browser
   or Home Screen installation. The generic access form must not advertise Spotify before a valid code. Both
   paths consume the same explicit invite route, persisting a nonsecret tester-visibility flag with a
   temporary-storage fallback and consuming the invite hash into `#spotify`. A bare `#spotify`, existing

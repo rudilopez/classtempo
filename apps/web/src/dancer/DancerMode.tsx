@@ -5,7 +5,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { analysis } from '../analysisClient';
 import { NowPlayingLabel, PlayerTransport } from '../components/PlayerChrome';
 import { Waveform, type WaveformMarker } from '../components/Waveform';
-import { LibraryModal, type LibraryView } from '../library/LibraryModal';
+import type { LibraryView } from '../library/LibraryModal';
+import type { LibraryDestination, LibraryPlayerSummary, LocalLibraryContext } from '../library/navigation';
 import { getMediaFile, listClasses, listMedia, markOpened, saveMedia, type ClassSet, type LibraryMedia } from '../library/store';
 import { ClassControls, type ClassControlsProps } from '../classes/ClassControls';
 import { findNextClassEntry, getClassEntryLabel, loadClassResume, preflightClassFiles, saveClassResume, type ClassResume } from '../classes/session';
@@ -50,6 +51,10 @@ interface Props {
   active: boolean;
   actionsContainer: HTMLDivElement | null;
   request?: LocalPlayerRequest;
+  libraryOpen: boolean;
+  onOpenLibrary: (context: LocalLibraryContext, destination?: LibraryDestination) => void;
+  onSummary: (summary: LibraryPlayerSummary) => void;
+  onLibraryContext: (context: LocalLibraryContext) => void;
 }
 
 /** A source switch can open a selected local file directly, or reopen the saved library. */
@@ -58,6 +63,11 @@ export interface LocalPlayerRequest {
   file?: File;
   library?: boolean;
   libraryView?: LibraryView;
+  libraryId?: string | null;
+  practiceOverride?: PracticeSettings;
+  classSet?: ClassSet;
+  entryId?: string;
+  onComplete?: (error?: Error) => void;
 }
 
 /** The loaded song and its cues travel together so a cue save can never target the wrong track. */
@@ -116,7 +126,7 @@ function errorText(e: unknown, fallback: string): string {
  * Minimal single-song player: launchable cue pads and key-locked tempo, no EQ, no mixer. Audio files play on the
  * engine's StretchDeck, video files on a VideoDeck (shown in place of the waveform, and full screen in Stage view).
  */
-export function DancerMode({ engine, active, actionsContainer, request }: Props) {
+export function DancerMode({ engine, active, actionsContainer, request, libraryOpen, onOpenLibrary, onLibraryContext, onSummary }: Props) {
   const [stretch, setStretch] = useState<StretchDeck | null>(null);
   const [deckError, setDeckError] = useState<string | null>(null);
   /** The player the transport drives: the StretchDeck, or the VideoDeck while a video is loaded. */
@@ -142,8 +152,6 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
   /** percent */
   const [tempo, setTempo] = useState(100);
   const [editing, setEditing] = useState(false);
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const [libraryView, setLibraryView] = useState<LibraryView>('home');
   const [liveClass, setLiveClassState] = useState<LiveClass | null>(null);
   const liveClassRef = useRef<LiveClass | null>(null);
   const setLiveClass = (value: LiveClass | null) => { liveClassRef.current = value; setLiveClassState(value); };
@@ -438,7 +446,6 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
     videoRef.current?.pause(); // Also revoke a class video's pending first-play intent before selection.
     keepAlive.stop();
     setStageOpen(false);
-    setLibraryOpen(false);
     setPracticeOpen(false);
     setClassDrawerOpen(false);
     setEditing(false);
@@ -1033,7 +1040,7 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
       if (generation !== classGeneration.current) return;
       const chosen = entryId ?? plan.entries[0]!.id;
       await activateClassEntry({ plan, media, entryId: chosen, autoNext: resume?.autoNext ?? plan.autoNext ?? false, finished: false }, chosen, false, resume?.position);
-      if (generation === classGeneration.current) { setLibraryOpen(false); setClassDrawerOpen(false); }
+      if (generation === classGeneration.current) setClassDrawerOpen(false);
     } finally { if (generation === classGeneration.current) setClassBusy(false); }
   };
 
@@ -1294,15 +1301,57 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
     if (file && !loading) void loadFile(file);
   };
 
+  const loadLibraryItem = async (file: File, id?: string | null, exercise?: PracticeSettings) => {
+    if (!await loadFile(file, id)) throw new Error('This file could not be opened.');
+    if (exercise && playerRef.current?.track) {
+      const next = normalizePracticeSettings(exercise, playerRef.current.track.duration);
+      practiceRef.current = next; setPractice(next);
+      playerRef.current.setTempo(next.tempo); setTempo(Math.round(next.tempo * 100));
+    }
+  };
+  const openLibrary = (destination?: LibraryDestination) => onOpenLibrary({
+    currentFile, currentTitle: song?.track.name ?? null, currentPractice: practice,
+    currentDuration: song?.track.duration, activeClassId: liveClass?.plan.id,
+    onLoad: loadLibraryItem, onTeachClass: teachClass,
+  }, destination);
+  // Refresh the Library's current-item actions when an exercise advances behind it.
+  useEffect(() => {
+    if (active && stretch) onLibraryContext({
+      currentFile, currentTitle: song?.track.name ?? null, currentPractice: practice,
+      currentDuration: song?.track.duration, activeClassId: liveClass?.plan.id,
+      onLoad: loadLibraryItem, onTeachClass: teachClass,
+    });
+  }, [active, stretch, currentFile, song?.track, practice, liveClass?.plan.id, onLibraryContext]);
+  const summaryCallback = useRef(onSummary);
+  summaryCallback.current = onSummary;
+  useEffect(() => {
+    if (active) summaryCallback.current({ title: song?.track.name ?? 'No file open', source: 'Saved files', playing });
+  }, [active, song?.track.name, playing]);
+
   const handledRequest = useRef<number | null>(null);
   useEffect(() => {
     if (!active || !request || handledRequest.current === request.id) return;
-    // Keep the selected File in memory until the local deck is ready; no second picker tap.
-    if (request.file && (!stretch || loading || classBusy)) return;
+    if (deckError && !stretch) {
+      handledRequest.current = request.id;
+      request.onComplete?.(new Error(`Audio could not start: ${deckError}. Return to the player to retry.`));
+      return;
+    }
+    // Keep the selection until the local deck is ready, then report the actual decode/preflight result.
+    if ((request.file || request.classSet) && (!stretch || loading || classBusy)) return;
     handledRequest.current = request.id;
-    if (request.file) void loadFile(request.file);
-    else if (request.library) { setLibraryView(request.libraryView ?? 'home'); setLibraryOpen(true); }
-  }, [active, request, stretch, loading, classBusy]);
+    void (async () => {
+      try {
+        if (request.file) await loadLibraryItem(request.file, request.libraryId, request.practiceOverride);
+        else if (request.classSet) await teachClass(request.classSet, request.entryId);
+        else if (request.library) openLibrary(request.libraryView === 'classes' ? 'classes' : 'files');
+        request.onComplete?.();
+      } catch (error) {
+        const failure = new Error(errorText(error, 'The selected item could not open.'));
+        showToast(failure.message);
+        request.onComplete?.(failure);
+      }
+    })();
+  }, [active, request, stretch, loading, classBusy, deckError]);
 
   const track = song?.track ?? null;
   const bpm = track?.bpm ? track.bpm * (tempo / 100) : null;
@@ -1378,7 +1427,7 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
       {actionsContainer && createPortal(<div className="dancer-actions" onKeyDown={(e) => e.stopPropagation()} onKeyUp={(e) => e.stopPropagation()}>
         <button onClick={() => fileInput.current?.click()} disabled={loading || classBusy}
           title="Open a song or video from Files or Photos">Open</button>
-        <button onClick={() => { setLibraryView('home'); setLibraryOpen(true); }} disabled={loading || classBusy} title="Saved files, class plans and streaming sources">
+        <button onClick={() => openLibrary()} disabled={loading || classBusy} title="Saved files, class plans and streaming sources">
           Library
         </button>
         {wakeLock.supported && (
@@ -1534,19 +1583,6 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
         </div>
       </div>
 
-      <LibraryModal open={active && libraryOpen} initialView={libraryView} onClose={() => setLibraryOpen(false)}
-        onNotice={showToast}
-        onTeachClass={teachClass} activeClassId={liveClass?.plan.id}
-        currentFile={currentFile} currentTitle={track?.name ?? null}
-        currentPractice={practice} currentDuration={track?.duration}
-        onLoad={async (file, id, exercise) => {
-          if (!await loadFile(file, id)) throw new Error('This file could not be opened.');
-          if (exercise && playerRef.current?.track) {
-            const next = normalizePracticeSettings(exercise, playerRef.current.track.duration);
-            practiceRef.current = next; setPractice(next);
-            playerRef.current.setTempo(next.tempo); setTempo(Math.round(next.tempo * 100));
-          }
-        }} />
       {active && practiceOpen && track && <PracticePanel settings={practice} onChange={savePractice}
         cues={song?.cues ?? NO_CUES} onStart={startPractice} onEnd={endPractice}
         position={displayPos} duration={track.duration} delayDisabled={song?.kind === 'video' && !videoStarted.current} onClose={() => setPracticeOpen(false)} />}

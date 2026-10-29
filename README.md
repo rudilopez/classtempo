@@ -7,7 +7,7 @@ Android, with desktop browsers supported for preparation. The GitHub repository 
 
 **App:** https://rudilopez.github.io/classtempo/
 
-**Visual user guide:** https://rudilopez.github.io/classtempo/guide.html — also available in **Library → User guide**.
+**Visual user guide:** https://rudilopez.github.io/classtempo/guide.html — also available in **Library → Guide**.
 Simple instructions, real app screenshots, topic search cover playback, cues, practices,
 classes, Stage, stems, offline use and backups. The guide opens in a separate tab to preserve the player session.
 
@@ -15,13 +15,17 @@ classes, Stage, stems, offline use and backups. The guide opens in a separate ta
 
 1. Tap **Open** to choose an ordinary song or video file. The app recognizes its type automatically; cancelling
    the picker keeps the current track. Nothing starts until Play.
-2. Open **Library** to choose where to play from. **Your collection** contains **Saved files** (songs and videos
-   stored on this device) and **Class plans** (your prepared teaching order). **Play from** contains Apple Music
-   and YouTube. **Open a file** goes straight to the device picker. In Saved files, **Add files** saves your selection
-   and opens the first automatically, paused. With multiple files, all are saved. Search filters saved filenames only.
-   In Class plans, **Edit class** adds full songs/videos or saved named practices, with optional names and notes.
-   **Teach class** keeps the running order in the player;
-   use **Next & play** to move on and **Again** to restart the current exercise.
+2. Open **Library** to browse without replacing your loaded track. The same menu stays visible everywhere:
+   **On this device → Saved files / Class plans**, and **Streaming → Apple Music / YouTube**. The footer shows
+   the loaded item, its source and playing/paused state; **Back to player** returns to it. Apple Music keeps playing
+   while you browse; YouTube pauses while the Library covers its video. Selecting a new item opens it paused.
+   In Saved files, **Add files** saves your selection and opens the first automatically, paused. With multiple
+   files, all are saved. Search filters saved filenames only. Class plans are teaching playlists made from saved
+   files and practices; **Edit class** adds full songs/videos or named practices, with optional names and notes.
+   Your draft and search are kept when changing tabs or closing Library. **Save class** commits edits;
+   **Cancel edits** discards them. **Teach class** keeps the running order in the player; use **Next & play** to
+   move on and **Again** to restart the current exercise. Streaming playlists are browsed here and created in
+   their own music apps. Streaming songs and YouTube videos cannot be added to ClassTempo class plans.
 3. Adjust speed between **50% and 150%**, preserving pitch where the playback engine/browser supports it.
    The percentage sits between the minus and plus controls; **100%** restores original speed. In video Stage,
    open **Tools** for speed, Restart, Talk, Mirror and Fit/zoom.
@@ -81,7 +85,8 @@ system file picker. MP3, M4A/AAC, WAV, AIFF and browser-supported video formats 
 formats depend on the browser's decoder. A file may need to finish downloading from its provider first.
 
 **Apple Music uses the familiar ClassTempo player.** Open **Library → Apple Music**, connect your subscription,
-then search the catalog or browse My songs and Playlists. Selecting a song closes the picker and opens the song
+then search the catalog or browse My songs and Playlists. The Library menu remains above those lists; provider
+playlists are read-only here, so create or edit them in the Apple Music app. Selecting a song closes Library and opens it
 paused, with the same branding, Now Playing, Play/Pause, Restart and Stage layout. The Apple Music source uses
 Apple's streaming player underneath; imported songs and videos keep their existing local engine.
 Album artwork fills Now Playing with a gradient that keeps the title readable, using the same compact phone
@@ -89,8 +94,8 @@ space. **Stage** shows the full cover over a blurred artwork backdrop, with Play
 below it. Cue and tool trays open below the artwork; the image stays unobstructed. These visual changes do
 not change audio playback or tempo processing.
 **Open** still accepts a local song or video directly from this player. **Library → Saved files** returns
-to saved local media. Switching sources pauses the source you leave; returning does not restart an old delay
-or class transition.
+to saved local media without changing the track. Browsing another Library tab does not switch playback sources.
+Selecting another item pauses the source you leave; returning does not restart an old delay or class transition.
 
 Apple Music cues work like local-file cues: tap an empty pad to save the current position, or tap a saved cue
 to **jump to that point without changing playback state**. Playing music keeps playing; paused music stays
@@ -112,7 +117,7 @@ imported files. In Apple Music, the **Cues / Stems** switch keeps Cues active an
 **Local audio only**, so its availability is clear. Subscription downloads are not ordinary files ClassTempo can import or save offline.
 **Spotify is an invite-only testing feature.** Ordinary libraries and the public guide do not advertise it.
 Approved testers open the unlisted [Spotify tester link](https://rudilopez.github.io/classtempo/#spotify-invite)
-once in the browser they plan to use, or open **Library → Tester access** inside the installed app and enter
+once in the browser they plan to use, or open **Library → Saved files → Tester access** inside the installed app and enter
 **FAMILIA**. This nonsecret code reveals the same test interface in that installation; it is not Spotify account
 authorization. That browser or installation then shows **Library → Spotify** on later visits. The link
 reveals the interface; Spotify's approved-account list still controls who can connect. Forwarding the link
@@ -123,7 +128,8 @@ ClassTempo’s Spotify developer application. It does not support tempo changes,
 or offline playback in ClassTempo. Its standard terms restrict personal/noncommercial use; the notice does
 not supply permission for classroom use.
 When configured, choose **Continue at 100%**, connect on Spotify’s page, then search or browse saved songs and
-playlists. Songs open paused; Play starts only this browser’s Spotify device. Cues preserve playing/paused
+playlists. These playlists are read-only in ClassTempo; create or edit them in Spotify. The shared Library menu
+stays visible, and browsing other tabs keeps the loaded track. Songs open paused; Play starts only this browser’s Spotify device. Cues preserve playing/paused
 state. Disconnect clears the tab’s Spotify tokens, temporary lists and browser’s saved Spotify cues.
 **Spotify options → Copy tester link** copies the clean invitation URL for an approved tester.
 **Hide Spotify on this device** removes its visibility, disconnects this tab and returns to the local player;
@@ -134,10 +140,11 @@ separate storage, so enable access in the installation that will be used. No inv
 Without a configured public client ID, the source still shows its limits and alternatives, with connection
 clearly unavailable. See [Spotify setup](docs/SPOTIFY_SETUP.md) and [connection privacy](apps/web/public/spotify-privacy.html).
 
-**YouTube opens a video from its link.** Choose **Library → YouTube**, paste a YouTube watch, share, Shorts or
+**YouTube opens one video from its link.** Choose **Library → YouTube**, paste a YouTube watch, share, Shorts or
 live-video link, then choose **Open video**. The video opens paused in YouTube's embedded player. Press Play
 when ready; YouTube's own controls, branding and any ads remain available. This source needs internet, but
-does not require a ClassTempo YouTube API key or a Spotify-style tester invitation.
+does not require a ClassTempo YouTube API key or a Spotify-style tester invitation. YouTube playlists are not
+supported. The same Library navigation and loaded-item footer remain available above and below the link form.
 Use the speeds YouTube offers for that video; the displayed tempo follows the rate the player actually reports.
 Saved cues work like other ClassTempo bookmarks: set an empty cue, or jump to a saved cue while keeping the
 playing or paused state. They are saved separately by YouTube video ID on this browser.

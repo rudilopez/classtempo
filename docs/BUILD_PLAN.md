@@ -18,12 +18,17 @@ live site, separately from this checklist:
   Only video Stage maximizes the picture above compact playback/seeking controls. Cues opens a numbered row
   below the picture for setting/selecting cues; Tools also opens below it. End practice remains reachable.
 - Keep awake, Stage playback controls, video mirror/zoom and Talk (audio attenuates; native video pauses).
-- Library opens to one shared hub from every player: Your collection contains Saved files and Class plans;
-  Play from contains the available streaming sources. Source browsing has a clear Back to Library action.
+- One Library dialog serves every player with fixed On this device (Saved files / Class plans) and Streaming
+  navigation. The same Library/Close header and loaded-item/Back to player footer remain visible in every
+  destination; only the body scrolls. Browsing is separate from playback and never selects a new track.
+- Class plans are editable teaching playlists of saved files/practices. Provider playlists are read-only here
+  and created in provider apps; YouTube accepts a single video. Each destination explains its capabilities.
+- Preserve file search, class drafts/creation names and provider browsing state across tab changes and Library
+  close/reopen. Save/Cancel remain explicit; drafts do not block destination navigation.
 - Saved files lists all stored songs/videos with type badges, recents, filename search, Add files/import-and-open,
   local-copy removal and honest save failures. Search belongs inside this list, not above unrelated sources.
 - Class plans separates Edit class preparation from Teach class playback; backup utilities stay collapsed.
-- Private tester visibility can be enabled within the current installation using Library → Tester access; ordinary
+- Private tester visibility can be enabled within the current installation using Library → Saved files → Tester access; ordinary
   users see no Spotify source. The existing unlisted invitation and Spotify account restrictions remain in force.
 - Live class strip and running order, Next & play, Again, optional Auto-next (off by default) and paused resume.
   Exercise names/notes, repeated media and independent named-practice snapshots survive explicit saves/backups.
@@ -70,7 +75,7 @@ in Chromium and WebKit as appropriate, recording the build tested:
 After successful branch checks, merge to `main`, verify GitHub Actions deployment, then inspect the live release.
 A passing local build, pushed branch or PR is not evidence that the phone received the new app.
 
-### Library redesign verification — October 29, 2026
+### Earlier Library hub verification — October 29, 2026
 
 Typecheck, all **647 tests** and the production build passed. Real Chrome checks covered paused opening of a
 saved file, filename-search empty results and clearing, creating/saving a class with a saved track, cancelling
@@ -78,11 +83,33 @@ class edits, direct Apple Music → Class plans navigation, YouTube entry/return
 within a source. Invalid tester codes were rejected; FAMILIA revealed Spotify, survived reload and retained the
 upfront limitations screen. Ordinary, invited and provider Library views passed **36 layout checks across
 12 viewports**, including phone/Safari usable sizes, landscape and iPad: no horizontal overflow and touch targets
-at least 44 px. The guide uses an actual 430×932 screenshot of the new hub.
+at least 44 px. The earlier guide used an actual 430×932 screenshot of that hub.
 
 File-chooser upload automation was blocked by Chrome extension file-URL permissions. The import handler is
 unchanged and all seven import-flow tests passed; this does not establish a fresh end-to-end chooser pass.
 Physical-phone acceptance remains separate. Deployment and live-release verification must still be recorded
+against the published commit.
+
+### Persistent Library navigation verification — October 29, 2026
+
+The approved Always visible design uses one shared Library with fixed On this device and Streaming navigation,
+scrolling content and a loaded-item / Back to player footer. Browsing destinations preserves playback ownership;
+only selecting media transfers it. Local class drafts and queries survive destination changes and close/reopen.
+The current-file context updates when a class advances, and terminal audio startup errors release awaited loads.
+
+Typecheck, all **677 tests** and the production build pass. Chrome verification covers saved-file opening paused,
+actual-file class preflight/opening paused from another source, unsaved class-draft retention across destinations
+and close/reopen, filename search, and ongoing local playback while browsing Apple Music. The same YouTube
+iframe ID/src is retained through covering Library navigation; the local preview iframe did not become ready,
+so this check does not establish native video playback. Provider client/transport regression tests also pass.
+The invited five-destination views and the public Library passed **72 layout checks across 12 viewports**:
+no horizontal overflow, navigation controls at least 44 px, and fixed navigation/footer contained in the panel.
+The guide now has an actual 430×932 screenshot of the public Library without private Spotify discovery.
+
+Local Apple Music setup/connection UI was checked using the already-public production configuration in ignored
+preview output. This is not a new account, playback or listening acceptance result. File-chooser automation remains
+blocked by Chrome extension file-URL permissions; saved-file opening and the seven import-flow tests passed.
+Physical-device acceptance remains separate from desktop and responsive checks. Verify deployment and the live UI
 against the published commit.
 
 ## Physical-device acceptance still required

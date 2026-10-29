@@ -57,7 +57,11 @@ A successful build generates `apps/web/public/apple-music-config.json` and publi
 contains only `developerToken` and `expiresAt` (Unix seconds). This developer token is intentionally public;
 the signing private key stays in the Actions secret and runner memory.
 
-The configured build shows the Apple Music source in Library. The direct `#apple-music` route remains
+The configured build shows Apple Music in Library's persistent Streaming row. The On this device and Streaming
+navigation, loaded-item footer and Back to player action remain visible while browsing Search, My songs and
+Playlists. Browsing another destination keeps the loaded track and does not switch playback sources. Select a
+song to open it paused and close Library. Playlists are read-only here; create or edit them in the Apple Music
+app. Streaming songs cannot be added to ClassTempo's local-file Class plans. The direct `#apple-music` route remains
 available for setup information even before credentials exist. Check that the source picker opens and that
 selecting a song returns to the familiar player paused, then follow the feasibility checklist with a suitable
 Apple Music account. A successful signature or deployment

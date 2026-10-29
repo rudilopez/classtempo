@@ -9,7 +9,8 @@ of every video, speed or device. Earlier Apple Music and Spotify listening resul
 
 ## Use a video
 
-1. In ClassTempo, open **Library → YouTube**.
+1. In ClassTempo, open **Library → YouTube** in the Streaming row. On this device and Streaming navigation
+   stay visible, with the loaded item and **Back to player** below the browsing area.
 2. Paste the video's YouTube link and choose **Open video**. A normal watch link, `youtu.be` share link, Shorts
    link or live-video link can identify one video. A shared start time is kept where supported. A playlist-only
    link cannot open a playlist in this source.
@@ -31,8 +32,11 @@ of every video, speed or device. Earlier Apple Music and Spotify listening resul
    speed and playing/paused state stay in place; this does not switch sources or reopen the video.
 
 Choose **Open on YouTube** if the video cannot play embedded. You can also use **Open** for a local song/video,
-or return to another source through Library. A source change stops YouTube. Its selected link remains available
-when returning, ready to open again paused.
+or browse another destination in Library. Browsing tabs does not replace the loaded item. Library is a covering
+dialog, so YouTube pauses while it is open; **Back to player** returns to that video without automatically resuming.
+Selecting another item switches playback source and stops YouTube. Its selected link remains available when
+returning, ready to open again paused. YouTube accepts one video at a time, without playlist browsing or class-plan
+creation. ClassTempo Class plans use saved local files/practices only.
 
 ## What is available
 
