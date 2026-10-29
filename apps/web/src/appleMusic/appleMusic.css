@@ -53,8 +53,8 @@
 .apple-music-picker h3 { font-size: 17px; }
 .apple-music-picker-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none; }
 .apple-music-picker-heading > button { padding: 0; }
-.apple-music-sources { display: flex; gap: 6px; padding: 4px; background: #09131e; border-radius: 12px; }
-.apple-music-sources > button { flex: 1; padding-inline: 6px; border-color: transparent; background: transparent; }
+.apple-music-sources { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px; background: #09131e; border-radius: 12px; }
+.apple-music-sources > button { flex: 1 1 110px; min-width: 0; padding-inline: 6px; border-color: transparent; background: transparent; }
 .apple-music-sources > button[aria-pressed='true'] { background: var(--a); color: #062b24; }
 .apple-music-account { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--dim); }
 .apple-music-account > button { padding: 0 8px; }

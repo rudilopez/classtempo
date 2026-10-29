@@ -9,7 +9,7 @@ selection, playing/paused cues, Stage and owned-playlist browsing were verified 
 retained-player lifecycle is deployed: Spotify → Apple Music → Spotify now preserves paused offsets and
 resumes only on explicit Play, with one SDK player and no new authorization prompt or error. Mac configuration
 and control verification is complete; physical-phone, background, Bluetooth and lock-screen acceptance remain
-pending. YouTube is deferred. App registration and the owner’s acceptance of
+pending. YouTube is a separate embedded-video source; see [YouTube setup](YOUTUBE_SETUP.md). App registration and the owner’s acceptance of
 Spotify’s registration agreement do not establish Spotify approval of ClassTempo’s use case.
 
 ## Product limits

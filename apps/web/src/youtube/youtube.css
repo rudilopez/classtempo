@@ -1,0 +1,89 @@
+.youtube-app { min-height: 0; height: 100%; }
+.youtube-app[hidden] { display: none; }
+.youtube-app button { letter-spacing: 0; }
+.youtube-main { display: flex; flex: 1; justify-content: center; min-height: 0; overflow: auto; padding: 8px 12px; }
+.youtube-player { display: flex; flex-direction: column; min-width: 0; min-height: min-content; width: min(100%, 1000px); gap: 6px; }
+.youtube-now { display: flex; align-items: center; gap: 8px; min-height: 36px; flex: none; }
+.youtube-now > div { min-width: 0; flex: 1; }
+.youtube-now .dancer-track-kicker { display: inline-flex; font-size: 10px; margin: 0; }
+.youtube-now strong { display: block; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; font-size: 14px; line-height: 1.2; }
+.youtube-now > a { display: inline-flex; align-items: center; min-height: 44px; flex: none; color: var(--a); font-size: 12px; text-decoration: none; }
+/* Never crop, cover or reparent the official player. Its host stays in this exact DOM position in Stage. */
+.youtube-picture { flex: 1 1 200px; min-width: 200px; min-height: 200px; max-height: 560px; display: grid; align-content: stretch; justify-items: stretch; background: #000; }
+.youtube-host { display: flex; justify-content: center; align-items: stretch; min-width: 200px; min-height: 200px; height: 100%; }
+.youtube-host:empty { display: none; }
+.youtube-host iframe { display: block; width: 100%; height: 100%; min-width: 200px; min-height: 200px; border: 0; }
+.youtube-modal-open .youtube-host { visibility: hidden; }
+.youtube-empty { display: grid; align-content: center; justify-items: center; min-height: 200px; gap: 10px; color: var(--dim); }
+.youtube-empty > span { font-size: 36px; color: #fff; }
+.youtube-empty > p { font-size: 12px; margin: 0; }
+.youtube-main-transport { flex: none; min-width: 0; }
+.youtube-main-transport[hidden], .youtube-stage-dock[hidden], .youtube-tools[hidden], .youtube-cues-heading[hidden], .youtube-cues[hidden] { display: none; }
+.youtube-app .dancer-transport { display: grid; grid-template-columns: 2fr 1fr 1fr; height: 44px; gap: 6px; }
+.youtube-app .dancer-transport button { min-height: 44px; padding: 4px 8px; font-size: 13px; }
+.youtube-app .dancer-transport .play { font-size: 19px; }
+.youtube-timeline { display: flex; align-items: center; gap: 10px; min-height: 44px; flex: none; }
+.youtube-timeline > span { flex: none; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.youtube-timeline > input { display: block; flex: 1; min-width: 0; margin: 0; height: 44px; }
+.youtube-tools { display: flex; align-items: center; flex: none; gap: 6px; min-width: 0; }
+.youtube-tools > button { min-height: 44px; min-width: 44px; padding: 4px 10px; font-size: 12px; flex: 1; }
+.youtube-speed { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: 12px; flex: 1.3; min-width: 0; }
+.youtube-speed select { min-width: 72px; min-height: 44px; padding: 5px; font-size: 16px; color: var(--a); border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.youtube-cues-heading { display: flex; align-items: center; gap: 6px; flex: none; min-height: 44px; }
+.youtube-cues-heading > button { min-height: 44px; min-width: 44px; padding: 4px 8px; font-size: 12px; }
+.youtube-cues-heading > button:last-child { margin-left: auto; }
+.youtube-cues-heading .cue-stems-switch { display: inline-flex; flex: none; min-width: 0; align-items: center; border-radius: 999px; background: #0b1722; box-shadow: inset 0 0 0 1px #395167; }
+.youtube-cues-heading .cue-stems-switch button { min-height: 44px; min-width: 62px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: #b9cbdc; font-size: 12px; font-weight: 750; }
+.youtube-cues-heading .cue-stems-switch button[aria-pressed=true] { background: var(--a); color: #082b28; }
+.youtube-cues-heading .cue-stems-switch button:disabled { color: #8998a7; background: #17212b; opacity: 1; }
+.youtube-cues-heading .cue-stems-switch button small { display: block; margin-top: 2px; font-size: 9px; font-weight: 500; white-space: nowrap; }
+.youtube-cues { flex: none; min-width: 0; }
+.youtube-cue-row { display: flex; min-width: 0; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding-bottom: 2px; }
+.youtube-cue-row > button { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 48px; min-height: 44px; flex: 1 0 48px; padding: 3px 5px; color: var(--dim); border-color: var(--pad, var(--line)); background: #101d29; }
+.youtube-cue-row > button.set { box-shadow: inset 0 3px var(--pad); color: var(--text); }
+.youtube-cue-row > button strong { font-size: 14px; }
+.youtube-cue-row > button small { font-size: 9px; white-space: nowrap; }
+.youtube-feedback { flex: none; min-height: 24px; font-size: 12px; color: #ffd2a5; line-height: 1.35; overflow-wrap: anywhere; }
+.youtube-feedback > button, .youtube-feedback > a { min-height: 44px; display: inline-flex; align-items: center; padding: 4px 8px; margin: 4px 6px 0 0; font-size: 12px; }
+.youtube-feedback > a, .youtube-open-form a { color: var(--a); }
+.youtube-open-form { display: grid; gap: 10px; }
+.youtube-open-form p { color: var(--dim); font-size: 13px; line-height: 1.45; }
+.youtube-open-form label { font-size: 13px; color: var(--dim); }
+.youtube-open-form input { display: block; width: 100%; min-height: 44px; margin-top: 5px; padding: 10px; font-size: 16px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); background: var(--panel); }
+.youtube-sources { flex-wrap: wrap; }
+.youtube-sources > button { flex: 1 0 80px; }
+.youtube-edit-cues .pads { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, 88px); gap: 8px; }
+.youtube-edit-cues .pad-slot { min-width: 0; }
+.youtube-edit-cues .pad { width: 100%; height: 100%; min-height: 72px; }
+.youtube-stage { position: fixed; inset: 0; z-index: 900; height: 100dvh; background: #000; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.youtube-stage > header { display: none; }
+.youtube-stage .youtube-main { padding: 6px; }
+.youtube-stage .youtube-player { width: 100%; gap: 4px; }
+.youtube-stage .youtube-now { display: none; }
+.youtube-stage .youtube-picture { max-height: none; }
+.youtube-stage-dock { display: grid; grid-template-columns: minmax(90px, 1.6fr) repeat(3, minmax(44px, 1fr)); gap: 6px; flex: none; }
+.youtube-stage-dock > button { min-height: 44px; padding: 4px 8px; font-size: 13px; }
+.youtube-stage-dock .youtube-primary { background: var(--a); color: #062b24; border-color: transparent; font-weight: 800; }
+.youtube-stage .youtube-cue-row > button { flex: 0 0 48px; }
+.youtube-stage .youtube-tools { padding-bottom: 2px; }
+.youtube-stage .youtube-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; }
+.youtube-stage .youtube-tools[hidden] { display: none; }
+.youtube-stage .youtube-speed { flex-direction: column; align-items: stretch; gap: 0; }
+.youtube-stage .youtube-speed select { width: 100%; min-width: 0; }
+@media (max-width: 599px) {
+  .youtube-main { padding: 5px 8px; }
+  .youtube-player { gap: 4px; }
+  .youtube-tools > button { padding: 4px 6px; }
+  .youtube-speed { font-size: 11px; gap: 4px; }
+  .youtube-now { min-height: 32px; }
+  .youtube-edit-cues .pads { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, 88px); }
+}
+@media (orientation: landscape) and (max-height: 499px) {
+  .youtube-app:not(.youtube-stage) .youtube-main { padding: 4px 8px; }
+  .youtube-app:not(.youtube-stage) .youtube-player { display: grid; grid-template-columns: minmax(200px, 1.3fr) minmax(220px, 1fr); grid-template-rows: 44px 44px 44px 44px 56px; gap: 4px 10px; }
+  .youtube-app:not(.youtube-stage) .youtube-now { grid-column: 1 / -1; }
+  .youtube-app:not(.youtube-stage) .youtube-picture { grid-row: 2 / 6; grid-column: 1; }
+  .youtube-app:not(.youtube-stage) .youtube-main-transport, .youtube-app:not(.youtube-stage) .youtube-timeline, .youtube-app:not(.youtube-stage) .youtube-tools, .youtube-app:not(.youtube-stage) .youtube-cues-heading, .youtube-app:not(.youtube-stage) .youtube-cues { grid-column: 2; }
+  .youtube-app:not(.youtube-stage) .youtube-cues-heading { display: none; }
+  .youtube-app:not(.youtube-stage) .youtube-feedback { grid-column: 1 / -1; }
+}

@@ -11,10 +11,12 @@ import './styles.css';
 const StemsBenchmark = lazy(() => import('./stems/StemsBenchmark'));
 const AppleMusic = lazy(() => import('./appleMusic/AppleMusic'));
 const Spotify = lazy(() => import('./spotify/Spotify'));
-const route = (): 'stems' | 'apple-music' | 'spotify' | 'player' => {
+const YouTube = lazy(() => import('./youtube/YouTube'));
+const route = (): 'stems' | 'apple-music' | 'spotify' | 'youtube' | 'player' => {
   acceptSpotifyTesterInvite();
   if (window.location.hash === '#stems-benchmark') return 'stems';
   if (window.location.hash === '#apple-music') return 'apple-music';
+  if (window.location.hash === '#youtube') return 'youtube';
   return hasSpotifyTesterAccess() && (window.location.hash === '#spotify' || hasSpotifyCallback())
     ? 'spotify' : 'player';
 };
@@ -26,6 +28,7 @@ function PlayerSources(): React.ReactElement {
   const [source, setSource] = useState(initialRoute);
   const [localVisited, setLocalVisited] = useState(initialRoute === 'player');
   const [spotifyVisited, setSpotifyVisited] = useState(initialRoute === 'spotify');
+  const [youtubeVisited, setYouTubeVisited] = useState(initialRoute === 'youtube');
   const [request, setRequest] = useState<LocalPlayerRequest>();
   useEffect(() => {
     const change = () => {
@@ -34,6 +37,7 @@ function PlayerSources(): React.ReactElement {
       if (next === 'stems' || initialRoute === 'stems') { window.location.reload(); return; }
       if (next === 'player') setLocalVisited(true);
       if (next === 'spotify') setSpotifyVisited(true);
+      if (next === 'youtube') setYouTubeVisited(true);
       setSource(next);
     };
     window.addEventListener('hashchange', change);
@@ -53,6 +57,9 @@ function PlayerSources(): React.ReactElement {
     {spotifyVisited && <Suspense fallback={source === 'spotify' ? <p role="status">Opening Spotify…</p> : null}>
       <Spotify active={source === 'spotify'} onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={() => openLocal()}
         onOpenAppleMusic={() => { window.location.hash = 'apple-music'; }} />
+    </Suspense>}
+    {youtubeVisited && <Suspense fallback={source === 'youtube' ? <p role="status">Opening YouTube…</p> : null}>
+      <YouTube active={source === 'youtube'} onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={() => openLocal()} />
     </Suspense>}
   </>;
 }

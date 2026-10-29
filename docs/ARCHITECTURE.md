@@ -400,3 +400,35 @@ unavailable. Spotify artwork stays uncropped and unobscured, including plain-bac
 attribution and track links remain in the source and fullscreen view. Apple artwork and audio behavior retain
 their existing presentation/transport. User notice is not a provider-use approval. Real account authorization,
 full-song playback and physical-phone behavior must be verified separately from automated/mock tests.
+
+## YouTube source
+
+`#youtube` opens a separate link-based source using the shared ClassTempo identity and playback presentation.
+No YouTube catalog, account-library or playlist API is involved, and no API key or OAuth grant is required for
+an ordinarily embeddable public video. The link parser accepts known YouTube hosts/routes, validates the
+11-character video ID and normalizes a supported start time into one video selection. It rejects unrelated
+hosts and playlist-only links. Opening the source alone does not contact YouTube: explicit Open video loads
+the official IFrame Player API and creates its player. Imported media never enters this path.
+
+The adapter cues the selected video paused. A prepared offset protects paused seeks before first Play, when
+YouTube's ordinary seekTo behavior can otherwise start a cued video. Actual player state and events determine
+the visible clock, playing state and playback rate. Available rate choices come from YouTube for that video;
+the adapter does not claim that a requested rate was applied before observing it. A new video starts at its
+original rate. Cue bookmarks use video-ID identity and remain separate from local, Apple Music and Spotify
+keys; no protected media or credentials are stored with them.
+
+YouTube owns its frame, native controls, branding and advertisements. The frame keeps a viewport of at least
+200×200 and a strict-origin-when-cross-origin referrer policy, with the application's origin supplied to the API.
+ClassTempo's controls and error messages stay outside the picture. Stage changes layout around the same host
+and iframe; it never moves/reparents the iframe or reconstructs the player merely to enter/leave Stage.
+On smaller screens, cue trays stay compact and outside the frame rather than reducing it below the minimum.
+
+Source deactivation pauses and disposes the native player, cancels pending creation and ignores stale events.
+The retained UI can remember the selected link and cues; returning requires an explicit Open video and starts
+paused. Covering dialogs and document hiding also pause playback. There is no background audio mode or automatic
+resume after a tab becomes visible. These rules also stop the source before local/Apple Music/Spotify takes over.
+
+Practice, class plans, Stems, audio analysis, media export and offline playback are unavailable for YouTube.
+Embeddability, age/region restrictions, ads, rate support and playback permission remain under YouTube/browser
+control. Errors explain the applicable limit and offer the canonical Open in YouTube link rather than trying
+to bypass it. See [YouTube setup and verification](YOUTUBE_SETUP.md) for source documentation and acceptance.

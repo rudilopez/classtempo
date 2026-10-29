@@ -277,6 +277,7 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
           <button type="button" aria-pressed={view === 'classes'} disabled={busy || !!classDraft} onClick={() => { setView('classes'); setSelected(''); setCreatingClass(false); }}>Classes <span className="library-tab-count">{classes.length}</span></button>
           {import.meta.env.VITE_APPLE_MUSIC_ENABLED === 'true' && <button type="button" disabled={busy || !!classDraft}
             onClick={() => { window.location.hash = 'apple-music'; }}>Apple Music</button>}
+          <button type="button" disabled={busy || !!classDraft} onClick={() => { window.location.hash = 'youtube'; }}>YouTube</button>
           {hasSpotifyTesterAccess() && <button type="button" disabled={busy || !!classDraft} onClick={() => { window.location.hash = 'spotify'; }}>Spotify</button>}
         </div>
         <div className="library-feedback" aria-live="polite">
