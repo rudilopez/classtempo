@@ -45,6 +45,19 @@ describe('Spotify private tester discovery', () => {
   });
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
+  it.each(['FAMILIA', 'familia', ' Familia ', '\nFAMILIA\t'])('recognizes the explicit tester code %j without granting access itself', value => {
+    expect(access.isSpotifyTesterCode(value)).toBe(true);
+    expect(access.hasSpotifyTesterAccess()).toBe(false);
+    expect(history.replaceState).not.toHaveBeenCalled();
+    expect(persistent.size).toBe(0);
+    expect(temporary.size).toBe(0);
+  });
+
+  it.each(['', 'spotify', '#spotify-invite', 'FAMILIA1', 'FAMI LIA'])('rejects an unrelated tester code %j', value => {
+    expect(access.isSpotifyTesterCode(value)).toBe(false);
+    expect(access.hasSpotifyTesterAccess()).toBe(false);
+  });
+
   it('starts hidden and does not enable Spotify from the ordinary route or account records', () => {
     browserLocation.href = base + '#spotify';
     temporary.set('classtempo.spotify.session.v1', '{"accessToken":"not-a-discovery-grant"}');

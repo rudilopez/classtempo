@@ -2,6 +2,7 @@ import { lazy, StrictMode, Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import type { LocalPlayerRequest } from './dancer/DancerMode';
+import type { LibraryView } from './library/LibraryModal';
 import { registerSW } from './pwa/registerSW';
 import { hasSpotifyCallback } from './spotify/auth';
 import { acceptSpotifyTesterInvite, hasSpotifyTesterAccess } from './spotify/access';
@@ -43,8 +44,8 @@ function PlayerSources(): React.ReactElement {
     window.addEventListener('hashchange', change);
     return () => window.removeEventListener('hashchange', change);
   }, []);
-  const openLocal = (file?: File) => {
-    setRequest((previous) => ({ id: (previous?.id ?? 0) + 1, file, library: !file }));
+  const openLocal = (file?: File, libraryView: LibraryView = 'home') => {
+    setRequest((previous) => ({ id: (previous?.id ?? 0) + 1, file, library: !file, libraryView }));
     setLocalVisited(true);
     window.history.pushState(null, '', import.meta.env.BASE_URL);
     setSource('player');
@@ -52,14 +53,14 @@ function PlayerSources(): React.ReactElement {
   return <>
     {localVisited && <App active={source === 'player'} request={request} />}
     {source === 'apple-music' && <Suspense fallback={<p role="status">Opening Apple Music…</p>}>
-      <AppleMusic onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={() => openLocal()} />
+      <AppleMusic onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={(view) => openLocal(undefined, view)} />
     </Suspense>}
     {spotifyVisited && <Suspense fallback={source === 'spotify' ? <p role="status">Opening Spotify…</p> : null}>
-      <Spotify active={source === 'spotify'} onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={() => openLocal()}
+      <Spotify active={source === 'spotify'} onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={(view) => openLocal(undefined, view)}
         onOpenAppleMusic={() => { window.location.hash = 'apple-music'; }} />
     </Suspense>}
     {youtubeVisited && <Suspense fallback={source === 'youtube' ? <p role="status">Opening YouTube…</p> : null}>
-      <YouTube active={source === 'youtube'} onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={() => openLocal()} />
+      <YouTube active={source === 'youtube'} onOpenFile={(file) => openLocal(file)} onOpenLocalLibrary={(view) => openLocal(undefined, view)} />
     </Suspense>}
   </>;
 }

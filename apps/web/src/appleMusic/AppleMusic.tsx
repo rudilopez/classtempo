@@ -18,7 +18,8 @@ import { createAppleMusicTransport } from './transport';
 import { TempoTrial } from './TempoTrial';
 import { saveCleanRestart, takeCleanRestart } from './cleanRestart';
 import { TempoControl } from '../dancer/TempoControl';
-import { hasSpotifyTesterAccess } from '../spotify/access';
+import { LibraryHome, type LibraryDestination } from '../library/LibraryHome';
+import type { LibraryView } from '../library/LibraryModal';
 import '../shell.css';
 import '../dancer/dancer.css';
 import '../dancer/classroom.css';
@@ -33,7 +34,7 @@ const quietPause = (music: MusicKitInstance, stop = false): void => {
 
 interface Props {
   onOpenFile: (file: File) => void;
-  onOpenLocalLibrary: () => void;
+  onOpenLocalLibrary: (view?: LibraryView) => void;
 }
 
 /** The ClassTempo player presentation, with Apple owning the protected streaming transport. */
@@ -56,6 +57,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   const [selected, setSelected] = useState<MusicTrack | null>(null);
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(true);
+  const [libraryHome, setLibraryHome] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
   const [seeking, setSeeking] = useState(false);
   const [seekRecovery, setSeekRecovery] = useState(false);
@@ -92,7 +94,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       if (!transportPlayer?.seeking) return;
       transport.current++; transportPlayer?.cancel();
       setSeekRecovery(true); setStageOpen(false); setPickerOpen(true);
-      setError('Apple Music is taking longer to seek. Reload the connection, or choose Files & classes.');
+      setError('Apple Music is taking longer to seek. Reload the connection, or choose another source from Library.');
     }, 15_000);
     return () => window.clearTimeout(timeout);
   }, [seeking, transportPlayer]);
@@ -397,12 +399,19 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
     return () => { window.removeEventListener('keydown', onKeyDown); window.removeEventListener('keyup', onKeyUp); };
   }, []);
   const feedback = <>{error && <p className="apple-music-error" role="alert">{error}</p>}{notice && <p className="apple-music-notice" role="status">{notice}</p>}</>;
+  const chooseLibrary = (destination: LibraryDestination): void => {
+    if (destination === 'apple-music') { setLibraryHome(false); return; }
+    if (destination === 'files' || destination === 'classes') {
+      onOpenLocalLibrary(destination === 'files' ? 'media' : 'classes'); return;
+    }
+    window.location.hash = destination;
+  };
 
   return <>
     <div className="app apple-music-app">
       <header><div className="head-left"><Wordmark className="logo" /></div><div className="header-actions"><div className="dancer-actions">
         <button type="button" onClick={openFile} disabled={busy} title="Open a song or video file">Open</button>
-        <button type="button" onClick={() => setPickerOpen(true)} disabled={busy} title="Files, classes and Apple Music">Library</button>
+        <button type="button" onClick={() => { setLibraryHome(true); setPickerOpen(true); }} disabled={busy} title="Saved files, class plans and streaming sources">Library</button>
         {wakeLock.supported && <button type="button" className={`screen-on ${screenOn ? 'on' : ''}`} onClick={toggleWake} aria-pressed={screenOn} aria-label="Keep awake" title="Prevents dimming and auto-lock while ClassTempo is visible">
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
           <span className="screen-on-label">Keep awake</span>
@@ -416,7 +425,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
             <div className="dancer-track-info"><NowPlayingLabel /><div className="dancer-track-title" title={shownTrack?.name}>{busy ? 'Opening song…' : shownTrack?.name ?? 'Choose a song from your library'}</div>{shownTrack && <div className="apple-music-artist">{shownTrack.artist}</div>}</div>
             <div className="apple-music-artwork">
               {artworkUrl ? <img src={artworkUrl} alt={`${shownTrack?.album || shownTrack?.name} artwork`} onError={() => setFailedArtworkUrl(artworkUrl)} /> : <span aria-hidden="true">♫</span>}
-              {!hasSong && <button type="button" onClick={() => setPickerOpen(true)}>Choose Apple Music song</button>}
+              {!hasSong && <button type="button" onClick={() => { setLibraryHome(false); setPickerOpen(true); }}>Choose Apple Music song</button>}
             </div>
             <div className="apple-music-timeline"><input type="range" min="0" max={Math.max(1, duration)} step="1" value={position} aria-label="Song position" disabled={blocked || !duration} onChange={(event) => seek(Number(event.target.value))} /></div>
           </div>
@@ -434,8 +443,9 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
         </section>
       </main>
     </div>
-    {pickerOpen && <AppleMusicPicker title="Library" onClose={() => setPickerOpen(false)} busy={busy}>
-      <div className="apple-music-sources" role="group" aria-label="Music source"><button type="button" onClick={onOpenLocalLibrary} disabled={busy}>Files &amp; classes</button><button type="button" aria-pressed="true">♫ Apple Music</button><button type="button" disabled={busy || seeking} onClick={() => { window.location.hash = 'youtube'; }}>YouTube</button>{hasSpotifyTesterAccess() && <button type="button" disabled={busy || seeking} onClick={() => { window.location.hash = 'spotify'; }}>Spotify</button>}</div>
+    {pickerOpen && <AppleMusicPicker title={libraryHome ? 'Library' : 'Apple Music'} onClose={() => setPickerOpen(false)} busy={busy}>
+      {libraryHome ? <><LibraryHome onChoose={chooseLibrary} onOpenFile={openFile} disabled={busy || seeking} /><a className="library-guide-link" href={`${import.meta.env.BASE_URL}guide.html`} target="_blank" rel="noopener noreferrer">How to use ClassTempo ↗</a></> : <>
+      <button type="button" className="library-source-back" disabled={busy} onClick={() => setLibraryHome(true)}>← Back to Library</button>
       <div className="apple-music-account"><span>{playback.isAuthorized ? 'Connected to Apple Music' : 'Apple Music'}</span>{playback.isAuthorized && <button type="button" onClick={disconnect} disabled={busy || seeking}>Disconnect</button>}</div>
       <p className="apple-music-limits">Stream with your Apple Music subscription. Internet required. Practice, Stems and classes use local files.</p>
       {feedback}
@@ -466,6 +476,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
           </>}
         </div>
       </section>}
+      </>}
     </AppleMusicPicker>}
     {rename && <AppleMusicPicker title="Rename cue" onClose={() => setRename(null)}><form className="apple-music-rename" onSubmit={(event) => { event.preventDefault(); const name = rename.name.trim().slice(0, 40); if (!name) return; changeCues(cues.map((cue, index) => index === rename.index && cue ? { ...cue, name } : cue)); setRename(null); }}><label>Cue name<input value={rename.name} maxLength={40} onChange={(event) => setRename({ ...rename, name: event.target.value })} /></label><button type="submit" disabled={!rename.name.trim()}>Save name</button></form></AppleMusicPicker>}
     {stageOpen && hasSong && shownTrack && <StageView video={null} aspect={null} title={shownTrack.name} artworkUrl={shownTrack.artworkUrl} artist={shownTrack.artist} playing={playback.isPlaying} position={position} duration={duration} cues={cues} section="Apple Music" tempo={tempoPercent} onTempoChange={changeTempo} onTogglePlay={togglePlay} onRestart={() => seek(0)} onLaunch={(index) => { const cue = cues[index]; if (cue) seek(cue.time); }} onSetCue={pressCue} talking={talking} onToggleTalk={toggleTalk} onClose={closeStage} onSeek={seek} cueActionLabel="Go to" disabled={blocked} playDisabled={playDisabled} />}

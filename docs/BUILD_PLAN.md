@@ -18,8 +18,13 @@ live site, separately from this checklist:
   Only video Stage maximizes the picture above compact playback/seeking controls. Cues opens a numbered row
   below the picture for setting/selecting cues; Tools also opens below it. End practice remains reachable.
 - Keep awake, Stage playback controls, video mirror/zoom and Talk (audio attenuates; native video pauses).
-- Media lists all saved songs/videos with type badges, recents, saved-media search, import-and-open, local-copy removal and honest save failures.
-- Classes separates Edit class preparation from Teach class playback; backup utilities stay collapsed.
+- Library opens to one shared hub from every player: Your collection contains Saved files and Class plans;
+  Play from contains the available streaming sources. Source browsing has a clear Back to Library action.
+- Saved files lists all stored songs/videos with type badges, recents, filename search, Add files/import-and-open,
+  local-copy removal and honest save failures. Search belongs inside this list, not above unrelated sources.
+- Class plans separates Edit class preparation from Teach class playback; backup utilities stay collapsed.
+- Private tester visibility can be enabled within the current installation using Library → Tester access; ordinary
+  users see no Spotify source. The existing unlisted invitation and Spotify account restrictions remain in force.
 - Live class strip and running order, Next & play, Again, optional Auto-next (off by default) and paused resume.
   Exercise names/notes, repeated media and independent named-practice snapshots survive explicit saves/backups.
   Full-file exercises use fresh 100%/no-practice defaults. Actual-file checks run before entering a class.
@@ -64,6 +69,21 @@ in Chromium and WebKit as appropriate, recording the build tested:
 
 After successful branch checks, merge to `main`, verify GitHub Actions deployment, then inspect the live release.
 A passing local build, pushed branch or PR is not evidence that the phone received the new app.
+
+### Library redesign verification — October 29, 2026
+
+Typecheck, all **647 tests** and the production build passed. Real Chrome checks covered paused opening of a
+saved file, filename-search empty results and clearing, creating/saving a class with a saved track, cancelling
+class edits, direct Apple Music → Class plans navigation, YouTube entry/return, and consistent Library navigation
+within a source. Invalid tester codes were rejected; FAMILIA revealed Spotify, survived reload and retained the
+upfront limitations screen. Ordinary, invited and provider Library views passed **36 layout checks across
+12 viewports**, including phone/Safari usable sizes, landscape and iPad: no horizontal overflow and touch targets
+at least 44 px. The guide uses an actual 430×932 screenshot of the new hub.
+
+File-chooser upload automation was blocked by Chrome extension file-URL permissions. The import handler is
+unchanged and all seven import-flow tests passed; this does not establish a fresh end-to-end chooser pass.
+Physical-phone acceptance remains separate. Deployment and live-release verification must still be recorded
+against the published commit.
 
 ## Physical-device acceptance still required
 

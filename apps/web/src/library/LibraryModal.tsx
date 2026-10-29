@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ACCEPT_MEDIA } from '../dancer/media';
-import { hasSpotifyTesterAccess } from '../spotify/access';
+import { LibraryHome, type LibraryDestination } from './LibraryHome';
 import { normalizePracticeSettings, type PracticeSettings } from '../practice/settings';
 import { importSelection } from './importFlow';
 import { practiceClassEntry, savedClassPractices, type SavedClassPractice } from './classPreparation';
@@ -12,8 +12,11 @@ import {
 } from './store';
 import './library.css';
 
+export type LibraryView = 'home' | 'media' | 'classes';
+
 export interface LibraryModalProps {
   open: boolean;
+  initialView?: LibraryView;
   onClose: () => void;
   /** Loads one item, without starting playback. */
   /** Null means the import could not be saved; open directly without retrying that save. */
@@ -36,8 +39,8 @@ function fileSize(bytes: number): string {
   return bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1000))} KB`;
 }
 
-export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassId, onNotice, currentFile, currentTitle, currentPractice, currentDuration }: LibraryModalProps) {
-  const [view, setView] = useState<'media' | 'classes'>('media');
+export function LibraryModal({ open, initialView = 'home', onClose, onLoad, onTeachClass, activeClassId, onNotice, currentFile, currentTitle, currentPractice, currentDuration }: LibraryModalProps) {
+  const [view, setView] = useState<LibraryView>(initialView);
   const [media, setMedia] = useState<LibraryMedia[]>([]);
   const [classes, setClasses] = useState<ClassSet[]>([]);
   const [selected, setSelected] = useState('');
@@ -59,6 +62,7 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
   const classNameInput = useRef<HTMLInputElement>(null);
   const classHeading = useRef<HTMLHeadingElement>(null);
   const overviewHeading = useRef<HTMLHeadingElement>(null);
+  const libraryHeading = useRef<HTMLHeadingElement>(null);
   const latest = useRef({ onClose, busy });
   latest.current = { onClose, busy };
 
@@ -72,7 +76,7 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
 
   useEffect(() => {
     if (!open) return;
-    setView('media');
+    setView(initialView);
     setSelected('');
     setClassDraft(null);
     setEntryDetails(null);
@@ -84,7 +88,13 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
     setProgress('Working…');
     setSearch('');
     void refresh().catch((cause: unknown) => setError(message(cause)));
-  }, [open, refresh]);
+  }, [open, initialView, refresh]);
+
+  useEffect(() => {
+    if (!open) return;
+    panel.current?.querySelector('.library-scroll')?.scrollTo(0, 0);
+    if (view !== 'classes') libraryHeading.current?.focus();
+  }, [open, view]);
 
   useEffect(() => {
     if (open && creatingClass) classNameInput.current?.focus();
@@ -248,6 +258,15 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
   const shown = media.filter((item) => !searchKey || item.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().includes(searchKey));
   const available = media.filter((item) => item.available);
 
+  function chooseDestination(destination: LibraryDestination): void {
+    if (destination === 'files' || destination === 'classes') {
+      setView(destination === 'files' ? 'media' : 'classes');
+      setSelected('');
+      setCreatingClass(false);
+      setBackupOpen(false);
+    } else window.location.hash = destination;
+  }
+
 
   const createForm = <form className="library-create-form" onSubmit={(event) => {
     event.preventDefault();
@@ -268,33 +287,28 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
     <div className="library-overlay" ref={overlay} onPointerDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
       <div className="library-panel" ref={panel} role="dialog" aria-modal="true" aria-labelledby="library-heading" aria-describedby="library-description" tabIndex={-1}>
         <header className="library-heading">
-          <div><span className="library-eyebrow">READY FOR CLASS</span><h2 id="library-heading">Your library</h2></div>
+          <h2 id="library-heading" ref={libraryHeading} tabIndex={-1}>{view === 'home' ? 'Library' : view === 'media' ? 'Saved files' : 'Class plans'}</h2>
           <button type="button" className="library-close" onClick={onClose} disabled={busy} aria-label="Close library">✕</button>
         </header>
-        <p id="library-description" className="library-description">Your media and teaching plans, saved on this device.</p>
-        <div className="library-tabs" role="group" aria-label="Library content">
-          <button type="button" aria-pressed={view === 'media'} disabled={busy || !!classDraft} onClick={() => setView('media')}>Media <span className="library-tab-count">{media.length}</span></button>
-          <button type="button" aria-pressed={view === 'classes'} disabled={busy || !!classDraft} onClick={() => { setView('classes'); setSelected(''); setCreatingClass(false); }}>Classes <span className="library-tab-count">{classes.length}</span></button>
-          {import.meta.env.VITE_APPLE_MUSIC_ENABLED === 'true' && <button type="button" disabled={busy || !!classDraft}
-            onClick={() => { window.location.hash = 'apple-music'; }}>Apple Music</button>}
-          <button type="button" disabled={busy || !!classDraft} onClick={() => { window.location.hash = 'youtube'; }}>YouTube</button>
-          {hasSpotifyTesterAccess() && <button type="button" disabled={busy || !!classDraft} onClick={() => { window.location.hash = 'spotify'; }}>Spotify</button>}
-        </div>
+        <p id="library-description" className="library-description">{view === 'home' ? 'Choose music, open a video, or prepare your next class.' : view === 'media' ? 'Songs and videos saved on this device. Tap a title to open it paused.' : 'Arrange saved files and practices in the order you teach.'}</p>
+        {view !== 'home' && <nav className="library-navigation" aria-label="Library navigation">
+          <button type="button" className="library-back" disabled={busy || !!classDraft} onClick={() => { setView('home'); setSelected(''); setCreatingClass(false); setBackupOpen(false); }}>← Back to Library</button>
+        </nav>}
         <div className="library-feedback" aria-live="polite">
           {busy && <p>{progress}</p>}
           {notice && <p className="library-notice">{notice}</p>}
           {error && <p className="library-error" role="alert">{error}</p>}
         </div>
         <div className="library-scroll">
-          {view === 'media' ? <>
+          {view === 'home' ? <LibraryHome onChoose={chooseDestination} onOpenFile={() => input.current?.click()} disabled={busy} mediaCount={media.length} classCount={classes.length} /> : view === 'media' ? <>
             {media.length > 0 && <>
               <div className="library-section-heading">
-                <div><h3>Saved media</h3><p>Songs and videos together. Tap a title to open.</p></div>
-                <button type="button" className="library-primary library-add" disabled={busy} onClick={() => input.current?.click()}>+ Add media</button>
+                <div><h3>{media.length} {media.length === 1 ? 'saved file' : 'saved files'}</h3><p>Recent first · Songs and videos together</p></div>
+                <button type="button" className="library-primary library-add" disabled={busy} onClick={() => input.current?.click()}>+ Add files</button>
               </div>
               <p className="library-import-help">Audio: choose Files. Video: choose Photos or Files. Multiple files are saved together; the first opens paused.</p>
               <div className="library-search">
-                <input aria-label="Search saved media" aria-describedby="library-search-help" placeholder="Search saved media" value={search} onChange={(event) => setSearch(event.target.value)} type="search" />
+                <input aria-label="Search saved files" aria-describedby="library-search-help" placeholder="Find a saved file" value={search} onChange={(event) => setSearch(event.target.value)} type="search" />
                 {search && <button type="button" onClick={() => setSearch('')} aria-label="Clear search">Clear</button>}
               </div>
               <p id="library-search-help" className="library-small library-search-status" role="status">
@@ -310,14 +324,14 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
               {item.available && <button type="button" className="library-icon-button" aria-label={`Remove saved copy of ${item.name}`} disabled={busy} onClick={() => {
                 if (window.confirm(`Remove the saved copy of “${item.name}” from this device? Your original file, cues and class entries will remain.`)) void perform(async () => { await removeMedia(item.id); await refresh(); setNotice('Saved copy removed. Class entries remain ready to reconnect when you add the file again.'); });
               }}>×</button>}
-            </li>)}</ul> : searchText ? <div className="library-empty library-no-results"><strong>No saved media matches “{searchText}”</strong><p>Try another title or clear your search.</p><button type="button" onClick={() => setSearch('')}>Show all media</button></div> : <div className="library-empty library-first-media">
-              <span className="library-empty-icon" aria-hidden="true">♫</span><h3>Your music. Your videos.</h3><p>Add media once, then find it here whenever you teach.</p>
-              <button type="button" className="library-primary" disabled={busy} onClick={() => input.current?.click()}>+ Add media</button>
+            </li>)}</ul> : searchText ? <div className="library-empty library-no-results"><strong>No saved files match “{searchText}”</strong><p>Try another title or clear your search.</p><button type="button" onClick={() => setSearch('')}>Show all files</button></div> : <div className="library-empty library-first-media">
+              <span className="library-empty-icon" aria-hidden="true">♫</span><h3>Your files, ready for class</h3><p>Add a song or video from your device. It will be saved here and open in the player.</p>
+              <button type="button" className="library-primary" disabled={busy} onClick={() => input.current?.click()}>+ Add files</button>
               <p className="library-import-help">Audio: choose Files. Video: choose Photos or Files.<br />Your first selection opens automatically and waits for Play.</p>
             </div>}
-            <p className="library-source-note">Local files only. Subscription downloads cannot be imported as ordinary files.</p>
+            <p className="library-source-note">This search finds your saved files. To stream music, go back to Library and choose a music service. Subscription downloads cannot be imported as files.</p>
           </> : activeClass ? <>
-            <button type="button" className="library-back" disabled={busy || editingClass} onClick={() => setSelected('')}>← All classes</button>
+            <button type="button" className="library-back" disabled={busy || editingClass} onClick={() => setSelected('')}>← All class plans</button>
             <div className="library-class-detail-heading"><h3 ref={classHeading} tabIndex={-1}>{editingClass ? 'Edit class' : activeClass.name}</h3>
               <p>{activeClass.entries.length} {activeClass.entries.length === 1 ? 'exercise' : 'exercises'}{activeClass.id === activeClassId ? ' · In session' : ''} · {editingClass ? 'Save your teaching order and reminders.' : activeClass.autoNext ? 'Continues after each completed exercise.' : 'You choose when to move on.'}</p></div>
             <div className="library-class-actions">{editingClass ? <>
@@ -336,7 +350,7 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
               <label className="library-field library-add-exercise">Add a full song or video<select aria-label="Add a full song or video" disabled={busy || !available.length} value="" onChange={(event) => {
                 const id = event.target.value;
                 if (id) setClassDraft({ ...activeClass, entries: [...activeClass.entries, { id: newId(), mediaId: id }] });
-              }}><option value="">{available.length ? 'Choose saved media…' : 'Save media in your library first'}</option>{available.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.kind === 'video' ? 'Video' : 'Song'}</option>)}</select></label>
+              }}><option value="">{available.length ? 'Choose a saved file…' : 'Add files to your library first'}</option>{available.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.kind === 'video' ? 'Video' : 'Song'}</option>)}</select></label>
               <label className="library-field">Add a saved practice<select aria-label="Add a saved practice" disabled={busy || !practices.length} value="" onChange={(event) => {
                 const choice = practices.find((practice) => practice.id === event.target.value);
                 if (choice) setClassDraft({ ...activeClass, entries: [...activeClass.entries, practiceClassEntry(choice, newId())] });
@@ -370,13 +384,13 @@ export function LibraryModal({ open, onClose, onLoad, onTeachClass, activeClassI
                 </>}
               </li>;
             })}</ol>
-            {activeClass.entries.length === 0 && <div className="library-empty library-empty-class"><strong>Build your teaching order</strong><p>{editingClass ? 'Add full songs, videos or saved practices above. No extra setup is needed for full songs.' : 'Edit class to add songs, videos or saved practices.'}</p>{!available.length && <p>Save your class, then use Media to add files.</p>}</div>}
+            {activeClass.entries.length === 0 && <div className="library-empty library-empty-class"><strong>Build your teaching order</strong><p>{editingClass ? 'Add full songs, videos or saved practices above. No extra setup is needed for full songs.' : 'Edit class to add songs, videos or saved practices.'}</p>{!available.length && <p>Save your class, then go to Library → Saved files to add songs or videos.</p>}</div>}
             {editingClass && <button type="button" className="library-danger" disabled={busy} onClick={() => {
               if (window.confirm(`Delete the class set “${activeClass.name}”? Saved files and cues will remain.`)) void perform(async () => { await removeClass(activeClass.id); await refresh(); setClassDraft(null); setEntryDetails(null); setSelected(''); setNotice('Class removed. Your saved media and cues are unchanged.'); });
             }}>Delete this class</button>}
           </> : <>
             <div className="library-section-heading">
-              <div><h3 ref={overviewHeading} tabIndex={-1}>Your classes</h3><p>Save a teaching order for each class.</p></div>
+              <div><h3 ref={overviewHeading} tabIndex={-1}>Your teaching plans</h3><p>Prepare once. Keep the running order beside your player.</p></div>
               {classes.length > 0 && !creatingClass && <button type="button" className="library-primary" disabled={busy} onClick={() => { setCreatingClass(true); setName(''); }}>+ New class</button>}
             </div>
             {classes.length === 0 && <div className="library-empty library-first-class"><h3>A class is your teaching plan</h3><p>Give it a name, add saved songs or videos, and arrange your exercises. Play one at a time.</p></div>}

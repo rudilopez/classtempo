@@ -16,7 +16,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #101f30;
+  background: #0f1d2b;
   color: #f2f7fc;
   border: 1px solid #45617b;
   border-radius: 22px;
@@ -25,19 +25,14 @@
 }
 .library-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: none; }
 .library-eyebrow { font-size: 10px; letter-spacing: .15em; font-weight: 700; color: #78d8cb; }
-.library-heading h2 { margin: 3px 0 0; font-size: 25px; line-height: 1.2; }
+.library-heading h2 { margin: 3px 0 0; font-size: 27px; line-height: 1.2; letter-spacing: -.025em; outline: none; }
 .library-panel button, .library-panel select, .library-panel input:not([hidden]), .library-panel textarea { min-height: 44px; font: inherit; }
 .library-panel button { border: 1px solid #44607a; background: #1a3045; color: #f2f7fc; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
 .library-panel button:disabled { opacity: .45; cursor: default; }
 .library-panel button:focus-visible, .library-panel input:focus-visible, .library-panel select:focus-visible, .library-panel textarea:focus-visible, .library-panel a:focus-visible { outline: 3px solid #74dfd0; outline-offset: 2px; }
 .library-panel .library-close { flex: 0 0 44px; font-size: 19px; padding: 8px; }
-.library-description { margin: 9px 0 14px; font-size: 13px; color: #b4c8db; flex: none; }
-.library-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex: none; padding: 5px; border-radius: 14px; background: #0a1522; }
-.library-tabs button { min-width: 0; padding-inline: 5px; gap: 4px; }
-.library-tabs button { display: flex; align-items: center; justify-content: center; gap: 9px; font-weight: 700; border-color: transparent; background: transparent; }
-.library-tabs button[aria-pressed="true"] { color: #0a2428; background: #8ce5d5; border-color: #a5f0e1; }
-.library-tab-count { display: inline-grid; place-content: center; min-width: 23px; min-height: 23px; padding: 2px 6px; border-radius: 7px; background: #ffffff16; font-size: 12px; }
-.library-tabs button[aria-pressed="true"] .library-tab-count { background: #0a24281c; }
+.library-description { margin: 9px 0 0; font-size: 13px; line-height: 1.5; color: #b4c8db; flex: none; }
+.library-navigation { flex: none; margin-top: 8px; border-bottom: 1px solid #294052; }
 .library-feedback { flex: none; font-size: 13px; line-height: 1.4; }
 .library-feedback p { margin: 10px 0 0; overflow-wrap: anywhere; }
 .library-notice { color: #b1ebd4; }
@@ -60,6 +55,7 @@
 .library-panel .library-save-current { width: 100%; margin: 0 0 10px; text-align: left; overflow-wrap: anywhere; font-size: 13px; color: #aae7d8; }
 .library-items, .library-class-items, .library-class-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
 .library-items li, .library-class-items li { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 5px; border: 1px solid #304a62; border-radius: 13px; background: #14283b; }
+.library-items li:hover { border-color: #56748b; }
 .library-panel .library-media-title { min-width: 0; flex: 1; display: grid; gap: 8px; text-align: left; background: transparent; border-color: transparent; padding: 8px; }
 .library-media-name { display: block; overflow-wrap: anywhere; font-size: 14px; line-height: 1.4; font-weight: 650; }
 .library-media-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -95,7 +91,7 @@
 .library-class-detail-heading { margin: 5px 0 16px; }
 .library-class-detail-heading h3 { margin: 0; font-size: 23px; line-height: 1.3; overflow-wrap: anywhere; }
 .library-class-detail-heading p { margin: 7px 0 0; font-size: 12px; line-height: 1.5; color: #adc3d5; }
-.library-class-actions { display: flex; gap: 8px; position: sticky; top: -1px; z-index: 1; padding: 7px 0; background: #101f30; }
+.library-class-actions { display: flex; gap: 8px; position: sticky; top: -1px; z-index: 1; padding: 7px 0; background: #0f1d2b; }
 .library-class-actions button { flex: 1; }
 .library-class-setup { border: 1px solid #36516a; border-radius: 13px; padding: 0 12px 8px; margin: 10px 0 16px; background: #14283b; }
 .library-class-setup .library-add-exercise { margin-top: 15px; }

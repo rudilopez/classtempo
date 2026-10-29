@@ -46,10 +46,11 @@
 
 /* Source selection lives in a focused, internally scrolling sheet, never above the player. */
 .apple-music-overlay { position: fixed; z-index: 1000; inset: 0; display: flex; align-items: center; justify-content: center; background: #03090ed9; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
-.apple-music-picker { display: flex; flex-direction: column; min-width: 0; width: min(100%, 640px); max-height: 100%; padding: 16px; gap: 10px; border: 1px solid var(--line); border-radius: 18px; background: #101b27; color: var(--text); overflow-y: auto; overscroll-behavior: contain; }
+.apple-music-picker { display: flex; flex-direction: column; min-width: 0; min-height: 0; width: min(100%, 680px); max-height: 100%; padding: 18px; gap: 12px; border: 1px solid #45617b; border-radius: 22px; background: #0f1d2b; color: var(--text); overflow: hidden; }
+.apple-music-picker-body { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 3px 2px; scrollbar-gutter: stable; }
 .apple-music-picker button { min-height: 44px; min-width: 44px; font-size: 13px; letter-spacing: 0; }
 .apple-music-picker h2, .apple-music-picker h3, .apple-music-picker p { margin: 0; }
-.apple-music-picker h2 { font-size: 22px; }
+.apple-music-picker h2 { font-size: 27px; letter-spacing: -.025em; outline: none; }
 .apple-music-picker h3 { font-size: 17px; }
 .apple-music-picker-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none; }
 .apple-music-picker-heading > button { padding: 0; }

@@ -17,7 +17,7 @@ Spotify’s registration agreement do not establish Spotify approval of ClassTem
 Spotify is hidden from ordinary local/Apple Music libraries and the public guide. Invited browsers see
 Library → Spotify, which explains original-speed-only playback, Premium and internet requirements, unavailable
 Practice/Stems/class plans/offline playback, and Spotify’s personal/noncommercial restriction. It offers Apple
-Music (with a playlist-transfer explanation), Open a file, Files & classes, or Continue at 100% when configured.
+Music (with a playlist-transfer explanation), Open a file, Library, or Continue at 100% when configured.
 Unconfigured builds keep Continue disabled with an explicit setup message. The notice does not override provider
 terms. Spotify’s standard developer policy excludes business-targeted uses including dance studios; confirm an
 eligible use/agreement before enabling this integration for that purpose.
@@ -31,12 +31,16 @@ denied playlist request and offers another playlist, Search or Saved songs.
 Choose the people deliberately; the link is not a public Spotify signup path. Each person needs their own
 Spotify Premium account and approval in ClassTempo's Spotify developer application.
 
-1. Get the tester's name and the email address associated with their Spotify account.
+1. Get the email address associated with the tester's Spotify account. For known friends, do not ask for their
+   name again; use the known name only if the dashboard requires it.
 2. In Spotify Developer Dashboard, open ClassTempo → Settings → Users Management → Add new user. Add that
    approved account within the development allowance. Do not request the tester's password.
 3. Send the tester this unlisted link: **https://rudilopez.github.io/classtempo/#spotify-invite**.
-4. Have them open it in the browser they will use for ClassTempo. Spotify's limitations appear first. They
-   choose Continue at 100%, connect that approved Spotify account on Spotify's page, select a song and press Play.
+4. Have them open it in the browser they will use for ClassTempo. For an installed Home Screen app, they can
+   instead open **Library → Tester access**, enter **FAMILIA** and tap **Continue**. The code ignores case
+   and surrounding spaces and enters the same invitation route in that installation.
+5. Spotify's limitations appear first. They choose Continue at 100%, connect that approved Spotify account on
+   Spotify's page, select a song and press Play.
 
 The invitation reveals Spotify on that browser and changes its route to `#spotify`; it does not sign anyone
 in, add them to Spotify's allowlist, bypass Premium or change the five-user development restriction. The link
@@ -45,8 +49,10 @@ access. No invitations are sent and no allowlist entries are changed by opening 
 
 After the invitation, **Library → Spotify** remains visible on that browser's later visits. The visibility
 flag normally uses localStorage, with temporary session/document fallbacks if storage is unavailable. Another
-browser, private browsing or cleared storage can require reopening the link. Existing Spotify authorization
-or a bare `#spotify` URL does not grant this visibility.
+browser, private browsing or cleared storage can require reopening the link or entering the tester code again.
+Safari and an installed Home Screen app can have separate storage; grant visibility inside the installation
+that will be used. The code is a UI-discovery convenience, not a password or provider entitlement.
+Existing Spotify authorization or a bare `#spotify` URL does not grant this visibility.
 
 In **Spotify options**, **Copy tester link** copies only the canonical invitation URL, excluding OAuth query
 parameters. **Hide Spotify on this device** disconnects the tab's Spotify session, removes its tester visibility

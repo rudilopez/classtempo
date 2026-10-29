@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppleMusicPicker } from '../appleMusic/AppleMusicPicker';
+import { LibraryHome, type LibraryDestination } from '../library/LibraryHome';
+import type { LibraryView } from '../library/LibraryModal';
 import { Wordmark, NowPlayingLabel, PlayerTransport } from '../components/PlayerChrome';
 import { CuePads } from '../dancer/CuePads';
 import { CueStemsSwitch } from '../dancer/CueStemsSwitch';
@@ -29,7 +31,7 @@ import './spotify.css';
 interface Props {
   active: boolean;
   onOpenFile: (file: File) => void;
-  onOpenLocalLibrary: () => void;
+  onOpenLocalLibrary: (view?: LibraryView) => void;
   onOpenAppleMusic: () => void;
 }
 type View = 'search' | 'songs' | 'playlists';
@@ -66,6 +68,7 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
   const [pendingPlay, setPendingPlay] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(true);
+  const [libraryHome, setLibraryHome] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
   const [view, setView] = useState<View>('search');
@@ -166,7 +169,7 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
     setBusy(false); setPendingPlay(false); setCancelling(false); setLoading(false); setTalking(false); setScreenOn(false);
     void wakeLock.disable();
   }, [active, transport, wakeLock]);
-  useEffect(() => { if (active) setPickerOpen(true); }, [active]);
+  useEffect(() => { if (active) { setLibraryHome(false); setPickerOpen(true); } }, [active]);
 
   const leave = (next: () => void): void => {
     operation.current++; browseRequest.current?.abort();
@@ -345,6 +348,13 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
   }, [active, hasSong, playing, duration, position]);
 
   const feedback = <>{(error || setupError) && <p className="apple-music-error" role="alert">{error || setupError}</p>}{notice && <p className="apple-music-notice" role="status">{notice}</p>}</>;
+  const chooseLibrary = (destination: LibraryDestination): void => {
+    if (destination === 'spotify') { setLibraryHome(false); return; }
+    if (destination === 'files' || destination === 'classes') {
+      leave(() => onOpenLocalLibrary(destination === 'files' ? 'media' : 'classes')); return;
+    }
+    leave(() => { window.location.hash = destination; });
+  };
   const limitations = <>
     <div className="spotify-speed-intro"><strong>100%</strong><span>Original speed only</span></div>
     <p>Spotify songs play at their recorded tempo. Speed changes, Practice, Stems, class plans and offline playback are unavailable.</p>
@@ -355,7 +365,7 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
   const alternatives = <div className="spotify-alternatives">
     <button type="button" onClick={() => leave(onOpenAppleMusic)}>Use Apple Music</button>
     <p>For tempo controls, use Apple Music in ClassTempo. <a href={TRANSFER_GUIDE} target="_blank" rel="noopener noreferrer">How to transfer Spotify playlists to Apple Music ↗</a></p>
-    <div><button type="button" onClick={openFile}>Open a file</button><button type="button" onClick={() => leave(onOpenLocalLibrary)}>Files &amp; classes</button></div>
+    <div><button type="button" onClick={openFile}>Open a file</button><button type="button" onClick={() => leave(onOpenLocalLibrary)}>Library</button></div>
   </div>;
 
   if (!active) return null;
@@ -376,7 +386,7 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
         <button type="button" className="apple-music-primary" disabled={!config || authBusy} onClick={() => { setAccepted(true); setPickerOpen(true); }}>Continue at 100%</button>
         <button type="button" className="spotify-intro-apple" onClick={() => leave(onOpenAppleMusic)}><span>Use Apple Music</span><small>Tempo controls</small></button>
         <a className="spotify-transfer-link" href={TRANSFER_GUIDE} target="_blank" rel="noopener noreferrer">Transfer Spotify playlists to Apple Music ↗</a>
-        <div className="spotify-intro-files"><button type="button" onClick={openFile}>Open a file</button><button type="button" onClick={() => leave(onOpenLocalLibrary)}>Files &amp; classes</button></div>
+        <div className="spotify-intro-files"><button type="button" onClick={openFile}>Open a file</button><button type="button" onClick={() => leave(onOpenLocalLibrary)}>Library</button></div>
         <button type="button" onClick={hideSpotify}>Hide Spotify on this device</button>
         {filePicker}
       </div>
@@ -387,7 +397,7 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
     <div className="app apple-music-app spotify-app">
       <header><div className="head-left"><Wordmark className="logo" /></div><div className="header-actions"><div className="dancer-actions">
         <button type="button" onClick={openFile}>Open</button>
-        <button type="button" onClick={() => setPickerOpen(true)}>Library</button>
+        <button type="button" onClick={() => { setLibraryHome(true); setPickerOpen(true); }}>Library</button>
         {wakeLock.supported && <button type="button" className={`screen-on ${screenOn ? 'on' : ''}`} aria-pressed={screenOn} onClick={toggleWake} title="Prevents dimming and auto-lock while ClassTempo is visible">☀<span className="screen-on-label">Keep awake</span></button>}
         {filePicker}
       </div></div></header>
@@ -395,7 +405,7 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
         <div className="dancer-clock"><span className="elapsed">{formatTime(position)}</span><span className="total">/ {formatTime(duration)}</span><span className="bpm"><span className="big">100%</span><span className="unit">tempo</span></span></div>
         <div className="dancer-media-panel spotify-media-panel">
           <div className="spotify-track-heading"><div className="dancer-track-info"><NowPlayingLabel /><div className="dancer-track-title" title={selected?.name}>{selected?.name ?? 'Choose a Spotify song'}</div>{selected && <div className="apple-music-artist">{selected.artist}</div>}</div><SpotifyLink track={selected} /></div>
-          <div className="apple-music-artwork spotify-artwork">{artworkUrl ? <a href={selected?.externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${selected?.name} in Spotify`}><img src={artworkUrl} alt={`${selected?.album || selected?.name} artwork`} onError={() => setFailedArtwork(artworkUrl)} /></a> : !hasSong ? <button type="button" onClick={() => setPickerOpen(true)}>Choose a song</button> : <span aria-hidden="true">♫</span>}</div>
+          <div className="apple-music-artwork spotify-artwork">{artworkUrl ? <a href={selected?.externalUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${selected?.name} in Spotify`}><img src={artworkUrl} alt={`${selected?.album || selected?.name} artwork`} onError={() => setFailedArtwork(artworkUrl)} /></a> : !hasSong ? <button type="button" onClick={() => { setLibraryHome(false); setPickerOpen(true); }}>Choose a song</button> : <span aria-hidden="true">♫</span>}</div>
           <div className="apple-music-timeline"><input type="range" min="0" max={Math.max(1, duration)} step="1" value={position} aria-label="Song position" disabled={blocked || !duration} onChange={(event) => seek(Number(event.target.value))} /></div>
         </div>
         <PlayerTransport playing={playing} disabled={blocked} playDisabled={playDisabled} playLabel={pendingPlay ? 'Cancel start' : cancelling ? 'Stopping…' : undefined} playDetail={pendingPlay ? 'Connecting playback…' : undefined} onTogglePlay={togglePlay} onRestart={() => seek(0)} onStage={() => { setEditing(false); setStageOpen(true); }} />
@@ -411,8 +421,9 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
         <div className="apple-music-capabilities">{!pickerOpen && (error || setupError || notice) ? <div className="apple-music-feedback">{feedback}</div> : <p>Spotify · Personal listening at original speed.</p>}</div>
       </section></main>
     </div>
-    {pickerOpen && <AppleMusicPicker title="Library" onClose={() => setPickerOpen(false)}>
-      <div className="apple-music-sources spotify-sources" role="group" aria-label="Music source"><button type="button" onClick={() => leave(onOpenLocalLibrary)}>Files &amp; classes</button><button type="button" onClick={() => leave(onOpenAppleMusic)}>Apple Music</button><button type="button" onClick={() => leave(() => { window.location.hash = 'youtube'; })}>YouTube</button><button type="button" aria-pressed="true">Spotify</button></div>
+    {pickerOpen && <AppleMusicPicker title={libraryHome ? 'Library' : 'Spotify'} onClose={() => setPickerOpen(false)}>
+      {libraryHome ? <><LibraryHome onChoose={chooseLibrary} onOpenFile={openFile} /><a className="library-guide-link" href={`${import.meta.env.BASE_URL}guide.html`} target="_blank" rel="noopener noreferrer">How to use ClassTempo ↗</a></> : <>
+      <button type="button" className="library-source-back" onClick={() => setLibraryHome(true)}>← Back to Library</button>
       <div className="apple-music-account"><SpotifyLink />{authorized && <button type="button" onClick={disconnect}>Disconnect</button>}</div>
       <p className="apple-music-limits">Original speed · Personal listening only · Premium required</p>
       {feedback}
@@ -439,11 +450,12 @@ export default function Spotify({ active, onOpenFile, onOpenLocalLibrary, onOpen
         </>}</div>
       </section>}
       <button type="button" onClick={() => { setPickerOpen(false); setOptionsOpen(true); }}>Spotify limits &amp; other options</button>
+      </>}
     </AppleMusicPicker>}
     {optionsOpen && <AppleMusicPicker title="Spotify options" onClose={() => setOptionsOpen(false)}><SpotifyLink />{limitations}{alternatives}
       <section className="spotify-test-access" aria-label="Spotify test access">
         <h3>Private test access</h3>
-        <p>The tester link reveals Spotify in this browser. Each tester still needs an approved Spotify Premium account.</p>
+        <p>The tester link reveals Spotify in this browser. In the installed app, open Library → Tester access and enter FAMILIA. Each tester still needs an approved Spotify Premium account.</p>
         <a href={spotifyTesterInviteUrl()}>{spotifyTesterInviteUrl()}</a>
         <button type="button" onClick={copyTesterLink}>Copy tester link</button>
         {notice && <p role="status">{notice}</p>}
