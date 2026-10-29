@@ -1,14 +1,17 @@
 .youtube-app { min-height: 0; height: 100%; }
 .youtube-app[hidden] { display: none; }
 .youtube-app button { letter-spacing: 0; }
-.youtube-main { display: flex; flex: 1; justify-content: center; min-height: 0; overflow: auto; padding: 8px 12px; }
-.youtube-player { display: flex; flex-direction: column; min-width: 0; min-height: min-content; width: min(100%, 1000px); gap: 6px; }
+.youtube-main { display: flex; flex: 1; justify-content: center; min-width: 0; min-height: 0; overflow: auto; padding: 8px 12px; }
+.youtube-player { --clock: clamp(34px, 5.5dvh, 52px); --accent: var(--a); display: flex; flex-direction: column; min-width: 0; min-height: min-content; width: min(100%, 1000px); gap: 8px; }
+.youtube-clock { flex: none; min-height: 36px; }
+.youtube-clock .bpm .unit { font-size: 12px; }
+.youtube-media-panel { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; min-height: min-content; gap: 6px; padding: 10px; border: 1px solid #30485b; border-radius: 14px; background: #13202d; }
 .youtube-now { display: flex; align-items: center; gap: 8px; min-height: 36px; flex: none; }
 .youtube-now > div { min-width: 0; flex: 1; }
-.youtube-now .dancer-track-kicker { display: inline-flex; font-size: 10px; margin: 0; }
+.youtube-now .dancer-track-kicker { display: inline-flex; font-size: 12px; margin: 0; }
 .youtube-now strong { display: block; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; font-size: 14px; line-height: 1.2; }
 .youtube-now > a { display: inline-flex; align-items: center; min-height: 44px; flex: none; color: var(--a); font-size: 12px; text-decoration: none; }
-/* Never crop, cover or reparent the official player. Its host stays in this exact DOM position in Stage. */
+/* The official iframe remains in one stable host. Stage changes dimensions, never its parent or contents. */
 .youtube-picture { flex: 1 1 200px; min-width: 200px; min-height: 200px; max-height: 560px; display: grid; align-content: stretch; justify-items: stretch; background: #000; }
 .youtube-host { display: flex; justify-content: center; align-items: stretch; min-width: 200px; min-height: 200px; height: 100%; }
 .youtube-host:empty { display: none; }
@@ -18,17 +21,30 @@
 .youtube-empty > span { font-size: 36px; color: #fff; }
 .youtube-empty > p { font-size: 12px; margin: 0; }
 .youtube-main-transport { flex: none; min-width: 0; }
-.youtube-main-transport[hidden], .youtube-stage-dock[hidden], .youtube-tools[hidden], .youtube-cues-heading[hidden], .youtube-cues[hidden] { display: none; }
-.youtube-app .dancer-transport { display: grid; grid-template-columns: 2fr 1fr 1fr; height: 44px; gap: 6px; }
+.youtube-main-transport[hidden], .youtube-stage-dock[hidden], .youtube-tools[hidden], .youtube-cues-heading[hidden], .youtube-cues[hidden], .youtube-clock[hidden] { display: none; }
+.youtube-app .dancer-transport { display: grid; grid-template-columns: 2fr 1fr 1fr; height: 48px; gap: 6px; }
 .youtube-app .dancer-transport button { min-height: 44px; padding: 4px 8px; font-size: 13px; }
-.youtube-app .dancer-transport .play { font-size: 19px; }
+.youtube-app .dancer-transport .play { background: #64e1c2; border-color: #64e1c2; color: #082b28; font-size: 21px; }
 .youtube-timeline { display: flex; align-items: center; gap: 10px; min-height: 44px; flex: none; }
 .youtube-timeline > span { flex: none; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
 .youtube-timeline > input { display: block; flex: 1; min-width: 0; margin: 0; height: 44px; }
-.youtube-tools { display: flex; align-items: center; flex: none; gap: 6px; min-width: 0; }
-.youtube-tools > button { min-height: 44px; min-width: 44px; padding: 4px 10px; font-size: 12px; flex: 1; }
-.youtube-speed { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: 12px; flex: 1.3; min-width: 0; }
-.youtube-speed select { min-width: 72px; min-height: 44px; padding: 5px; font-size: 16px; color: var(--a); border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.youtube-tools { display: grid; gap: 4px; flex: none; min-width: 0; padding: 6px 8px; border: 1px solid #30485b; border-radius: 12px; background: #142332; }
+.youtube-options { flex: none; min-width: 0; min-height: 44px; max-height: 160px; overflow: auto; overscroll-behavior: contain; padding: 6px 10px; border: 1px solid #3a556b; border-radius: 12px; background: #142332; color: var(--dim); font-size: 12px; line-height: 1.45; }
+.youtube-options[hidden] { display: none; }
+.youtube-options-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; }
+.youtube-options-heading h3 { margin: 0; color: var(--text); font-size: 15px; }
+.youtube-options-heading > button { flex: none; min-width: 44px; min-height: 44px; padding: 4px 12px; font-size: 12px; }
+.youtube-options p { margin: 6px 0; }
+.youtube-options summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; }
+.youtube-options a { display: inline-flex; align-items: center; min-height: 44px; color: var(--a); }
+.youtube-options > button, .youtube-options details button { min-height: 44px; padding: 4px 8px; font-size: 12px; }
+.youtube-tempo { display: grid; grid-template-columns: auto 44px minmax(80px, 1fr) 44px; gap: 6px; align-items: center; min-width: 0; }
+.youtube-tempo > label, .youtube-tempo .tempo-label { color: var(--dim); font-size: 12px; font-weight: 650; }
+.youtube-tempo .tempo-nudge { min-height: 44px; min-width: 44px; padding: 4px; background: transparent; border-color: transparent; color: var(--dim); font-size: 18px; }
+.youtube-tempo-select { display: block; width: 100%; min-width: 0; min-height: 44px; padding: 5px 24px 5px 10px; font-size: 18px; font-weight: 750; color: var(--a); border: 1px solid #3d6c68; border-radius: 8px; background: #1d413e; text-align: center; text-align-last: center; }
+.youtube-tool-buttons { display: flex; gap: 6px; min-width: 0; }
+.youtube-tool-buttons > button, .youtube-tools > button { min-height: 44px; min-width: 44px; padding: 4px 10px; font-size: 12px; flex: 1; }
+.youtube-tool-buttons > button small { display: block; margin-top: 2px; color: var(--a); font-size: 10px; font-weight: 500; }
 .youtube-cues-heading { display: flex; align-items: center; gap: 6px; flex: none; min-height: 44px; }
 .youtube-cues-heading > button { min-height: 44px; min-width: 44px; padding: 4px 8px; font-size: 12px; }
 .youtube-cues-heading > button:last-child { margin-left: auto; }
@@ -50,40 +66,67 @@
 .youtube-open-form p { color: var(--dim); font-size: 13px; line-height: 1.45; }
 .youtube-open-form label { font-size: 13px; color: var(--dim); }
 .youtube-open-form input { display: block; width: 100%; min-height: 44px; margin-top: 5px; padding: 10px; font-size: 16px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); background: var(--panel); }
-.youtube-sources { flex-wrap: wrap; }
-.youtube-sources > button { flex: 1 0 80px; }
 .youtube-edit-cues .pads { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, 88px); gap: 8px; }
 .youtube-edit-cues .pad-slot { min-width: 0; }
 .youtube-edit-cues .pad { width: 100%; height: 100%; min-height: 72px; }
-.youtube-stage { position: fixed; inset: 0; z-index: 900; height: 100dvh; background: #000; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-.youtube-stage > header { display: none; }
-.youtube-stage .youtube-main { padding: 6px; }
-.youtube-stage .youtube-player { width: 100%; gap: 4px; }
-.youtube-stage .youtube-now { display: none; }
-.youtube-stage .youtube-picture { max-height: none; }
-.youtube-stage-dock { display: grid; grid-template-columns: minmax(90px, 1.6fr) repeat(3, minmax(44px, 1fr)); gap: 6px; flex: none; }
+/* Full viewport Stage leaves all native controls visible; its own controls stay below the picture. */
+.youtube-app.youtube-stage { position: fixed; inset: 0; z-index: 900; width: 100%; max-width: none; height: 100vh; height: 100dvh; margin: 0; background: #000; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.youtube-stage > header, .youtube-stage .youtube-clock, .youtube-stage .youtube-now { display: none; }
+.youtube-stage .youtube-main { width: 100%; max-width: none; margin: 0; padding: 0; }
+.youtube-stage .youtube-player { width: 100%; max-width: none; min-height: 100%; gap: 4px; }
+.youtube-stage .youtube-media-panel { display: contents; }
+.youtube-stage .youtube-picture { order: 0; flex: 1 0 200px; width: 100%; min-height: 200px; max-height: none; }
+.youtube-stage .youtube-timeline { order: 2; padding-inline: 6px; }
+.youtube-stage-dock { order: 1; display: grid; grid-template-columns: minmax(90px, 1.6fr) repeat(3, minmax(44px, 1fr)); gap: 6px; flex: none; padding-inline: 6px; }
+.youtube-stage-seek { display: none; min-width: 0; width: 100%; min-height: 44px; height: 44px; margin: 0; }
 .youtube-stage-dock > button { min-height: 44px; padding: 4px 8px; font-size: 13px; }
 .youtube-stage-dock .youtube-primary { background: var(--a); color: #062b24; border-color: transparent; font-weight: 800; }
+.youtube-stage .youtube-cues { order: 4; padding: 0 6px 2px; }
 .youtube-stage .youtube-cue-row > button { flex: 0 0 48px; }
-.youtube-stage .youtube-tools { padding-bottom: 2px; }
-.youtube-stage .youtube-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; }
+.youtube-stage .youtube-tools { order: 3; margin: 0 6px 2px; }
 .youtube-stage .youtube-tools[hidden] { display: none; }
-.youtube-stage .youtube-speed { flex-direction: column; align-items: stretch; gap: 0; }
-.youtube-stage .youtube-speed select { width: 100%; min-width: 0; }
+.youtube-stage .youtube-options { order: 4; margin: 0 6px 2px; }
+.youtube-stage .youtube-feedback { order: 5; padding-inline: 6px; }
 @media (max-width: 599px) {
   .youtube-main { padding: 5px 8px; }
-  .youtube-player { gap: 4px; }
-  .youtube-tools > button { padding: 4px 6px; }
-  .youtube-speed { font-size: 11px; gap: 4px; }
-  .youtube-now { min-height: 32px; }
+  .youtube-player { gap: 6px; }
   .youtube-edit-cues .pads { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, 88px); }
+}
+/* On short phones the same tempo card becomes one row, leaving the minimum 200px video intact. */
+@media (max-height: 740px) and (max-width: 599px) {
+  .youtube-player { --clock: 30px; gap: 4px; }
+  .youtube-clock { min-height: 30px; }
+  .youtube-media-panel { padding: 5px 6px; gap: 3px; }
+  .youtube-now { min-height: 32px; }
+  .youtube-now .dancer-track-kicker { font-size: 10px; }
+  .youtube-now strong { font-size: 12px; }
+  .youtube-now > a { font-size: 11px; }
+  .youtube-app .dancer-transport { height: 44px; }
+  .youtube-tools { grid-template-columns: minmax(100px, 1.25fr) minmax(0, 1fr); gap: 6px; padding: 4px 6px; }
+  .youtube-tempo { grid-template-columns: auto minmax(64px, 1fr); gap: 4px; }
+  .youtube-tempo .tempo-nudge { display: none; }
+  .youtube-tempo > label, .youtube-tempo .tempo-label { font-size: 11px; }
+  .youtube-tempo-select { font-size: 16px; padding-inline: 4px 18px; }
+  .youtube-tool-buttons > button { padding-inline: 5px; }
 }
 @media (orientation: landscape) and (max-height: 499px) {
   .youtube-app:not(.youtube-stage) .youtube-main { padding: 4px 8px; }
-  .youtube-app:not(.youtube-stage) .youtube-player { display: grid; grid-template-columns: minmax(200px, 1.3fr) minmax(220px, 1fr); grid-template-rows: 44px 44px 44px 44px 56px; gap: 4px 10px; }
-  .youtube-app:not(.youtube-stage) .youtube-now { grid-column: 1 / -1; }
-  .youtube-app:not(.youtube-stage) .youtube-picture { grid-row: 2 / 6; grid-column: 1; }
-  .youtube-app:not(.youtube-stage) .youtube-main-transport, .youtube-app:not(.youtube-stage) .youtube-timeline, .youtube-app:not(.youtube-stage) .youtube-tools, .youtube-app:not(.youtube-stage) .youtube-cues-heading, .youtube-app:not(.youtube-stage) .youtube-cues { grid-column: 2; }
-  .youtube-app:not(.youtube-stage) .youtube-cues-heading { display: none; }
+  .youtube-app:not(.youtube-stage) .youtube-player { display: grid; grid-template-columns: minmax(200px, 1.3fr) minmax(250px, 1fr); grid-template-rows: 48px minmax(92px, 1fr) 44px 46px; gap: 4px 10px; }
+  .youtube-app:not(.youtube-stage) .youtube-clock { display: none; }
+  .youtube-app:not(.youtube-stage) .youtube-media-panel { grid-row: 1 / 5; grid-column: 1; padding: 6px; gap: 3px; }
+  .youtube-app:not(.youtube-stage) .youtube-now > a { font-size: 11px; }
+  .youtube-app:not(.youtube-stage) .youtube-now strong { font-size: 12px; }
+  .youtube-app:not(.youtube-stage) .youtube-now .dancer-track-kicker { font-size: 10px; }
+  .youtube-app:not(.youtube-stage) .youtube-main-transport { grid-column: 2; grid-row: 1; }
+  .youtube-app:not(.youtube-stage) .youtube-tools { grid-column: 2; grid-row: 2; }
+  .youtube-app:not(.youtube-stage) .youtube-cues-heading { grid-column: 2; grid-row: 3; }
+  .youtube-app:not(.youtube-stage) .youtube-cues { grid-column: 2; grid-row: 4; }
   .youtube-app:not(.youtube-stage) .youtube-feedback { grid-column: 1 / -1; }
+  .youtube-app:not(.youtube-stage) .youtube-options { grid-column: 2; grid-row: 3 / 5; max-height: 100%; }
+  .youtube-stage .youtube-stage-dock { grid-template-columns: minmax(90px, 1fr) minmax(80px, 2fr) repeat(3, minmax(44px, 1fr)); }
+  .youtube-stage .youtube-stage-seek { display: block; }
+  .youtube-stage .youtube-timeline { display: none; }
+  .youtube-stage .youtube-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .youtube-stage .youtube-tempo { flex: 2; min-width: 240px; }
+  .youtube-stage .youtube-tool-buttons { flex: 1; min-width: 150px; }
 }

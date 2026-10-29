@@ -424,7 +424,9 @@ the official IFrame Player API and creates its player. Imported media never ente
 The adapter cues the selected video paused. A prepared offset protects paused seeks before first Play, when
 YouTube's ordinary seekTo behavior can otherwise start a cued video. Actual player state and events determine
 the visible clock, playing state and playback rate. Available rate choices come from YouTube for that video;
-the adapter does not claim that a requested rate was applied before observing it. A new video starts at its
+the adapter does not claim that a requested rate was applied before observing it. The regular player reuses
+the elapsed/tempo clock, Now Playing card, transport and Tempo-card hierarchy. A central rate menu and
+nearest-supported slower/faster steps fit YouTube’s choices without implying arbitrary ±1% support. A new video starts at its
 original rate. Cue bookmarks use video-ID identity and remain separate from local, Apple Music and Spotify
 keys; no protected media or credentials are stored with them.
 
@@ -433,10 +435,22 @@ YouTube owns its frame, native controls, branding and advertisements. The frame 
 ClassTempo's controls and error messages stay outside the picture. Stage changes layout around the same host
 and iframe; it never moves/reparents the iframe or reconstructs the player merely to enter/leave Stage.
 On smaller screens, cue trays stay compact and outside the frame rather than reducing it below the minimum.
+Stage requests document fullscreen from the user’s Stage action where supported, with a full-viewport fallback.
+Landscape gives the picture all remaining space above one compact playback/seek row while preserving its
+uncropped aspect.
+
+Talk ducks native YouTube volume to 20% of the prior level where volume adjustment is available. On a
+volume-locked device, it uses native mute instead; the UI distinguishes lowered from muted sound. Finish
+talking and other playback actions/teardown restore the prior volume and mute state without changing the
+playing/paused state. The path uses official native volume/mute controls, with no extracted samples or
+local-engine involvement. Reported volume values do not establish actual phone attenuation. Options is an inline panel below the picture
+with an explicit Done action. It leaves the same visible iframe, selected video, title, time, speed and playing
+state intact. Opening or closing Options must not switch sources, re-cue, detach or recreate the native player.
 
 Source deactivation pauses and disposes the native player, cancels pending creation and ignores stale events.
 The retained UI can remember the selected link and cues; returning requires an explicit Open video and starts
-paused. Covering dialogs and document hiding also pause playback. There is no background audio mode or automatic
+paused. Covering Library/cue-edit dialogs and document hiding also pause playback; inline Options does not.
+There is no background audio mode or automatic
 resume after a tab becomes visible. These rules also stop the source before local/Apple Music/Spotify takes over.
 
 Practice, class plans, Stems, audio analysis, media export and offline playback are unavailable for YouTube.

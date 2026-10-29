@@ -182,10 +182,21 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   Open with cueVideoById paused, including shared start times. Cues are separate per video ID and preserve
   playing/paused intent before first Play as well as later; seekTo from a cued state can start playback.
   Speed choices come from getAvailablePlaybackRates, and displayed speed follows the observed rate/events,
-  not the requested value. Cueing/loading can reset speed; never promise arbitrary ±1% or clean pitch on every device.
+  not the requested value. Use the familiar Tempo card with a central supported-rate menu and nearest-supported
+  slower/faster buttons; these are stepped choices, not ±1%. Cueing/loading can reset speed; never promise arbitrary
+  ±1% or clean pitch on every device.
   Keep YouTube's native controls, branding and ads unobscured. The iframe viewport is at least 200×200; never
-  crop, mirror, cover or move/reparent it for Stage. Stage resizes the same player with controls/trays below it.
+  crop, mirror, cover or move/reparent it for Stage. Stage resizes the same player with controls/trays below it,
+  using the available landscape area and one compact playback/seek row. Request document fullscreen from the
+  Stage gesture where supported and fall back to the app viewport; preserve the uncropped video aspect.
   Preserve HTTP Referer using strict-origin-when-cross-origin and the page origin; handle error 153 honestly.
+  YouTube Talk lowers native volume to 20% of its prior level where supported, or mutes sound on devices
+  that lock volume changes; both preserve playback state. Show whether audio is lowered or muted. Finish talking
+  restores the prior volume and mute state. Restore on other playback actions, errors and teardown, without
+  starting paused video. A reported volume value alone does not prove physical-phone attenuation.
+  Options is an inline panel below the picture with an explicit Done action: opening or
+  closing it keeps the same visible iframe, selection, position, rate and playback state. It does not navigate
+  away or toggle the frame visibility. Library and cue-edit dialogs remain covering dialogs that pause/hide it.
   Pause for covering dialogs, document hiding and source exit. Inactive source teardown cancels pending player
   creation and disposes the owned native player; retain selected link/cues in the UI, but reopen paused on return.
   Do not let late ready/state callbacks restart old video. Leave Practice, class plans, Stems and offline support

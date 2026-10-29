@@ -28,6 +28,17 @@ const EMPTY: YouTubeSnapshot = {
   playing: false, rate: 1, rates: [1], blocked: false,
 };
 const PRIVACY_PAGE = `${import.meta.env.BASE_URL}youtube-privacy.html`;
+type FullscreenElement = HTMLElement & { webkitRequestFullscreen?: () => void };
+type FullscreenDocument = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void };
+const fullscreenElement = (): Element | null => document.fullscreenElement ?? (document as FullscreenDocument).webkitFullscreenElement ?? null;
+
+function exitOwnedFullscreen(element: HTMLElement | null): void {
+  if (!element || fullscreenElement() !== element) return;
+  try {
+    if (document.exitFullscreen) void document.exitFullscreen().catch(() => {});
+    else (document as FullscreenDocument).webkitExitFullscreen?.();
+  } catch { /* The CSS Stage still closes when browser fullscreen is unavailable. */ }
+}
 
 /** The official visible YouTube player owns audio, picture, controls and supported speeds. */
 export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Props): React.ReactElement {
@@ -47,8 +58,12 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
   const [cues, setCues] = useState<CueSlots>(emptyCues);
   const [undo, setUndo] = useState<CueSlots[]>([]);
   const [talking, setTalking] = useState(false);
+  const [talkMuted, setTalkMuted] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
+  const fullscreenOwner = useRef<HTMLElement | null>(null);
   const host = useRef<HTMLDivElement>(null);
+  const optionsButton = useRef<HTMLButtonElement>(null);
+  const optionsDone = useRef<HTMLButtonElement>(null);
   const stageButton = useRef<HTMLButtonElement>(null);
   const exitButton = useRef<HTMLButtonElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -58,9 +73,10 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
   const alive = useRef(false);
   const activeRef = useRef(active);
   const modalRef = useRef(false);
-  const talkWasPlaying = useRef(false);
+  const stageRef = useRef(stage);
+  stageRef.current = stage;
   activeRef.current = active;
-  const modalOpen = pickerOpen || optionsOpen || editing;
+  const modalOpen = pickerOpen || editing;
   modalRef.current = modalOpen;
   const [wakeLock] = useState(() => createWakeLock({ onChange: held => setScreenOn(held) }));
 
@@ -75,6 +91,7 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
   // Keep UI metadata between sources, but never keep a hidden YouTube frame alive.
   useLayoutEffect(() => {
     if (active) return;
+    exitOwnedFullscreen(fullscreenOwner.current);
     generation.current++; request.current?.abort(); request.current = null;
     player.current?.dispose(); player.current = null;
     setSnapshot(EMPTY); setLoading(false); setStage(false); setTray(null);
@@ -103,6 +120,21 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
   useEffect(() => {
     if (stage) exitButton.current?.focus();
   }, [stage]);
+  useEffect(() => {
+    if (optionsOpen) optionsDone.current?.focus();
+  }, [optionsOpen]);
+  useEffect(() => {
+    const changed = () => {
+      if (fullscreenOwner.current && fullscreenElement() === null) { fullscreenOwner.current = null; setStage(false); setTray(null); }
+    };
+    document.addEventListener('fullscreenchange', changed);
+    document.addEventListener('webkitfullscreenchange', changed);
+    return () => {
+      document.removeEventListener('fullscreenchange', changed);
+      document.removeEventListener('webkitfullscreenchange', changed);
+      exitOwnedFullscreen(fullscreenOwner.current);
+    };
+  }, []);
 
   const matching = selected !== null && snapshot.videoId === selected.id;
   const position = matching ? Math.max(0, snapshot.position) : selected?.startSeconds ?? 0;
@@ -115,17 +147,38 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
     player.current?.pause(); setTalking(false); next();
   };
   const showPicker = (home = false): void => {
-    player.current?.pause(); setTalking(false); setLibraryHome(home); setPickerOpen(true);
+    player.current?.pause(); setTalking(false); setOptionsOpen(false); setLibraryHome(home); setPickerOpen(true);
   };
   const showOptions = (): void => {
-    player.current?.pause(); setTalking(false); setOptionsOpen(true);
+    setOptionsOpen(!optionsOpen);
   };
   const openFile = (): void => {
     player.current?.pause(); setTalking(false); fileInput.current?.click();
   };
   const closeStage = (): void => {
-    setStage(false); setTray(null);
+    exitOwnedFullscreen(fullscreenOwner.current);
+    setStage(false); setTray(null); setOptionsOpen(false);
     requestAnimationFrame(() => stageButton.current?.focus());
+  };
+  const enterStage = (): void => {
+    setStage(true); setTray(null); setOptionsOpen(false);
+    const root = document.documentElement as FullscreenElement;
+    if (fullscreenElement()) return;
+    try {
+      // Request directly in the Stage tap. iPhone Safari falls back to the full-viewport CSS layout.
+      // The document owns fullscreen so body-level cue/library dialogs remain reachable above Stage.
+      if (root.requestFullscreen) {
+        fullscreenOwner.current = root;
+        void root.requestFullscreen({ navigationUI: 'hide' }).then(() => {
+          if (!activeRef.current || !stageRef.current) exitOwnedFullscreen(root);
+        }).catch(() => { fullscreenOwner.current = null; });
+      }
+      else if (root.webkitRequestFullscreen) { fullscreenOwner.current = root; root.webkitRequestFullscreen(); }
+    } catch { fullscreenOwner.current = null; /* The same iframe remains in CSS Stage. */ }
+  };
+  const closeOptions = (): void => {
+    setOptionsOpen(false);
+    requestAnimationFrame(() => optionsButton.current?.focus());
   };
   const seek = (seconds: number): void => {
     if (!ready || !Number.isFinite(seconds)) return;
@@ -139,8 +192,13 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
   };
   const toggleTalk = (): void => {
     if (!ready) return;
-    if (!talking) { talkWasPlaying.current = playing; player.current?.pause(); setTalking(true); }
-    else { setTalking(false); if (talkWasPlaying.current) player.current?.play(); }
+    const next = !talking;
+    if (player.current?.setDucked(next)) { setTalking(next); setTalkMuted(player.current.talkMuted); }
+    else setNotice('This browser could not lower YouTube’s volume. Use your device volume controls.');
+  };
+  const changeRate = (rate: number): void => {
+    if (!ready) return;
+    setTalking(false); player.current?.setRate(rate);
   };
   const changeCues = (next: CueSlots, remember = true): void => {
     if (!selected) return;
@@ -178,7 +236,9 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
           if (next.playing && (modalRef.current || document.visibilityState !== 'visible')) {
             player.current?.pause(); return;
           }
-          if (next.playing) { setTalking(false); setError(''); }
+          setTalking(player.current?.ducked ?? false);
+          setTalkMuted(player.current?.talkMuted ?? false);
+          if (next.playing) setError('');
           setSnapshot(next);
         }, message => {
           if (alive.current && activeRef.current && id === generation.current && !controller.signal.aborted) { setError(message); setLoading(false); setTalking(false); }
@@ -195,17 +255,18 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
     }
   }
 
-  const commandRef = useRef({ togglePlay, seek, position, pressCue, stage, tray, closeStage });
-  commandRef.current = { togglePlay, seek, position, pressCue, stage, tray, closeStage };
+  const commandRef = useRef({ togglePlay, seek, position, pressCue, stage, tray, closeStage, optionsOpen, closeOptions });
+  commandRef.current = { togglePlay, seek, position, pressCue, stage, tray, closeStage, optionsOpen, closeOptions };
   useEffect(() => {
     if (!active) return;
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || modalRef.current || event.altKey || event.ctrlKey || event.metaKey) return;
       const current = commandRef.current;
+      if (event.key === 'Escape' && current.optionsOpen) { event.preventDefault(); current.closeOptions(); return; }
       if (event.key === 'Escape' && current.stage) {
         event.preventDefault(); if (current.tray) setTray(null); else current.closeStage(); return;
       }
-      if (event.target instanceof HTMLElement && (event.target.closest('button, input, select, textarea, a, [contenteditable]') || event.target.tagName === 'IFRAME')) return;
+      if (event.target instanceof HTMLElement && (event.target.closest('button, input, select, textarea, a, summary, [contenteditable]') || event.target.tagName === 'IFRAME')) return;
       if (event.key === ' ') { event.preventDefault(); current.togglePlay(); }
       else if (/^[1-8]$/.test(event.key)) { event.preventDefault(); current.pressCue(Number(event.key) - 1); }
       else if (event.key === 'Home') { event.preventDefault(); current.seek(0); }
@@ -221,12 +282,23 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
     }
     leave(() => { window.location.hash = destination; });
   };
+  const supportedRates = [...new Set([...snapshot.rates, snapshot.rate])].sort((a, b) => a - b);
+  const slower = supportedRates.filter(rate => rate < snapshot.rate).at(-1);
+  const faster = supportedRates.find(rate => rate > snapshot.rate);
   const speedControls = <>
-    <label className="youtube-speed">Speed<select aria-label="YouTube playback speed" value={snapshot.rate} disabled={!ready} onChange={event => player.current?.setRate(Number(event.target.value))}>
-      {[...new Set([...snapshot.rates, snapshot.rate])].sort((a, b) => a - b).map(rate => <option key={rate} value={rate}>{Math.round(rate * 100)}%</option>)}
-    </select></label>
-    <button type="button" disabled={!ready} aria-pressed={talking} onClick={toggleTalk}>{talking ? 'Finish talking' : 'Talk'}</button>
-    <button type="button" onClick={showOptions}>Options</button>
+    <div className="youtube-tempo">
+      <label htmlFor="youtube-tempo">Tempo</label>
+      <button type="button" className="tempo-nudge" disabled={!ready || slower === undefined} aria-label="Slower YouTube speed" title="Previous supported speed" onClick={() => slower !== undefined && changeRate(slower)}>−</button>
+      <select id="youtube-tempo" className="youtube-tempo-select" aria-label="YouTube playback speed" value={snapshot.rate} disabled={!ready} onChange={event => changeRate(Number(event.target.value))}>
+        {supportedRates.map(rate => <option key={rate} value={rate}>{Math.round(rate * 100)}%</option>)}
+      </select>
+      <button type="button" className="tempo-nudge" disabled={!ready || faster === undefined} aria-label="Faster YouTube speed" title="Next supported speed" onClick={() => faster !== undefined && changeRate(faster)}>+</button>
+    </div>
+    <div className="youtube-tool-buttons">
+      {stage && <button type="button" disabled={!ready} onClick={() => seek(0)}>⟲ Restart</button>}
+      <button type="button" disabled={!ready || !playing && !talking} aria-pressed={talking} title="Quiet the audio while the video keeps playing; tap again to restore" onClick={toggleTalk}><span>{talking ? 'Finish talking' : 'Talk'}</span>{talking && <small>{talkMuted ? 'Audio muted' : 'Audio lowered'}</small>}</button>
+      <button ref={optionsButton} type="button" aria-expanded={optionsOpen} onClick={showOptions}>Options</button>
+    </div>
   </>;
   const compactCues = <div className="youtube-cue-row" role="group" aria-label="Video cues">
     {cues.map((cue, index) => <button key={index} type="button" disabled={!ready} className={cue ? 'set' : ''}
@@ -247,25 +319,36 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
       </div></div></header>
       <input ref={fileInput} type="file" accept={ACCEPT_MEDIA} hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) leave(() => onOpenFile(file)); }} />
       <main className="youtube-main"><section className="youtube-player" aria-label={stage ? 'YouTube Stage' : 'YouTube player'}>
-        <div className="youtube-now"><div><NowPlayingLabel /><strong title={title}>{title}</strong></div><a href={selected?.url ?? 'https://www.youtube.com/'} target="_blank" rel="noopener noreferrer">YouTube ↗</a></div>
-        <div className="youtube-picture">
-          <div className="youtube-host" ref={host} />
-          {!selected && <div className="youtube-empty"><span aria-hidden="true">▶</span><button type="button" onClick={() => showPicker()}>Paste a YouTube link</button><p>Open a video, then press Play.</p></div>}
+        <div className="youtube-clock dancer-clock"><span className="elapsed">{formatTime(position)}</span><span className="total">/ {formatTime(duration)}</span><span className="bpm"><span className="big">{Math.round(snapshot.rate * 100)}%</span><span className="unit">tempo</span></span></div>
+        <div className="youtube-media-panel dancer-media-panel">
+          <div className="youtube-now"><div><NowPlayingLabel /><strong title={title}>{title}</strong></div><a href={selected?.url ?? 'https://www.youtube.com/'} target="_blank" rel="noopener noreferrer">YouTube ↗</a></div>
+          <div className="youtube-picture">
+            <div className="youtube-host" ref={host} />
+            {!selected && <div className="youtube-empty"><span aria-hidden="true">▶</span><button type="button" onClick={() => showPicker()}>Paste a YouTube link</button><p>Open a video, then press Play.</p></div>}
+          </div>
+          <div className="youtube-timeline"><span>{formatTime(position)} / {formatTime(duration)}</span><input type="range" aria-label="Video position" min="0" max={Math.max(1, duration)} step="0.1" value={Math.min(position, Math.max(1, duration))} disabled={!ready || duration <= 0} onChange={event => seek(Number(event.target.value))} /></div>
         </div>
-        <div className="youtube-main-transport" hidden={stage}><PlayerTransport playing={playing} disabled={!ready} onTogglePlay={togglePlay} onRestart={() => seek(0)} stageRef={stageButton} onStage={() => { setStage(true); setTray(null); }} /></div>
+        <div className="youtube-main-transport" hidden={stage}><PlayerTransport playing={playing} disabled={!ready} onTogglePlay={togglePlay} onRestart={() => seek(0)} stageRef={stageButton} onStage={enterStage} /></div>
         <div className="youtube-stage-dock" hidden={!stage}>
           <button type="button" className="youtube-primary" disabled={!ready} onClick={togglePlay}>{playing ? '❚❚ Pause' : '▶ Play'}</button>
-          <button type="button" aria-expanded={tray === 'cues'} onClick={() => setTray(tray === 'cues' ? null : 'cues')}>Cues</button>
-          <button type="button" aria-expanded={tray === 'tools'} onClick={() => setTray(tray === 'tools' ? null : 'tools')}>Tools</button>
+          <input className="youtube-stage-seek" type="range" aria-label="Stage video position" aria-valuetext={`${formatTime(position)} of ${formatTime(duration)}`} min="0" max={Math.max(1, duration)} step="0.1" value={Math.min(position, Math.max(1, duration))} disabled={!ready || duration <= 0} onChange={event => seek(Number(event.target.value))} />
+          <button type="button" aria-expanded={tray === 'cues'} onClick={() => { setOptionsOpen(false); setTray(tray === 'cues' ? null : 'cues'); }}>Cues</button>
+          <button type="button" aria-expanded={tray === 'tools'} onClick={() => { setOptionsOpen(false); setTray(tray === 'tools' ? null : 'tools'); }}>Tools</button>
           <button ref={exitButton} type="button" onClick={closeStage}>Exit</button>
         </div>
-        <div className="youtube-timeline"><span>{formatTime(position)} / {formatTime(duration)}</span><input type="range" aria-label="Video position" min="0" max={Math.max(1, duration)} step="0.1" value={Math.min(position, Math.max(1, duration))} disabled={!ready || duration <= 0} onChange={event => seek(Number(event.target.value))} /></div>
-        <div className="youtube-tools" hidden={stage && tray !== 'tools'}>{stage && <button type="button" disabled={!ready} onClick={() => seek(0)}>⟲ Restart</button>}{speedControls}</div>
-        <div className="youtube-cues-heading" hidden={stage}><CueStemsSwitch value="cues" onChange={() => {}} stemsDisabled />
+        <div className="youtube-tools class-tempo-panel" hidden={stage && tray !== 'tools'}>{speedControls}</div>
+        <section className="youtube-options" hidden={!optionsOpen} aria-label="YouTube options">
+          <div className="youtube-options-heading"><h3>Video options</h3><button ref={optionsDone} type="button" onClick={closeOptions}>Done</button></div>
+          <p>Your video stays open while you use these options. Talk quiets the audio while the video continues.</p>
+          <details><summary>Playback &amp; source limits</summary><p>YouTube controls the available speeds, ads and video availability. Keep the app open; playback pauses when you hide the app or change sources. Practice, class plans, Stems, mirroring and offline playback use imported files.</p></details>
+          <div className="youtube-options-links">{selected && <a href={selected.url} target="_blank" rel="noopener noreferrer">Open this video on YouTube ↗</a>}<a href={PRIVACY_PAGE} target="_blank" rel="noopener noreferrer">YouTube privacy ↗</a></div>
+          <button type="button" onClick={() => showPicker()}>Choose another YouTube video</button>
+        </section>
+        <div className="youtube-cues-heading" hidden={stage || optionsOpen}><CueStemsSwitch value="cues" onChange={() => {}} stemsDisabled />
           {undo.length > 0 && <button type="button" disabled={!ready} onClick={() => { const previous = undo[undo.length - 1]; if (previous) { changeCues(previous, false); setUndo(items => items.slice(0, -1)); } }}>Undo</button>}
           <button type="button" disabled={!ready} onClick={() => { player.current?.pause(); setEditing(true); }}>Edit cues</button>
         </div>
-        <div className="youtube-cues" hidden={stage && tray !== 'cues'}>{compactCues}</div>
+        <div className="youtube-cues" hidden={optionsOpen || stage && tray !== 'cues'}>{compactCues}</div>
         {(loading || error || notice || snapshot.blocked && !playing) && <div className="youtube-feedback" role={error ? 'alert' : 'status'}>
           {loading ? 'Opening YouTube…' : error || notice || 'Tap Play in the YouTube video to allow playback.'}
           {error && selected && <><button type="button" onClick={() => void openVideo(selected.url)}>Retry video</button><a href={selected.url} target="_blank" rel="noopener noreferrer">Open on YouTube ↗</a></>}
@@ -284,15 +367,6 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
       <p className="apple-music-limits">Opening a video connects to YouTube. No ClassTempo key or YouTube account is required. Videos may contain ads or be unavailable for embedding.</p>
       <p className="apple-music-limits">Cues and YouTube-supported speeds are available. Practice, classes, Stems and offline playback use imported files. <a href={PRIVACY_PAGE} target="_blank" rel="noopener noreferrer">YouTube privacy ↗</a></p>
       </>}
-    </AppleMusicPicker>}
-    {active && optionsOpen && <AppleMusicPicker title="YouTube options" onClose={() => setOptionsOpen(false)}>
-      <p>YouTube controls the available speeds, picture, ads and video availability. The speed selector shows the rate YouTube reports.</p>
-      <p className="apple-music-limits">Keep the video visible and the app open. YouTube playback pauses when you leave this source or hide the app.</p>
-      <p className="apple-music-limits">Practice, class plans, Stems, mirroring and offline playback use imported files. YouTube cues are saved in this browser, separately from your files and music services.</p>
-      {selected && <a href={selected.url} target="_blank" rel="noopener noreferrer">Open this video on YouTube ↗</a>}
-      <a href={PRIVACY_PAGE} target="_blank" rel="noopener noreferrer">YouTube connection privacy ↗</a>
-      <button type="button" onClick={() => { setOptionsOpen(false); showPicker(); }}>Open another YouTube link</button>
-      <button type="button" onClick={() => leave(onOpenLocalLibrary)}>Library</button>
     </AppleMusicPicker>}
     {active && editing && <AppleMusicPicker title="Edit YouTube cues" onClose={() => { setEditing(false); setRename(null); }}>
       <p className="apple-music-limits">Tap a pad to move it to {formatTime(position)}. Rename or clear a saved cue below.</p>
