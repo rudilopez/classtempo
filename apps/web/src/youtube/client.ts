@@ -18,6 +18,12 @@ export interface YouTubePlayer {
   pause(): void;
   seek(seconds: number, wasPlaying: boolean): void;
   setRate(rate: number): void;
+  /** Lowers this player's audio (or mutes on volume-locked devices) without changing playback. */
+  setDucked(enabled: boolean): boolean;
+  /** Whether Talk currently owns a lowered volume that still needs restoring. */
+  readonly ducked: boolean;
+  /** True when Talk uses mute instead of a lowered volume, including hardware-volume-only phones. */
+  readonly talkMuted: boolean;
   snapshot(): YouTubeSnapshot;
   dispose(): void;
 }
@@ -28,6 +34,11 @@ interface NativePlayer {
   pauseVideo(): void;
   seekTo(seconds: number, allowSeekAhead: boolean): void;
   setPlaybackRate(rate: number): void;
+  setVolume?(volume: number): void;
+  getVolume?(): number;
+  mute?(): void;
+  unMute?(): void;
+  isMuted?(): boolean;
   getPlaybackRate(): number;
   getAvailablePlaybackRates(): number[];
   getCurrentTime(): number;
@@ -100,6 +111,15 @@ function waitForApi(signal?: AbortSignal): Promise<YouTubeApi> {
 }
 
 function finite(value: number, fallback = 0): number { return Number.isFinite(value) ? value : fallback; }
+function volumeLocked(): boolean {
+  try {
+    // WebKit exposes the media element's actual volume policy, including newer unlocked iPad versions.
+    return document.createElement('video').matches(':volume-locked');
+  } catch {
+    // Older iPhone/iPod WebKit has hardware-only volume but does not understand the feature selector.
+    return typeof navigator !== 'undefined' && /iPhone|iPod/i.test(`${navigator.userAgent} ${navigator.platform}`);
+  }
+}
 function rates(values: number[]): number[] { return [...new Set(values.filter(value => Number.isFinite(value) && value >= 0.25 && value <= 4))].sort((a, b) => a - b); }
 function iframeTitle(player: NativePlayer): string {
   try {
@@ -136,6 +156,8 @@ export async function createYouTubePlayer(
     let preserveRate = 1;
     let pausePending = false;
     let unexpectedId: string | null = null;
+    let restoreVolume: number | null = null;
+    let restoreMuted: boolean | null = null;
     let state: YouTubeSnapshot = { ready: false, videoId: expectedId, title: '', duration: 0, position: prepared ?? 0, playing: false, rate: 1, rates: [1], blocked: false };
     // The documented existing-iframe constructor preserves YouTube's privacy-enhanced embed host.
     // Configure referrer and controls before insertion, so even the initial request identifies this app.
@@ -156,7 +178,37 @@ export async function createYouTubePlayer(
       try { onSnapshot({ ...state, rates: [...state.rates] }); } catch { /* A view observer cannot interrupt owned player cleanup. */ }
     };
     const reportError = (message: string) => { try { onError(message); } catch { /* Keep cleanup independent from a view observer. */ } };
-    const quietPause = () => { try { native?.pauseVideo(); } catch { /* Cleanup is best effort. */ } };
+    const restoreDuck = () => {
+      const volume = restoreVolume;
+      const muted = restoreMuted;
+      restoreVolume = null; restoreMuted = null;
+      let restored = true;
+      if (volume !== null) {
+        try {
+          if (native?.setVolume) native.setVolume(volume);
+          else restored = false;
+        } catch { restored = false; }
+      }
+      if (muted !== null) {
+        try {
+          if (muted && native?.mute) native.mute();
+          else if (!muted && native?.unMute) native.unMute();
+          else restored = false;
+        } catch { restored = false; }
+      }
+      return restored;
+    };
+    const muteForTalk = () => {
+      if (!native?.mute || !native.unMute || !native.isMuted) return false;
+      try {
+        const muted = native.isMuted();
+        if (typeof muted !== 'boolean') return false;
+        restoreMuted = muted;
+        if (!muted) native.mute();
+        return true;
+      } catch { restoreDuck(); return false; }
+    };
+    const quietPause = () => { try { native?.pauseVideo(); } catch { /* Cleanup is best effort. */ } restoreDuck(); };
     const cleanup = () => {
       if (disposed) return;
       disposed = true; state.ready = false; state.playing = false;
@@ -176,6 +228,7 @@ export async function createYouTubePlayer(
       try {
         const actualId = parseYouTubeVideo(native.getVideoUrl())?.id ?? null;
         const status = eventState ?? native.getPlayerState();
+        if (status === 2 || status === 0) restoreDuck();
         if (expectedId && actualId && actualId !== expectedId) {
           if (status === 1) {
             pausePending = true; quietPause(); state.playing = false; emit();
@@ -213,6 +266,7 @@ export async function createYouTubePlayer(
       play() {
         const target = available();
         if (!expectedId) return;
+        restoreDuck();
         pausePending = false; state.blocked = false;
         // Call directly within the user's tap, before any asynchronous work.
         target.playVideo(); emit();
@@ -224,6 +278,7 @@ export async function createYouTubePlayer(
       seek(seconds, wasPlaying) {
         const target = available();
         if (!expectedId) return;
+        restoreDuck();
         const position = boundedPosition(seconds); prepared = position;
         if (wasPlaying) { pausePending = false; target.seekTo(position, true); target.playVideo(); }
         else {
@@ -238,9 +293,29 @@ export async function createYouTubePlayer(
       setRate(rate) {
         const target = available();
         if (!state.rates.includes(rate)) return;
+        restoreDuck();
         preserveRate = rate; target.setPlaybackRate(rate);
         // The rate event/poll reports what YouTube actually applied; a request is not confirmation.
       },
+      setDucked(enabled) {
+        if (disposed || !native || !state.ready) return false;
+        if (!enabled) return restoreDuck();
+        if (restoreVolume !== null || restoreMuted !== null) return true;
+        if (volumeLocked() || !native.getVolume || !native.setVolume) return muteForTalk();
+        try {
+          if (native.isMuted?.()) return muteForTalk();
+          const volume = native.getVolume();
+          if (!Number.isFinite(volume)) return muteForTalk();
+          restoreVolume = Math.round(Math.min(100, Math.max(0, volume)));
+          native.setVolume(Math.round(restoreVolume * 0.2));
+          return true;
+        } catch {
+          restoreDuck();
+          return muteForTalk();
+        }
+      },
+      get ducked() { return !disposed && (restoreVolume !== null || restoreMuted !== null); },
+      get talkMuted() { return !disposed && restoreMuted !== null; },
       snapshot() { return { ...state, ready: state.ready && !disposed, rates: [...state.rates] }; },
       dispose: cleanup,
     };
