@@ -164,13 +164,20 @@ artwork shows saved-cue pads.
 
 ## Library, class sets and backups
 
-The dialog opens to **Media**, a single recent-first list of saved songs and videos with explicit type badges.
-**Classes** starts with a named-card overview; selecting a card opens its ordered exercises with Teach class and
-Edit class actions. Edits are local drafts until Save class. Search appears only
-when media exists, filters saved filenames without case/accent sensitivity, and reports counts or a clear empty
-result. It is not a music-service search. Backup utilities are collapsed below the current view.
+Every player opens the same **Library** hub. **Your collection** separates **Saved files** from **Class plans**;
+**Play from** lists the available streaming providers. Each destination describes its purpose before it is opened.
+The hub offers a direct **Open a file** action. Provider browsing stays inside its existing focus-contained picker,
+with a clear Back to Library action; opening the hub alone does not change the active audio source. YouTube
+continues to pause and hide its iframe for covering dialogs. A local-library request can select home, saved files
+or class plans directly without an extra navigation roundtrip.
 
-Open in the player directly selects one file. Add media in the library saves the whole selection, then opens the
+**Saved files** is a single recent-first list of songs and videos with explicit type badges. **Class plans** starts
+with a named-card overview; selecting a card opens its ordered exercises with Teach class and Edit class actions.
+Edits are local drafts until Save class. Search appears only when files exist, filters saved filenames without
+case/accent sensitivity, and reports counts or a clear empty result. It is not a music-service search. Backup
+utilities remain collapsed.
+
+Open in the player directly selects one file. Add files in the library saves the whole selection, then opens the
 first selected item paused and closes the dialog. `importFlow.ts` separates save and open outcomes: a null library
 ID tells the player that saving failed and prevents an automatic retry, while the user gets explicit unsaved
 feedback. Cancelling is a no-op. Save current only persists the file and preserves playback/practice. Updating
@@ -341,7 +348,10 @@ file reloads and a separately recorded physical-device result. Passing typecheck
 Spotify discovery is opt-in per browser. The exact unlisted `#spotify-invite` route writes a nonsecret,
 versioned tester-visibility flag, preferring localStorage with sessionStorage/document-memory fallbacks, and
 replaces the invite hash with `#spotify`. Ordinary local/Apple Music libraries hide the Spotify source; the
-public guide does not advertise it. A bare `#spotify`, an old provider session or an OAuth callback never
+public guide does not advertise it. **Library → Tester access** also accepts the nonsecret **FAMILIA** code
+(case-insensitive, surrounding whitespace ignored) and enters the same explicit invite route. This lets an
+installed PWA reveal its own tester interface when Safari uses separate storage. The generic access form does
+not advertise Spotify before a valid code. A bare `#spotify`, an old provider session or an OAuth callback never
 creates the flag. The route guard runs before the lazy provider adapter can mount, so an uninvited browser
 does not initialize the Spotify SDK even when given its ordinary route.
 
@@ -349,13 +359,14 @@ For an invited browser, `#spotify` lazy-loads the independent adapter. The light
 participates in initial routing before `localVisited`, so an invited Spotify authorization return does not
 mount the local audio engine. The visibility flag is not authentication or a provider entitlement; Spotify's
 approved-user list, Premium requirement and existing PKCE checks remain authoritative.
-The limits screen appears before connecting the SDK and offers Apple Music, Open a file and Files & classes.
+The limits screen appears before connecting the SDK and offers Apple Music, Open a file and Library.
 No configured public client ID means no connection attempt, with the alternatives still usable.
 
 Private Spotify options provide a clean canonical tester link without query parameters, emails or tokens.
 Hide Spotify on this device invalidates the tab's connection, removes visibility and reloads the local player;
 it does not clear saved Spotify cues or local/Apple Music data. Reloading also avoids constructing another
-native SDK player after a later invitation. Storage clearing or a different browser requires a new invitation.
+native SDK player after a later invitation. Storage clearing or a different browser/installation requires a
+new invitation or the in-app tester code.
 
 The public Web Playback SDK owns protected audio. Catalog/library reads and starting a selected URI use the
 Web API with the SDK instance’s own ready device ID. Selecting a song or preparing a paused cue does not

@@ -6,7 +6,8 @@ import { CueStemsSwitch } from '../dancer/CueStemsSwitch';
 import { emptyCues, type CueSlots } from '../dancer/cueStore';
 import { ACCEPT_MEDIA } from '../dancer/media';
 import { createWakeLock } from '../platform/wakeLock';
-import { hasSpotifyTesterAccess } from '../spotify/access';
+import { LibraryHome, type LibraryDestination } from '../library/LibraryHome';
+import type { LibraryView } from '../library/LibraryModal';
 import { formatTime } from '../types';
 import { createYouTubePlayer, type YouTubePlayer, type YouTubeSnapshot } from './client';
 import { loadYouTubeCues, saveYouTubeCues } from './cues';
@@ -19,7 +20,7 @@ import './youtube.css';
 interface Props {
   active: boolean;
   onOpenFile: (file: File) => void;
-  onOpenLocalLibrary: () => void;
+  onOpenLocalLibrary: (view?: LibraryView) => void;
 }
 
 const EMPTY: YouTubeSnapshot = {
@@ -37,6 +38,7 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [pickerOpen, setPickerOpen] = useState(true);
+  const [libraryHome, setLibraryHome] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [rename, setRename] = useState<{ index: number; name: string } | null>(null);
@@ -76,7 +78,7 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
     generation.current++; request.current?.abort(); request.current = null;
     player.current?.dispose(); player.current = null;
     setSnapshot(EMPTY); setLoading(false); setStage(false); setTray(null);
-    setEditing(false); setRename(null); setOptionsOpen(false); setPickerOpen(true);
+    setEditing(false); setRename(null); setOptionsOpen(false); setLibraryHome(false); setPickerOpen(true);
     setTalking(false); setScreenOn(false); void wakeLock.disable();
   }, [active, wakeLock]);
 
@@ -112,8 +114,8 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
   const leave = (next: () => void): void => {
     player.current?.pause(); setTalking(false); next();
   };
-  const showPicker = (): void => {
-    player.current?.pause(); setTalking(false); setPickerOpen(true);
+  const showPicker = (home = false): void => {
+    player.current?.pause(); setTalking(false); setLibraryHome(home); setPickerOpen(true);
   };
   const showOptions = (): void => {
     player.current?.pause(); setTalking(false); setOptionsOpen(true);
@@ -212,12 +214,13 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
     return () => document.removeEventListener('keydown', keydown);
   }, [active]);
 
-  const sources = <div className="apple-music-sources youtube-sources" role="group" aria-label="Music source">
-    <button type="button" onClick={() => leave(onOpenLocalLibrary)}>Files &amp; classes</button>
-    {import.meta.env.VITE_APPLE_MUSIC_ENABLED === 'true' && <button type="button" onClick={() => leave(() => { window.location.hash = 'apple-music'; })}>Apple Music</button>}
-    <button type="button" aria-pressed="true">YouTube</button>
-    {hasSpotifyTesterAccess() && <button type="button" onClick={() => leave(() => { window.location.hash = 'spotify'; })}>Spotify</button>}
-  </div>;
+  const chooseLibrary = (destination: LibraryDestination): void => {
+    if (destination === 'youtube') { setLibraryHome(false); return; }
+    if (destination === 'files' || destination === 'classes') {
+      leave(() => onOpenLocalLibrary(destination === 'files' ? 'media' : 'classes')); return;
+    }
+    leave(() => { window.location.hash = destination; });
+  };
   const speedControls = <>
     <label className="youtube-speed">Speed<select aria-label="YouTube playback speed" value={snapshot.rate} disabled={!ready} onChange={event => player.current?.setRate(Number(event.target.value))}>
       {[...new Set([...snapshot.rates, snapshot.rate])].sort((a, b) => a - b).map(rate => <option key={rate} value={rate}>{Math.round(rate * 100)}%</option>)}
@@ -239,7 +242,7 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
     <div className={`app youtube-app ${stage ? 'youtube-stage' : ''} ${modalOpen ? 'youtube-modal-open' : ''}`} hidden={!active}>
       <header><Wordmark className="logo" /><div className="header-actions"><div className="dancer-actions">
         <button type="button" onClick={openFile}>Open</button>
-        <button type="button" onClick={showPicker}>Library</button>
+        <button type="button" onClick={() => showPicker(true)}>Library</button>
         {wakeLock.supported && <button type="button" className={`screen-on ${screenOn ? 'on' : ''}`} aria-pressed={screenOn} onClick={toggleWake} title="Prevents dimming and auto-lock while ClassTempo is visible">☀<span className="screen-on-label">Keep awake</span></button>}
       </div></div></header>
       <input ref={fileInput} type="file" accept={ACCEPT_MEDIA} hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) leave(() => onOpenFile(file)); }} />
@@ -247,7 +250,7 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
         <div className="youtube-now"><div><NowPlayingLabel /><strong title={title}>{title}</strong></div><a href={selected?.url ?? 'https://www.youtube.com/'} target="_blank" rel="noopener noreferrer">YouTube ↗</a></div>
         <div className="youtube-picture">
           <div className="youtube-host" ref={host} />
-          {!selected && <div className="youtube-empty"><span aria-hidden="true">▶</span><button type="button" onClick={showPicker}>Paste a YouTube link</button><p>Open a video, then press Play.</p></div>}
+          {!selected && <div className="youtube-empty"><span aria-hidden="true">▶</span><button type="button" onClick={() => showPicker()}>Paste a YouTube link</button><p>Open a video, then press Play.</p></div>}
         </div>
         <div className="youtube-main-transport" hidden={stage}><PlayerTransport playing={playing} disabled={!ready} onTogglePlay={togglePlay} onRestart={() => seek(0)} stageRef={stageButton} onStage={() => { setStage(true); setTray(null); }} /></div>
         <div className="youtube-stage-dock" hidden={!stage}>
@@ -269,7 +272,9 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
         </div>}
       </section></main>
     </div>
-    {active && pickerOpen && <AppleMusicPicker title="Library" onClose={() => setPickerOpen(false)}>{sources}
+    {active && pickerOpen && <AppleMusicPicker title={libraryHome ? 'Library' : 'YouTube'} onClose={() => setPickerOpen(false)}>
+      {libraryHome ? <><LibraryHome onChoose={chooseLibrary} onOpenFile={openFile} /><a className="library-guide-link" href={`${import.meta.env.BASE_URL}guide.html`} target="_blank" rel="noopener noreferrer">How to use ClassTempo ↗</a></> : <>
+      <button type="button" className="library-source-back" onClick={() => setLibraryHome(true)}>← Back to Library</button>
       <form className="youtube-open-form" onSubmit={event => { event.preventDefault(); void openVideo(); }}>
         <h3>Open a YouTube video</h3><p>Paste a video link from YouTube or its Share button. It opens paused.</p>
         <label>YouTube link<input type="text" inputMode="url" value={url} onChange={event => setUrl(event.target.value)} maxLength={2048} placeholder="https://youtu.be/…" autoComplete="off" autoCapitalize="none" spellCheck={false} /></label>
@@ -278,6 +283,7 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
       </form>
       <p className="apple-music-limits">Opening a video connects to YouTube. No ClassTempo key or YouTube account is required. Videos may contain ads or be unavailable for embedding.</p>
       <p className="apple-music-limits">Cues and YouTube-supported speeds are available. Practice, classes, Stems and offline playback use imported files. <a href={PRIVACY_PAGE} target="_blank" rel="noopener noreferrer">YouTube privacy ↗</a></p>
+      </>}
     </AppleMusicPicker>}
     {active && optionsOpen && <AppleMusicPicker title="YouTube options" onClose={() => setOptionsOpen(false)}>
       <p>YouTube controls the available speeds, picture, ads and video availability. The speed selector shows the rate YouTube reports.</p>
@@ -285,8 +291,8 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
       <p className="apple-music-limits">Practice, class plans, Stems, mirroring and offline playback use imported files. YouTube cues are saved in this browser, separately from your files and music services.</p>
       {selected && <a href={selected.url} target="_blank" rel="noopener noreferrer">Open this video on YouTube ↗</a>}
       <a href={PRIVACY_PAGE} target="_blank" rel="noopener noreferrer">YouTube connection privacy ↗</a>
-      <button type="button" onClick={() => { setOptionsOpen(false); setPickerOpen(true); }}>Open another YouTube link</button>
-      <button type="button" onClick={() => leave(onOpenLocalLibrary)}>Files &amp; classes</button>
+      <button type="button" onClick={() => { setOptionsOpen(false); showPicker(); }}>Open another YouTube link</button>
+      <button type="button" onClick={() => leave(onOpenLocalLibrary)}>Library</button>
     </AppleMusicPicker>}
     {active && editing && <AppleMusicPicker title="Edit YouTube cues" onClose={() => { setEditing(false); setRename(null); }}>
       <p className="apple-music-limits">Tap a pad to move it to {formatTime(position)}. Rename or clear a saved cue below.</p>

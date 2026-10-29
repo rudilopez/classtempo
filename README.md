@@ -15,10 +15,12 @@ classes, Stage, stems, offline use and backups. The guide opens in a separate ta
 
 1. Tap **Open** to choose an ordinary song or video file. The app recognizes its type automatically; cancelling
    the picker keeps the current track. Nothing starts until Play.
-2. Open **Library → Media** for all saved songs and videos together, with clear type labels and a local search.
-   **Add media** saves your selection and opens it automatically, paused. With multiple files, all are saved and
-   the first opens. **Classes** holds your teaching plans. **Edit class** adds full songs/videos or saved named
-   practices, with optional exercise names and notes. **Teach class** keeps the running order in the player;
+2. Open **Library** to choose where to play from. **Your collection** contains **Saved files** (songs and videos
+   stored on this device) and **Class plans** (your prepared teaching order). **Play from** contains Apple Music
+   and YouTube. **Open a file** goes straight to the device picker. In Saved files, **Add files** saves your selection
+   and opens the first automatically, paused. With multiple files, all are saved. Search filters saved filenames only.
+   In Class plans, **Edit class** adds full songs/videos or saved named practices, with optional names and notes.
+   **Teach class** keeps the running order in the player;
    use **Next & play** to move on and **Again** to restart the current exercise.
 3. Adjust speed between **50% and 150%**, preserving pitch where the playback engine/browser supports it.
    The percentage sits between the minus and plus controls; **100%** restores original speed. In video Stage,
@@ -86,7 +88,7 @@ Album artwork fills Now Playing with a gradient that keeps the title readable, u
 space. **Stage** shows the full cover over a blurred artwork backdrop, with Play, Cues, Tools, Exit and seeking
 below it. Cue and tool trays open below the artwork; the image stays unobstructed. These visual changes do
 not change audio playback or tempo processing.
-**Open** still accepts a local song or video directly from this player. **Library → Files & classes** returns
+**Open** still accepts a local song or video directly from this player. **Library → Saved files** returns
 to saved local media. Switching sources pauses the source you leave; returning does not restart an old delay
 or class transition.
 
@@ -110,7 +112,9 @@ imported files. In Apple Music, the **Cues / Stems** switch keeps Cues active an
 **Local audio only**, so its availability is clear. Subscription downloads are not ordinary files ClassTempo can import or save offline.
 **Spotify is an invite-only testing feature.** Ordinary libraries and the public guide do not advertise it.
 Approved testers open the unlisted [Spotify tester link](https://rudilopez.github.io/classtempo/#spotify-invite)
-once in the browser they plan to use. That browser then shows **Library → Spotify** on later visits. The link
+once in the browser they plan to use, or open **Library → Tester access** inside the installed app and enter
+**FAMILIA**. This nonsecret code reveals the same test interface in that installation; it is not Spotify account
+authorization. That browser or installation then shows **Library → Spotify** on later visits. The link
 reveals the interface; Spotify's approved-account list still controls who can connect. Forwarding the link
 does not grant Spotify account access. A bare `#spotify` or an existing sign-in does not unlock the interface.
 Spotify opens with its limitations first and offers Apple Music or an imported file as alternatives.
@@ -125,7 +129,8 @@ state. Disconnect clears the tab’s Spotify tokens, temporary lists and browser
 **Hide Spotify on this device** removes its visibility, disconnects this tab and returns to the local player;
 saved cues, local files, classes and Apple Music settings remain. Reopen the invitation to reveal Spotify again.
 Visibility normally survives reloads on that browser; private browsing or cleared/blocked storage may require
-opening the invitation again. No invitations are sent automatically.
+opening the invitation or entering the tester code again. Safari and an installed Home Screen app can have
+separate storage, so enable access in the installation that will be used. No invitations are sent automatically.
 Without a configured public client ID, the source still shows its limits and alternatives, with connection
 clearly unavailable. See [Spotify setup](docs/SPOTIFY_SETUP.md) and [connection privacy](apps/web/public/spotify-privacy.html).
 
@@ -164,7 +169,7 @@ Successful imports save a local media copy in IndexedDB. Library failures are re
 open a file directly, but a failed save does not make it available offline. Removing a saved copy leaves the
 original file and class entries intact; reimport the original to reconnect the entry.
 
-Library → **Backup & device storage** exports class sets, exercise names/notes, per-exercise settings, cues and per-track practice
+Library → **Saved files → Backup & device storage** exports class sets, exercise names/notes, per-exercise settings, cues and per-track practice
 settings as JSON. **The backup does not contain songs or videos.** Keep the originals separately. Restore adds
 missing items without overwriting existing settings, then import missing media and reload the current track.
 Apple Music cue bookmarks currently stay in this browser and are not included in that local-media backup.

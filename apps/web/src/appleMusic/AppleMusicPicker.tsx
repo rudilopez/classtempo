@@ -12,6 +12,8 @@ interface Props {
 export function AppleMusicPicker({ title, onClose, busy = false, children }: Props): React.ReactElement {
   const overlay = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const body = useRef<HTMLDivElement>(null);
   const latest = useRef({ onClose, busy });
   latest.current = { onClose, busy };
   useLayoutEffect(() => {
@@ -46,10 +48,14 @@ export function AppleMusicPicker({ title, onClose, busy = false, children }: Pro
       else document.querySelector<HTMLButtonElement>('.apple-music-app .dancer-transport button')?.focus();
     };
   }, []);
+  useLayoutEffect(() => {
+    body.current?.scrollTo(0, 0);
+    heading.current?.focus();
+  }, [title]);
   return createPortal(<div className="apple-music-overlay" ref={overlay}>
     <div className="apple-music-picker" ref={panel} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
-      <div className="apple-music-picker-heading"><h2>{title}</h2><button type="button" onClick={onClose} disabled={busy} aria-label={`Close ${title}`}>✕</button></div>
-      {children}
+      <div className="apple-music-picker-heading"><h2 ref={heading} tabIndex={-1}>{title}</h2><button type="button" onClick={onClose} disabled={busy} aria-label={`Close ${title}`}>✕</button></div>
+      <div className="apple-music-picker-body" ref={body}>{children}</div>
     </div>
   </div>, document.body);
 }

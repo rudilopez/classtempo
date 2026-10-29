@@ -47,8 +47,12 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
 - One player only: Open accepts audio/video and detects the actual file type. Library Add saves the selection
   and opens its first file paused. Picker cancellation preserves the track. Class Auto-next is off by default;
   Next & play is an explicit advance/start action, and Again restarts the current exercise.
-- Library has Media (all saved songs and videos) and Classes (ordered teaching plans). Search filters saved media, never music services. Failed saves may still
-  open directly, with explicit unsaved feedback; Save current must preserve playback and practice settings.
+- Library opens to a shared hub in every source: Your collection has Saved files (songs/videos on this device)
+  and Class plans (ordered teaching plans); Play from has the available streaming sources. Provider browsing has
+  a clear Back to Library action. Opening Library alone must not switch or stop Apple Music/Spotify playback;
+  YouTube still pauses/hides its iframe for covering dialogs. Search lives inside Saved files and filters filenames,
+  never music services. Add files saves and opens the first selection paused. Failed saves may still open directly,
+  with explicit unsaved feedback; Save current must preserve playback and practice settings.
 - Production uses `Engine.create({ dj: false })`. Do not initialize hidden DJ decks/processors as a side effect.
 - Cross-platform: feature-detect APIs and degrade honestly. Use generic wording such as lock-screen/headphone
   controls. Never claim physical iPhone playback, timer or lock-screen acceptance from desktop WebKit alone.
@@ -143,7 +147,9 @@ well; for phone-only behavior, record the limitation and keep physical-device ac
   with the persistent Local audio only label. Stems remains available for supported imported audio files;
   do not imply that subscription streams support separation or change local-player controls.
   Spotify is hidden from ordinary local/Apple Music libraries and the public guide. Only the unlisted
-  `#spotify-invite` link reveals it on that browser, persisting a nonsecret tester-visibility flag with a
+  `#spotify-invite` link or Library → Tester access with the nonsecret FAMILIA code reveals it in that browser
+  or Home Screen installation. The generic access form must not advertise Spotify before a valid code. Both
+  paths consume the same explicit invite route, persisting a nonsecret tester-visibility flag with a
   temporary-storage fallback and consuming the invite hash into `#spotify`. A bare `#spotify`, existing
   Spotify session or OAuth callback must never grant visibility. Gate routing before mounting the adapter;
   invited OAuth returns must still avoid initializing the local audio engine. This is UI discovery only,

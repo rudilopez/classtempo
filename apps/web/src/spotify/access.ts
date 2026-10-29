@@ -1,5 +1,10 @@
 export const SPOTIFY_TESTER_INVITE_HASH = '#spotify-invite';
 
+/** Nonsecret UI invitation, so installed apps can opt in without sharing a browser's storage. */
+export function isSpotifyTesterCode(value: string): boolean {
+  return value.trim().toUpperCase() === 'FAMILIA';
+}
+
 const ACCESS_KEY = 'classtempo.spotify.tester.v1';
 const ENABLED = '1';
 const DISABLED = '0';

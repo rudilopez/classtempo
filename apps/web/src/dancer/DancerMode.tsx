@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { analysis } from '../analysisClient';
 import { NowPlayingLabel, PlayerTransport } from '../components/PlayerChrome';
 import { Waveform, type WaveformMarker } from '../components/Waveform';
-import { LibraryModal } from '../library/LibraryModal';
+import { LibraryModal, type LibraryView } from '../library/LibraryModal';
 import { getMediaFile, listClasses, listMedia, markOpened, saveMedia, type ClassSet, type LibraryMedia } from '../library/store';
 import { ClassControls, type ClassControlsProps } from '../classes/ClassControls';
 import { findNextClassEntry, getClassEntryLabel, loadClassResume, preflightClassFiles, saveClassResume, type ClassResume } from '../classes/session';
@@ -57,6 +57,7 @@ export interface LocalPlayerRequest {
   id: number;
   file?: File;
   library?: boolean;
+  libraryView?: LibraryView;
 }
 
 /** The loaded song and its cues travel together so a cue save can never target the wrong track. */
@@ -142,6 +143,7 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
   const [tempo, setTempo] = useState(100);
   const [editing, setEditing] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryView, setLibraryView] = useState<LibraryView>('home');
   const [liveClass, setLiveClassState] = useState<LiveClass | null>(null);
   const liveClassRef = useRef<LiveClass | null>(null);
   const setLiveClass = (value: LiveClass | null) => { liveClassRef.current = value; setLiveClassState(value); };
@@ -1299,7 +1301,7 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
     if (request.file && (!stretch || loading || classBusy)) return;
     handledRequest.current = request.id;
     if (request.file) void loadFile(request.file);
-    else if (request.library) setLibraryOpen(true);
+    else if (request.library) { setLibraryView(request.libraryView ?? 'home'); setLibraryOpen(true); }
   }, [active, request, stretch, loading, classBusy]);
 
   const track = song?.track ?? null;
@@ -1376,7 +1378,7 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
       {actionsContainer && createPortal(<div className="dancer-actions" onKeyDown={(e) => e.stopPropagation()} onKeyUp={(e) => e.stopPropagation()}>
         <button onClick={() => fileInput.current?.click()} disabled={loading || classBusy}
           title="Open a song or video from Files or Photos">Open</button>
-        <button onClick={() => setLibraryOpen(true)} disabled={loading || classBusy} title="Saved songs, videos and classes">
+        <button onClick={() => { setLibraryView('home'); setLibraryOpen(true); }} disabled={loading || classBusy} title="Saved files, class plans and streaming sources">
           Library
         </button>
         {wakeLock.supported && (
@@ -1532,7 +1534,7 @@ export function DancerMode({ engine, active, actionsContainer, request }: Props)
         </div>
       </div>
 
-      <LibraryModal open={active && libraryOpen} onClose={() => setLibraryOpen(false)}
+      <LibraryModal open={active && libraryOpen} initialView={libraryView} onClose={() => setLibraryOpen(false)}
         onNotice={showToast}
         onTeachClass={teachClass} activeClassId={liveClass?.plan.id}
         currentFile={currentFile} currentTitle={track?.name ?? null}
