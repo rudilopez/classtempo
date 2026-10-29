@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AppleMusicPicker } from '../appleMusic/AppleMusicPicker';
 import { Wordmark, NowPlayingLabel, PlayerTransport } from '../components/PlayerChrome';
 import { CuePads, padColor } from '../dancer/CuePads';
@@ -6,7 +7,8 @@ import { CueStemsSwitch } from '../dancer/CueStemsSwitch';
 import { emptyCues, type CueSlots } from '../dancer/cueStore';
 import { ACCEPT_MEDIA } from '../dancer/media';
 import { createWakeLock } from '../platform/wakeLock';
-import { LibraryHome, type LibraryDestination } from '../library/LibraryHome';
+import { LibraryCapability } from '../library/LibraryCapability';
+import type { LibraryDestination, ProviderLibraryBridge } from '../library/navigation';
 import type { LibraryView } from '../library/LibraryModal';
 import { formatTime } from '../types';
 import { createYouTubePlayer, type YouTubePlayer, type YouTubeSnapshot } from './client';
@@ -19,6 +21,7 @@ import './youtube.css';
 
 interface Props {
   active: boolean;
+  library: ProviderLibraryBridge;
   onOpenFile: (file: File) => void;
   onOpenLocalLibrary: (view?: LibraryView) => void;
 }
@@ -41,15 +44,13 @@ function exitOwnedFullscreen(element: HTMLElement | null): void {
 }
 
 /** The official visible YouTube player owns audio, picture, controls and supported speeds. */
-export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Props): React.ReactElement {
+export default function YouTube({ active, library, onOpenFile }: Props): React.ReactElement {
   const [url, setUrl] = useState('');
   const [selected, setSelected] = useState<YouTubeVideo | null>(null);
   const [snapshot, setSnapshot] = useState<YouTubeSnapshot>(EMPTY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [pickerOpen, setPickerOpen] = useState(true);
-  const [libraryHome, setLibraryHome] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [rename, setRename] = useState<{ index: number; name: string } | null>(null);
@@ -76,7 +77,9 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
   const stageRef = useRef(stage);
   stageRef.current = stage;
   activeRef.current = active;
-  const modalOpen = pickerOpen || editing;
+  const libraryRef = useRef(library);
+  libraryRef.current = library;
+  const modalOpen = library.open || editing;
   modalRef.current = modalOpen;
   const [wakeLock] = useState(() => createWakeLock({ onChange: held => setScreenOn(held) }));
 
@@ -95,13 +98,17 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
     generation.current++; request.current?.abort(); request.current = null;
     player.current?.dispose(); player.current = null;
     setSnapshot(EMPTY); setLoading(false); setStage(false); setTray(null);
-    setEditing(false); setRename(null); setOptionsOpen(false); setLibraryHome(false); setPickerOpen(true);
+    setEditing(false); setRename(null); setOptionsOpen(false);
     setTalking(false); setScreenOn(false); void wakeLock.disable();
   }, [active, wakeLock]);
 
   useLayoutEffect(() => {
     if (modalOpen) { player.current?.pause(); setTalking(false); }
   }, [modalOpen]);
+
+  useEffect(() => {
+    if (library.open) { setEditing(false); setRename(null); setOptionsOpen(false); }
+  }, [library.open]);
 
   useEffect(() => {
     const hide = () => {
@@ -143,11 +150,15 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
   const ready = matching && snapshot.ready && !loading;
   const title = matching && snapshot.title ? snapshot.title : selected ? 'YouTube video' : 'Open a YouTube video';
 
+  useEffect(() => {
+    if (active) libraryRef.current.onSummary({ title, source: 'YouTube', playing });
+  }, [active, title, playing]);
+
   const leave = (next: () => void): void => {
     player.current?.pause(); setTalking(false); next();
   };
-  const showPicker = (home = false): void => {
-    player.current?.pause(); setTalking(false); setOptionsOpen(false); setLibraryHome(home); setPickerOpen(true);
+  const showLibrary = (destination?: LibraryDestination): void => {
+    player.current?.pause(); setTalking(false); setOptionsOpen(false); libraryRef.current.onOpen(destination);
   };
   const showOptions = (): void => {
     setOptionsOpen(!optionsOpen);
@@ -218,6 +229,7 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
   };
 
   async function openVideo(input = url): Promise<void> {
+    if (!activeRef.current) return;
     const video = parseYouTubeVideo(input);
     if (!video) { setError('Paste a YouTube video link, such as a watch, share or Shorts link.'); return; }
     const id = ++generation.current;
@@ -227,7 +239,7 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
     setError(''); setNotice(''); setLoading(true); setSnapshot(EMPTY);
     setSelected(video); setUrl(video.url);
     setCues(loadYouTubeCues(video.id, 0)); setUndo([]); setEditing(false); setRename(null);
-    setPickerOpen(false); modalRef.current = false; setOptionsOpen(false); setTalking(false);
+    modalRef.current = false; setOptionsOpen(false); setTalking(false);
     try {
       if (!host.current) throw new Error('The video player is not available. Reopen YouTube and try again.');
       const current = await createYouTubePlayer(host.current, next => {
@@ -275,13 +287,6 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
     return () => document.removeEventListener('keydown', keydown);
   }, [active]);
 
-  const chooseLibrary = (destination: LibraryDestination): void => {
-    if (destination === 'youtube') { setLibraryHome(false); return; }
-    if (destination === 'files' || destination === 'classes') {
-      leave(() => onOpenLocalLibrary(destination === 'files' ? 'media' : 'classes')); return;
-    }
-    leave(() => { window.location.hash = destination; });
-  };
   const supportedRates = [...new Set([...snapshot.rates, snapshot.rate])].sort((a, b) => a - b);
   const slower = supportedRates.filter(rate => rate < snapshot.rate).at(-1);
   const faster = supportedRates.find(rate => rate > snapshot.rate);
@@ -314,7 +319,7 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
     <div className={`app youtube-app ${stage ? 'youtube-stage' : ''} ${modalOpen ? 'youtube-modal-open' : ''}`} hidden={!active}>
       <header><Wordmark className="logo" /><div className="header-actions"><div className="dancer-actions">
         <button type="button" onClick={openFile}>Open</button>
-        <button type="button" onClick={() => showPicker(true)}>Library</button>
+        <button type="button" onClick={() => showLibrary()}>Library</button>
         {wakeLock.supported && <button type="button" className={`screen-on ${screenOn ? 'on' : ''}`} aria-pressed={screenOn} onClick={toggleWake} title="Prevents dimming and auto-lock while ClassTempo is visible">☀<span className="screen-on-label">Keep awake</span></button>}
       </div></div></header>
       <input ref={fileInput} type="file" accept={ACCEPT_MEDIA} hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) leave(() => onOpenFile(file)); }} />
@@ -324,7 +329,7 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
           <div className="youtube-now"><div><NowPlayingLabel /><strong title={title}>{title}</strong></div><a href={selected?.url ?? 'https://www.youtube.com/'} target="_blank" rel="noopener noreferrer">YouTube ↗</a></div>
           <div className="youtube-picture">
             <div className="youtube-host" ref={host} />
-            {!selected && <div className="youtube-empty"><span aria-hidden="true">▶</span><button type="button" onClick={() => showPicker()}>Paste a YouTube link</button><p>Open a video, then press Play.</p></div>}
+            {!selected && <div className="youtube-empty"><span aria-hidden="true">▶</span><button type="button" onClick={() => showLibrary('youtube')}>Paste a YouTube link</button><p>Open a video, then press Play.</p></div>}
           </div>
           <div className="youtube-timeline"><span>{formatTime(position)} / {formatTime(duration)}</span><input type="range" aria-label="Video position" min="0" max={Math.max(1, duration)} step="0.1" value={Math.min(position, Math.max(1, duration))} disabled={!ready || duration <= 0} onChange={event => seek(Number(event.target.value))} /></div>
         </div>
@@ -342,7 +347,7 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
           <p>Your video stays open while you use these options. Talk quiets the audio while the video continues.</p>
           <details><summary>Playback &amp; source limits</summary><p>YouTube controls the available speeds, ads and video availability. Keep the app open; playback pauses when you hide the app or change sources. Practice, class plans, Stems, mirroring and offline playback use imported files.</p></details>
           <div className="youtube-options-links">{selected && <a href={selected.url} target="_blank" rel="noopener noreferrer">Open this video on YouTube ↗</a>}<a href={PRIVACY_PAGE} target="_blank" rel="noopener noreferrer">YouTube privacy ↗</a></div>
-          <button type="button" onClick={() => showPicker()}>Choose another YouTube video</button>
+          <button type="button" onClick={() => showLibrary('youtube')}>Choose another YouTube video</button>
         </section>
         <div className="youtube-cues-heading" hidden={stage || optionsOpen}><CueStemsSwitch value="cues" onChange={() => {}} stemsDisabled />
           {undo.length > 0 && <button type="button" disabled={!ready} onClick={() => { const previous = undo[undo.length - 1]; if (previous) { changeCues(previous, false); setUndo(items => items.slice(0, -1)); } }}>Undo</button>}
@@ -355,20 +360,24 @@ export default function YouTube({ active, onOpenFile, onOpenLocalLibrary }: Prop
         </div>}
       </section></main>
     </div>
-    {active && pickerOpen && <AppleMusicPicker title={libraryHome ? 'Library' : 'YouTube'} onClose={() => setPickerOpen(false)}>
-      {libraryHome ? <><LibraryHome onChoose={chooseLibrary} onOpenFile={openFile} /><a className="library-guide-link" href={`${import.meta.env.BASE_URL}guide.html`} target="_blank" rel="noopener noreferrer">How to use ClassTempo ↗</a></> : <>
-      <button type="button" className="library-source-back" onClick={() => setLibraryHome(true)}>← Back to Library</button>
-      <form className="youtube-open-form" onSubmit={event => { event.preventDefault(); void openVideo(); }}>
+    {library.visible && library.host && createPortal(<div className="library-provider-browser youtube-library-browser">
+      <LibraryCapability destination="youtube" />
+      <form className="youtube-open-form" onSubmit={event => {
+        event.preventDefault();
+        // Validate before changing the active source or closing Library.
+        const video = parseYouTubeVideo(url);
+        if (!video) { setError('Paste a YouTube video link, such as a watch, share or Shorts link.'); return; }
+        libraryRef.current.onActivate(() => { void openVideo(video.url); });
+      }}>
         <h3>Open a YouTube video</h3><p>Paste a video link from YouTube or its Share button. It opens paused.</p>
         <label>YouTube link<input type="text" inputMode="url" value={url} onChange={event => setUrl(event.target.value)} maxLength={2048} placeholder="https://youtu.be/…" autoComplete="off" autoCapitalize="none" spellCheck={false} /></label>
         {error && <p className="apple-music-error" role="alert">{error}</p>}
         <button type="submit" className="apple-music-primary" disabled={!url.trim() || loading}>Open video</button>
       </form>
-      <p className="apple-music-limits">Opening a video connects to YouTube. No ClassTempo key or YouTube account is required. Videos may contain ads or be unavailable for embedding.</p>
-      <p className="apple-music-limits">Cues and YouTube-supported speeds are available. Practice, classes, Stems and offline playback use imported files. <a href={PRIVACY_PAGE} target="_blank" rel="noopener noreferrer">YouTube privacy ↗</a></p>
-      </>}
-    </AppleMusicPicker>}
-    {active && editing && <AppleMusicPicker title="Edit YouTube cues" onClose={() => { setEditing(false); setRename(null); }}>
+      <p className="apple-music-limits">Cues and YouTube-supported speeds are available. Practice, Stems and offline playback use imported files.</p>
+      <p className="apple-music-limits">Opening a video connects to YouTube. No ClassTempo key or YouTube account is required. Videos may contain ads or be unavailable for embedding. <a href={PRIVACY_PAGE} target="_blank" rel="noopener noreferrer">YouTube privacy ↗</a></p>
+    </div>, library.host)}
+    {active && editing && !library.open && <AppleMusicPicker title="Edit YouTube cues" onClose={() => { setEditing(false); setRename(null); }}>
       <p className="apple-music-limits">Tap a pad to move it to {formatTime(position)}. Rename or clear a saved cue below.</p>
       <div className="youtube-edit-cues"><CuePads cues={cues} editing disabled={!ready} onPress={pressCue} onClear={index => changeCues(cues.map((cue, slot) => slot === index ? null : cue))} onRename={index => setRename({ index, name: cues[index]?.name ?? '' })} /></div>
       {rename && <form className="apple-music-rename" onSubmit={event => { event.preventDefault(); const name = rename.name.trim().slice(0, 40); if (!name) return; changeCues(cues.map((cue, slot) => slot === rename.index && cue ? { ...cue, name } : cue)); setRename(null); }}>

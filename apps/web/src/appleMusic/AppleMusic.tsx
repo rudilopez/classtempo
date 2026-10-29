@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { getAppleMusicConfig } from './config';
 import {
   libraryPlaylists, librarySongs, loadMusicKit, loadSelected, playlistSongs, searchSongs, snapshot,
@@ -18,7 +19,8 @@ import { createAppleMusicTransport } from './transport';
 import { TempoTrial } from './TempoTrial';
 import { saveCleanRestart, takeCleanRestart } from './cleanRestart';
 import { TempoControl } from '../dancer/TempoControl';
-import { LibraryHome, type LibraryDestination } from '../library/LibraryHome';
+import { LibraryCapability } from '../library/LibraryCapability';
+import type { ProviderLibraryBridge } from '../library/navigation';
 import type { LibraryView } from '../library/LibraryModal';
 import '../shell.css';
 import '../dancer/dancer.css';
@@ -33,12 +35,18 @@ const quietPause = (music: MusicKitInstance, stop = false): void => {
 };
 
 interface Props {
+  active: boolean;
+  library: ProviderLibraryBridge;
   onOpenFile: (file: File) => void;
   onOpenLocalLibrary: (view?: LibraryView) => void;
 }
 
 /** The ClassTempo player presentation, with Apple owning the protected streaming transport. */
-export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): React.ReactElement {
+export default function AppleMusic({ active, library, onOpenFile, onOpenLocalLibrary }: Props): React.ReactElement {
+  const activeRef = useRef(active);
+  const libraryRef = useRef(library);
+  activeRef.current = active;
+  libraryRef.current = library;
   const [instance, setInstance] = useState<MusicKitInstance | null>(null);
   const [setup, setSetup] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [retry, setRetry] = useState(0);
@@ -56,8 +64,6 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   const [playback, setPlayback] = useState<Playback>(EMPTY);
   const [selected, setSelected] = useState<MusicTrack | null>(null);
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(true);
-  const [libraryHome, setLibraryHome] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
   const [seeking, setSeeking] = useState(false);
   const [seekRecovery, setSeekRecovery] = useState(false);
@@ -81,6 +87,18 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   const accountPending = useRef(false);
   const expiresAt = useRef(0);
 
+  useEffect(() => {
+    if (active) return;
+    transport.current++;
+    // Pause invalidates deferred Play/seek intent while retaining the selected
+    // tempo and a paused cue offset. cancel() would discard both.
+    try { void Promise.resolve(transportPlayer?.pause()).catch(() => {}); } catch { /* Source suspension must not throw. */ }
+    setSeeking(false); setSeekRecovery(false);
+    setStageOpen(false); setRename(null); setEditing(false); setTalking(false);
+    talkWasPlaying.current = false;
+    void wakeLock.disable();
+  }, [active, transportPlayer, wakeLock]);
+
   useEffect(() => () => { transportPlayer?.dispose(); }, [transportPlayer]);
   useEffect(() => {
     if (!notice) return;
@@ -91,9 +109,9 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   useEffect(() => {
     if (!seeking) { setSeekRecovery(false); return; }
     const timeout = window.setTimeout(() => {
-      if (!transportPlayer?.seeking) return;
+      if (!activeRef.current || !transportPlayer?.seeking) return;
       transport.current++; transportPlayer?.cancel();
-      setSeekRecovery(true); setStageOpen(false); setPickerOpen(true);
+      setSeekRecovery(true); setStageOpen(false); libraryRef.current.onOpen('apple-music');
       setError('Apple Music is taking longer to seek. Reload the connection, or choose another source from Library.');
     }, 15_000);
     return () => window.clearTimeout(timeout);
@@ -117,7 +135,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       if (disposed) return;
       // Only the live setup consumes this one-shot handoff: StrictMode's discarded
       // setup must not take it. The fresh document has never mounted the local engine.
-      const restartTrack = takeCleanRestart();
+      const restartTrack = activeRef.current ? takeCleanRestart() : null;
       if (restartTrack) {
         if (!music.isAuthorized) {
           setNotice('Reconnect to Apple Music, then choose the song again. Playback has not started.');
@@ -126,11 +144,12 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
           try {
             await loadSelected(music, restartTrack);
             if (disposed) { quietPause(music, true); return; }
+            if (!activeRef.current) quietPause(music);
             const next = snapshot(music);
             setSelected(restartTrack);
             setCues(loadAppleMusicCues(restartTrack, next.duration || restartTrack.durationSeconds || 0));
             setUndoCues([]); setEditing(false); setTalking(false); setStageOpen(false);
-            setPickerOpen(false);
+            if (activeRef.current) libraryRef.current.onActivate(() => {});
           } catch {
             if (!disposed) setError('Apple Music restarted, but the song could not reopen. Choose it again from Library.');
           } finally { if (!disposed) setBusy(false); }
@@ -156,7 +175,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
     const clearAccount = () => {
       requests.current++; transport.current++; transportPlayer?.cancel();
       setTracks([]); setPlaylists([]); setPlaylist(null); setSelected(null); setSearched(false);
-      setCues(emptyCues()); setUndoCues([]); setEditing(false); setRename(null); setStageOpen(false); setTalking(false); setPickerOpen(true);
+      setCues(emptyCues()); setUndoCues([]); setEditing(false); setRename(null); setStageOpen(false); setTalking(false);
       if (!accountPending.current) setBusy(false);
       setLoading(false);
     };
@@ -164,13 +183,14 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
       const next = snapshot(instance);
       if (wasAuthorized && !next.isAuthorized) clearAccount();
       wasAuthorized = next.isAuthorized;
-      setPlayback(next); setSeeking(transportPlayer?.seeking ?? false);
+      setPlayback(next); setSeeking(activeRef.current && (transportPlayer?.seeking ?? false));
       if (!expired && expiresAt.current <= Date.now() / 1000 + 60) {
         expired = true;
         setAccessExpired(true);
         requests.current++; transport.current++; accountOperation.current++;
         accountPending.current = false; setBusy(false); setLoading(false);
-        transportPlayer?.cancel(); quietPause(instance); setRename(null); setStageOpen(false); setPickerOpen(true);
+        transportPlayer?.cancel(); quietPause(instance); setRename(null); setStageOpen(false);
+        if (activeRef.current) libraryRef.current.onOpen('apple-music');
         setError('Apple Music access needs to be renewed. Return to local files, or reopen this screen after the app is updated.');
       }
     };
@@ -248,31 +268,34 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   };
 
   const choose = async (track: MusicTrack): Promise<void> => {
-    if (!instance || busy || accessExpired || accountPending.current || transportPlayer?.seeking) return;
+    if (!activeRef.current || !instance || busy || accessExpired || accountPending.current || transportPlayer?.seeking) return;
     const id = ++transport.current;
     transportPlayer?.cancel();
     setBusy(true); setError(''); setNotice('');
     try {
       await loadSelected(instance, track);
-      if (id !== transport.current || !alive.current) { quietPause(instance); return; }
+      if (id !== transport.current || !alive.current || !activeRef.current) { quietPause(instance); return; }
       const next = snapshot(instance);
       setSelected(track); setPlayback(next);
       setCues(loadAppleMusicCues(track, next.duration || track.durationSeconds || 0));
       setUndoCues([]); setEditing(false); setTalking(false); setStageOpen(false);
-      setNotice(''); setPickerOpen(false);
+      setNotice('');
     } catch {
-      if (id === transport.current && alive.current) { setSelected(null); setError('This song could not be opened. Try another song or check your Apple Music subscription.'); }
-    } finally { if (id === transport.current && alive.current) setBusy(false); }
+      if (id === transport.current && alive.current && activeRef.current) {
+        setSelected(null); setError('This song could not be opened. Try another song or check your Apple Music subscription.');
+        libraryRef.current.onOpen('apple-music');
+      }
+    } finally { if (alive.current) setBusy(accountPending.current); }
   };
 
   const action = (operation: () => void | Promise<unknown>): void => {
-    if (!instance || !playback.isAuthorized || accessExpired || accountPending.current) return;
+    if (!activeRef.current || !instance || !playback.isAuthorized || accessExpired || accountPending.current) return;
     setError(''); setNotice('');
     const id = ++transport.current;
     try {
       // Play/seek is invoked before any await, preserving the original gesture.
       void Promise.resolve(operation()).catch(() => {
-        if (alive.current && id === transport.current) setError('Playback did not complete that action. Try Play again, or choose another song.');
+        if (alive.current && id === transport.current && activeRef.current) setError('Playback did not complete that action. Try Play again, or choose another song.');
       });
       setPlayback(snapshot(instance));
     } catch { setError('This playback control is not available right now. Try Play again.'); }
@@ -283,11 +306,14 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   const position = Math.max(0, Math.min(duration, transportPlayer?.preparedPosition ?? playback.currentTime));
   const shownTrack = selected;
   const artworkUrl = shownTrack?.artworkUrl !== failedArtworkUrl ? shownTrack?.artworkUrl : undefined;
-  const blocked = busy || seeking || setup !== 'ready' || !hasSong;
-  const playDisabled = busy || !hasSong || (seeking && !playback.isPlaying);
+  const blocked = !active || busy || seeking || setup !== 'ready' || !hasSong;
+  const playDisabled = !active || busy || !hasSong || (seeking && !playback.isPlaying);
   const tempoPercent = Math.round((transportPlayer?.requestedRate ?? 1) * 100);
+  useEffect(() => {
+    if (active) libraryRef.current.onSummary({ title: shownTrack?.name || 'No song open', source: 'Apple Music', playing: playback.isPlaying });
+  }, [active, shownTrack?.name, playback.isPlaying]);
   const cleanRestart = (): boolean => {
-    if (!instance || !selected || blocked || accountPending.current) return false;
+    if (!activeRef.current || !instance || !selected || blocked || accountPending.current) return false;
     // Preserve the selection before interrupting playback. Storage failure must not
     // turn a diagnostic action into a lost song or an unannounced source switch.
     if (!saveCleanRestart(selected)) return false;
@@ -304,34 +330,34 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
     }
   };
   const changeTempo = (percent: number): void => {
-    if (!transportPlayer || blocked || transportPlayer.seeking) return;
+    if (!activeRef.current || !transportPlayer || blocked || transportPlayer.seeking) return;
     action(() => transportPlayer.setTempoRate(percent / 100));
   };
 
   const togglePlay = (): void => {
-    if (!transportPlayer || !hasSong || busy) return;
+    if (!activeRef.current || !transportPlayer || !hasSong || busy) return;
     setTalking(false);
     if (playback.isPlaying) { action(() => transportPlayer.pause()); }
     else if (!seeking && !transportPlayer.seeking) action(() => transportPlayer.play());
   };
   const seek = (seconds: number): void => {
-    if (!transportPlayer || blocked || transportPlayer.seeking || !Number.isFinite(seconds)) return;
+    if (!activeRef.current || !transportPlayer || blocked || transportPlayer.seeking || !Number.isFinite(seconds)) return;
     setTalking(false); setSeeking(true); setSeekRecovery(false);
     const id = ++transport.current;
     setError(''); setNotice('');
     const target = Math.max(0, Math.min(duration, seconds));
     void transportPlayer.seek(target, selected ? { id: selected.id, durationSeconds: duration } : undefined).then(() => {
-      if (!alive.current || id !== transport.current || !instance) return;
+      if (!alive.current || id !== transport.current || !activeRef.current || !instance) return;
       setPlayback(snapshot(instance));
     }).catch(() => {
-      if (alive.current && id === transport.current) setError('Could not move to that position. Try again while connected.');
+      if (alive.current && id === transport.current && activeRef.current) setError('Could not move to that position. Try again while connected.');
     }).finally(() => {
-      if (!alive.current || id !== transport.current) return;
+      if (!alive.current || id !== transport.current || !activeRef.current) return;
       setSeeking(transportPlayer.seeking); setSeekRecovery(false);
     });
   };
   const changeCues = (next: CueSlots, remember = true): boolean => {
-    if (!selected || !hasSong || blocked) return false;
+    if (!activeRef.current || !selected || !hasSong || blocked) return false;
     if (remember) setUndoCues((previous) => [...previous.slice(-9), cues]);
     setCues(next);
     const saved = saveAppleMusicCues(selected, duration, next);
@@ -339,7 +365,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
     return saved;
   };
   const pressCue = (index: number): void => {
-    if (blocked || !selected) return;
+    if (!activeRef.current || blocked || !selected) return;
     const cue = cues[index];
     if (!cue || editing) {
       const saved = changeCues(cues.map((item, slot) => slot === index ? { time: position, name: item?.name || `Cue ${index + 1}` } : item));
@@ -347,7 +373,7 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
     } else seek(cue.time);
   };
   const toggleTalk = (): void => {
-    if (!transportPlayer || blocked) return;
+    if (!activeRef.current || !transportPlayer || blocked) return;
     if (talking) {
       setTalking(false);
       if (talkWasPlaying.current) action(() => transportPlayer.play());
@@ -358,20 +384,24 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
   };
   const openFile = (): void => fileInput.current?.click();
   const toggleWake = (): void => {
+    if (!activeRef.current) return;
     if (screenOn) { setScreenOn(false); void wakeLock.disable(); }
-    else void wakeLock.enable().then(setScreenOn);
+    else void wakeLock.enable().then((held) => {
+      if (activeRef.current) setScreenOn(held);
+      else void wakeLock.disable();
+    });
   };
   const closeStage = (): void => {
     setStageOpen(false);
-    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.apple-music-app .stage-open')?.focus());
+    requestAnimationFrame(() => { if (activeRef.current) document.querySelector<HTMLButtonElement>('.apple-music-app .stage-open')?.focus(); });
   };
-  const keyActions = useRef({ pickerOpen, renameOpen: !!rename, stageOpen, cues, pressCue, seek, togglePlay });
-  keyActions.current = { pickerOpen, renameOpen: !!rename, stageOpen, cues, pressCue, seek, togglePlay };
+  const keyActions = useRef({ pickerOpen: library.open, renameOpen: !!rename, stageOpen, cues, pressCue, seek, togglePlay });
+  keyActions.current = { pickerOpen: library.open, renameOpen: !!rename, stageOpen, cues, pressCue, seek, togglePlay };
   useEffect(() => {
     let handledSpace = false;
     const onKeyDown = (event: KeyboardEvent): void => {
       const latest = keyActions.current;
-      if (event.defaultPrevented || latest.pickerOpen || latest.renameOpen || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (!activeRef.current || event.defaultPrevented || latest.pickerOpen || latest.renameOpen || event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target instanceof Element ? event.target : null;
       if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .dancer-actions, .resume-audio')) return;
       // Focused controls keep their native Space/Home behavior. Stage additionally
@@ -399,19 +429,11 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
     return () => { window.removeEventListener('keydown', onKeyDown); window.removeEventListener('keyup', onKeyUp); };
   }, []);
   const feedback = <>{error && <p className="apple-music-error" role="alert">{error}</p>}{notice && <p className="apple-music-notice" role="status">{notice}</p>}</>;
-  const chooseLibrary = (destination: LibraryDestination): void => {
-    if (destination === 'apple-music') { setLibraryHome(false); return; }
-    if (destination === 'files' || destination === 'classes') {
-      onOpenLocalLibrary(destination === 'files' ? 'media' : 'classes'); return;
-    }
-    window.location.hash = destination;
-  };
-
   return <>
-    <div className="app apple-music-app">
+    <div className="app apple-music-app" hidden={!active}>
       <header><div className="head-left"><Wordmark className="logo" /></div><div className="header-actions"><div className="dancer-actions">
         <button type="button" onClick={openFile} disabled={busy} title="Open a song or video file">Open</button>
-        <button type="button" onClick={() => { setLibraryHome(true); setPickerOpen(true); }} disabled={busy} title="Saved files, class plans and streaming sources">Library</button>
+        <button type="button" onClick={() => library.onOpen()} disabled={busy} title="Saved files, class plans and streaming sources">Library</button>
         {wakeLock.supported && <button type="button" className={`screen-on ${screenOn ? 'on' : ''}`} onClick={toggleWake} aria-pressed={screenOn} aria-label="Keep awake" title="Prevents dimming and auto-lock while ClassTempo is visible">
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
           <span className="screen-on-label">Keep awake</span>
@@ -425,29 +447,29 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
             <div className="dancer-track-info"><NowPlayingLabel /><div className="dancer-track-title" title={shownTrack?.name}>{busy ? 'Opening song…' : shownTrack?.name ?? 'Choose a song from your library'}</div>{shownTrack && <div className="apple-music-artist">{shownTrack.artist}</div>}</div>
             <div className="apple-music-artwork">
               {artworkUrl ? <img src={artworkUrl} alt={`${shownTrack?.album || shownTrack?.name} artwork`} onError={() => setFailedArtworkUrl(artworkUrl)} /> : <span aria-hidden="true">♫</span>}
-              {!hasSong && <button type="button" onClick={() => { setLibraryHome(false); setPickerOpen(true); }}>Choose Apple Music song</button>}
+              {!hasSong && <button type="button" onClick={() => library.onOpen('apple-music')}>Choose Apple Music song</button>}
             </div>
             <div className="apple-music-timeline"><input type="range" min="0" max={Math.max(1, duration)} step="1" value={position} aria-label="Song position" disabled={blocked || !duration} onChange={(event) => seek(Number(event.target.value))} /></div>
           </div>
           <PlayerTransport playing={playback.isPlaying} disabled={blocked} playDisabled={playDisabled} onTogglePlay={togglePlay} onRestart={() => seek(0)} onStage={() => { setEditing(false); setStageOpen(true); }} />
           <div className="class-tempo-panel apple-music-tools">
             <TempoControl value={tempoPercent} onChange={changeTempo} disabled={blocked} inputId="apple-music-tempo" keyLocked={false} />
-            <div className="apple-music-tool-buttons"><button type="button" disabled={blocked} onClick={() => seek(position - 10)}>↶ Back 10s</button><button type="button" disabled={blocked} className={talking ? 'on' : ''} aria-pressed={talking} title="Pause while you speak; tap again to resume" onClick={toggleTalk}>{talking ? 'Finish talking' : 'Talk'}</button><TempoTrial instance={instance} trackId={selected?.id ?? null} requestedRate={transportPlayer?.requestedRate ?? 1} playing={playback.isPlaying} seeking={seeking} onCleanRestart={cleanRestart} restartDisabled={blocked} /></div>
+            <div className="apple-music-tool-buttons"><button type="button" disabled={blocked} onClick={() => seek(position - 10)}>↶ Back 10s</button><button type="button" disabled={blocked} className={talking ? 'on' : ''} aria-pressed={talking} title="Pause while you speak; tap again to resume" onClick={toggleTalk}>{talking ? 'Finish talking' : 'Talk'}</button>{active && <TempoTrial instance={instance} trackId={selected?.id ?? null} requestedRate={transportPlayer?.requestedRate ?? 1} playing={playback.isPlaying} seeking={seeking} onCleanRestart={cleanRestart} restartDisabled={blocked} />}</div>
           </div>
           <div className={`cues ${undoCues.length ? 'has-undo' : ''}`}>
             <div className="cues-head"><CueStemsSwitch value="cues" onChange={() => {}} stemsDisabled /><span className="cues-hint">{editing ? 'Tap to move' : 'Tap empty to set'}</span>{undoCues.length > 0 && <button type="button" className="cues-undo" disabled={blocked} onClick={() => { const previous = undoCues[undoCues.length - 1]; if (previous) { changeCues(previous, false); setUndoCues((items) => items.slice(0, -1)); } }}>Undo</button>}<button type="button" disabled={blocked} onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit cues'}</button></div>
             <CuePads cues={cues} launchLabel="Go to cue" editing={editing} disabled={blocked} onPress={pressCue} onClear={(index) => changeCues(cues.map((cue, slot) => slot === index ? null : cue))} onRename={(index) => setRename({ index, name: cues[index]?.name || '' })} />
             <p className="apple-music-cue-help">Cues keep playing or stay paused.</p>
           </div>
-          <div className="apple-music-capabilities">{!pickerOpen && (error || notice || seeking) ? <div className="apple-music-feedback">{feedback}{seeking && !error && <p role="status">Moving to position…</p>}</div> : <p>Practice and Stems use <button type="button" onClick={openFile} disabled={busy}>local files</button>.</p>}</div>
+          <div className="apple-music-capabilities">{!library.open && (error || notice || seeking) ? <div className="apple-music-feedback">{feedback}{seeking && !error && <p role="status">Moving to position…</p>}</div> : <p>Practice and Stems use <button type="button" onClick={() => onOpenLocalLibrary('media')} disabled={busy}>local files</button>.</p>}</div>
         </section>
       </main>
     </div>
-    {pickerOpen && <AppleMusicPicker title={libraryHome ? 'Library' : 'Apple Music'} onClose={() => setPickerOpen(false)} busy={busy}>
-      {libraryHome ? <><LibraryHome onChoose={chooseLibrary} onOpenFile={openFile} disabled={busy || seeking} /><a className="library-guide-link" href={`${import.meta.env.BASE_URL}guide.html`} target="_blank" rel="noopener noreferrer">How to use ClassTempo ↗</a></> : <>
-      <button type="button" className="library-source-back" disabled={busy} onClick={() => setLibraryHome(true)}>← Back to Library</button>
+    {library.visible && library.host && createPortal(<section className="apple-music-library" aria-label="Apple Music library">
+      <h3>Apple Music</h3>
+      <LibraryCapability destination="apple-music" />
       <div className="apple-music-account"><span>{playback.isAuthorized ? 'Connected to Apple Music' : 'Apple Music'}</span>{playback.isAuthorized && <button type="button" onClick={disconnect} disabled={busy || seeking}>Disconnect</button>}</div>
-      <p className="apple-music-limits">Stream with your Apple Music subscription. Internet required. Practice, Stems and classes use local files.</p>
+      <p className="apple-music-limits">Stream with your Apple Music subscription. Internet required.</p>
       {feedback}
       {setup === 'loading' && <div><p role="status">Opening Apple Music…</p><button type="button" onClick={() => window.location.reload()}>Reload connection</button></div>}
       {(accessExpired || seekRecovery) && <button type="button" onClick={() => window.location.reload()}>Reload connection</button>}
@@ -462,23 +484,22 @@ export default function AppleMusic({ onOpenFile, onOpenLocalLibrary }: Props): R
         </div>
         {view === 'search' && <form className="apple-music-search" onSubmit={(event) => { event.preventDefault(); void browse('search'); }}><label htmlFor="apple-music-search">Search Apple Music<input id="apple-music-search" type="search" value={query} maxLength={200} onChange={(event) => setQuery(event.target.value)} placeholder="Song or artist" autoComplete="off" /></label><button type="submit" disabled={!query.trim() || loading}>Search</button></form>}
         {playlist && <button className="apple-music-playlist-back" type="button" onClick={() => void browse('playlists')}>← All playlists</button>}
-        {playlist && <h3>{playlist.name}</h3>}
+        {playlist && <div><h3>{playlist.name}</h3><p className="apple-music-limits">Choose one song to open paused. Manage this playlist in the Apple Music app.</p></div>}
         <div className="apple-music-results" aria-busy={loading}>
           {loading ? <p role="status">Loading…</p> : <>
-            {tracks.length > 0 && <ul>{tracks.map((track) => <li key={`${track.type}:${track.id}`}><button type="button" disabled={busy || seeking} onClick={() => void choose(track)} aria-label={`Open ${track.name} by ${track.artist}`}>
+            {tracks.length > 0 && <ul>{tracks.map((track) => <li key={`${track.type}:${track.id}`}><button type="button" disabled={busy || seeking || !!transportPlayer?.seeking} onClick={() => library.onActivate(() => { void choose(track); })} aria-label={`Open ${track.name} by ${track.artist}`}>
               {track.artworkUrl ? <img src={track.artworkUrl} alt="" width="48" height="48" loading="lazy" /> : <span className="apple-music-art-placeholder" aria-hidden="true">♫</span>}
               <span><strong>{track.name}</strong><small>{track.artist}{track.album ? ` · ${track.album}` : ''}</small></span><span aria-hidden="true">›</span>
             </button></li>)}</ul>}
-            {playlists.length > 0 && <ul>{playlists.map((item) => <li key={item.id}><button type="button" onClick={() => void browse('playlists', item)}><span className="apple-music-art-placeholder" aria-hidden="true">≡</span><span><strong>{item.name}</strong><small>Open playlist</small></span><span aria-hidden="true">›</span></button></li>)}</ul>}
+            {playlists.length > 0 && <ul>{playlists.map((item) => <li key={item.id}><button type="button" onClick={() => void browse('playlists', item)}><span className="apple-music-art-placeholder" aria-hidden="true">≡</span><span><strong>{item.name}</strong><small>Browse songs</small></span><span aria-hidden="true">›</span></button></li>)}</ul>}
             {searched && !tracks.length && !playlists.length && !error && <p>No {view === 'playlists' && !playlist ? 'playlists' : 'songs'} found.{view === 'search' ? ' Try a different song or artist.' : ''}</p>}
             {!searched && <p>Find a song, then tap it to open in the player.</p>}
             {(tracks.length > 0 || playlists.length > 0) && <p className="apple-music-list-note">Showing the first 25 {view === 'playlists' && !playlist ? 'playlists' : 'songs'}.</p>}
           </>}
         </div>
       </section>}
-      </>}
-    </AppleMusicPicker>}
-    {rename && <AppleMusicPicker title="Rename cue" onClose={() => setRename(null)}><form className="apple-music-rename" onSubmit={(event) => { event.preventDefault(); const name = rename.name.trim().slice(0, 40); if (!name) return; changeCues(cues.map((cue, index) => index === rename.index && cue ? { ...cue, name } : cue)); setRename(null); }}><label>Cue name<input value={rename.name} maxLength={40} onChange={(event) => setRename({ ...rename, name: event.target.value })} /></label><button type="submit" disabled={!rename.name.trim()}>Save name</button></form></AppleMusicPicker>}
-    {stageOpen && hasSong && shownTrack && <StageView video={null} aspect={null} title={shownTrack.name} artworkUrl={shownTrack.artworkUrl} artist={shownTrack.artist} playing={playback.isPlaying} position={position} duration={duration} cues={cues} section="Apple Music" tempo={tempoPercent} onTempoChange={changeTempo} onTogglePlay={togglePlay} onRestart={() => seek(0)} onLaunch={(index) => { const cue = cues[index]; if (cue) seek(cue.time); }} onSetCue={pressCue} talking={talking} onToggleTalk={toggleTalk} onClose={closeStage} onSeek={seek} cueActionLabel="Go to" disabled={blocked} playDisabled={playDisabled} />}
+    </section>, library.host)}
+    {active && rename && <AppleMusicPicker title="Rename cue" onClose={() => setRename(null)}><form className="apple-music-rename" onSubmit={(event) => { event.preventDefault(); const name = rename.name.trim().slice(0, 40); if (!name) return; changeCues(cues.map((cue, index) => index === rename.index && cue ? { ...cue, name } : cue)); setRename(null); }}><label>Cue name<input value={rename.name} maxLength={40} onChange={(event) => setRename({ ...rename, name: event.target.value })} /></label><button type="submit" disabled={!rename.name.trim()}>Save name</button></form></AppleMusicPicker>}
+    {active && stageOpen && hasSong && shownTrack && <StageView video={null} aspect={null} title={shownTrack.name} artworkUrl={shownTrack.artworkUrl} artist={shownTrack.artist} playing={playback.isPlaying} position={position} duration={duration} cues={cues} section="Apple Music" tempo={tempoPercent} onTempoChange={changeTempo} onTogglePlay={togglePlay} onRestart={() => seek(0)} onLaunch={(index) => { const cue = cues[index]; if (cue) seek(cue.time); }} onSetCue={pressCue} talking={talking} onToggleTalk={toggleTalk} onClose={closeStage} onSeek={seek} cueActionLabel="Go to" disabled={blocked} playDisabled={playDisabled} />}
   </>;
 }
